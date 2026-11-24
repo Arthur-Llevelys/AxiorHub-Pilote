@@ -38,7 +38,9 @@ ROLES_PARTIES = {'client': 'Client', 'adverse': 'Partie adverse', 'conseil_adver
                  'expert': 'Expert', 'correspondant': 'Correspondant', 'autre': 'Autre',
                  # 5.6.98 (onglet Parties, ``fiche5698.GROUPES``) : rôles d'un logiciel de gestion de cabinet ; les anciens restent valables
                  'avocat_client': 'Avocat du client', 'avocat_postulant': 'Avocat postulant', 'commissaire_justice': 'Commissaire de justice',
-                 'mandataire_judiciaire': 'Mandataire ou administrateur judiciaire', 'notaire': 'Notaire', 'assureur': 'Assureur'}
+                 'mandataire_judiciaire': 'Mandataire ou administrateur judiciaire', 'notaire': 'Notaire', 'assureur': 'Assureur',
+                 # 5.6.109 (lot D, C11) : contrepartie d'un contrat et tiers intéressé — ni client ni adverse (groupe « Cocontractants et tiers »)
+                 'cocontractant': 'Cocontractant', 'tiers': 'Tiers'}
 STOCKAGE = {'a_preparer': 'Rangement en préparation', 'en_cours': 'Rangement en cours', 'pret': 'Rangement prêt',
             'en_attente': 'Rangement en attente', 'a_verifier': 'Rangement à vérifier'}
 CHAMPS_MODIFIABLES = ('titre', 'reference', 'client', 'client_etat', 'nature', 'statut', 'responsable', 'juridiction', 'rg', 'resume')

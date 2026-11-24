@@ -568,8 +568,16 @@ def _lock(key):
         return _LOCKS.setdefault(key, threading.Lock())
 
 
+RETENTION_MASQUES_JOURS = 365      # 5.6.109 (P06) : correspondances d'un compte sans usage de Claude depuis un an : retirées
+PURGE = '~purge'                   # ligne de repère laissée par une purge : dernier numéro employé d'une catégorie, sans aucune valeur
+
+
 class Masque:
-    """Pseudonymisation 5.4.0 dont la table de correspondance est conservée pour le compte (jamais transmise)."""
+    """Pseudonymisation 5.4.0 dont la table de correspondance est conservée pour le compte (jamais transmise).
+
+    5.6.109 (P03, P06) : un marqueur écrit tel quel dans un document part toujours sous sa forme distincte (« [LITTERAL_PERSONNE_1] ») : la
+    table étant stable d'une conversation à l'autre, un littéral ne doit jamais pouvoir être pris pour une personne, même plus tard ; un
+    numéro déjà employé — attribué, ou purgé — n'est jamais donné à quelqu'un d'autre. Seules les lignes du compte sont lues."""
 
     def __init__(self, desk, account, enabled):
         self.enabled = bool(enabled)
@@ -579,16 +587,30 @@ class Masque:
             return
         from .pseudo540 import Pseudonymizer
         self.ps = Pseudonymizer(desk.c)
+        self.ps.echapper_tout = True
         desk.db.execute(MASKS)
         for tok, cat, key, original in desk.db.execute('SELECT marqueur,categorie,cle,original FROM claude5675_masques WHERE compte=?', (self.account,)):
-            self.ps.adopt(tok, cat, original)   # 5.6.77 : clé recalculée (ordre des noms), homonymes
+            numero = re.fullmatch(r'\[[A-Z_]+_(\d{1,4})\]', str(tok))
+            if numero:
+                self.ps.plancher[cat] = max(self.ps.plancher.get(cat, 0), int(numero.group(1)))
             self.known.add(tok)
+            if key == PURGE or not original:
+                continue                        # repère d'une purge : le numéro reste pris, plus rien n'est rétabli
+            self.ps.adopt(tok, cat, original)   # 5.6.77 : clé recalculée (ordre des noms), homonymes
 
     def out(self, value):
         return self.ps.apply(value) if self.enabled else value
 
     def inp(self, value):
-        return self.ps.restore_value(value) if self.enabled else value
+        if not self.enabled:
+            return value
+        from .pseudo540 import TOKEN, _chaines
+        # marqueurs inconnus écrits par Claude lui-même : renvoyés tels quels dans le message qui les signale, jamais rétablis ni attribués
+        inconnus = {m.group(0) for s in _chaines(value) for m in TOKEN.finditer(s) if m.group(0) not in self.ps.back}
+        if inconnus:
+            self.ps.tolere = frozenset(self.ps.tolere | inconnus)
+            self.ps.litteraux |= inconnus
+        return self.ps.restore_value(value)
 
     def leftovers(self, text):
         """Marqueurs restés dans un texte après rétablissement (inventés ou inconnus) : signalés, jamais devinés."""
@@ -603,6 +625,90 @@ class Masque:
             self.desk.db.executemany('INSERT INTO claude5675_masques VALUES(?,?,?,?,?,?)', rows)
             self.desk.db.commit()
             self.known.update(r[1] for r in rows)
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.109 (P06) : conservation des correspondances
+def purger_masques(cible, compte):
+    """Retire les correspondances d'un compte (révocation de son dernier accès, compte resté sans usage). ``cible`` : connexion à la base
+    du bureau, ou répertoire d'état. Les valeurs d'origine sont effacées ; il reste, par catégorie, un repère sans valeur portant le dernier
+    numéro employé : un ancien marqueur encore dans la mémoire de Claude n'est alors plus rétabli (il est signalé « à vérifier »), et son
+    numéro n'est jamais donné à une autre personne. Rend le nombre de correspondances retirées ; rejouable."""
+    import sqlite3
+    from pathlib import Path
+    propre = None
+    db = cible
+    if isinstance(cible, (str, Path)):
+        chemin = Path(cible) / 'desk.sqlite3'
+        if not chemin.is_file():
+            return 0
+        db = propre = sqlite3.connect(str(chemin), timeout=10)
+    try:
+        if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='claude5675_masques'").fetchone():
+            return 0
+        lignes = db.execute('SELECT marqueur,categorie,original FROM claude5675_masques WHERE compte=?', (str(compte),)).fetchall()
+        retirees = sum(1 for l in lignes if l[2])
+        if not retirees:
+            return 0
+        dernier = {}
+        for marqueur, categorie, _original in lignes:
+            numero = re.fullmatch(r'\[[A-Z_]+_(\d{1,4})\]', str(marqueur))
+            if numero:
+                dernier[categorie] = max(dernier.get(categorie, 0), int(numero.group(1)))
+        db.execute('DELETE FROM claude5675_masques WHERE compte=?', (str(compte),))
+        db.executemany('INSERT INTO claude5675_masques VALUES(?,?,?,?,?,?)',
+                       [(str(compte), '[%s_%d]' % (cat, n), cat, PURGE, '', _iso()) for cat, n in sorted(dernier.items())])
+        db.commit()
+        return retirees
+    finally:
+        if propre is not None:
+            propre.close()
+
+
+def purger_inactifs(db, state_dir, jours=RETENTION_MASQUES_JOURS):
+    """Durée de conservation : comptes qui n'ont plus aucun accès Claude, ou dont aucun accès n'a servi depuis ``jours`` jours. ``db`` :
+    base des comptes (accès). Appelé à la révocation d'un accès et à l'enregistrement des réglages du cabinet ; jamais pendant une lecture."""
+    import sqlite3
+    from pathlib import Path
+    chemin = Path(state_dir) / 'desk.sqlite3'
+    if not chemin.is_file():
+        return 0
+    limite = _iso(_now() - timedelta(days=int(jours)))
+    actifs = {'u:%s' % r[0] for r in db.execute('SELECT user_id FROM claude5675_acces GROUP BY user_id HAVING MAX(MAX(last_used, created))>=?', (limite,))}
+    bureau = sqlite3.connect(str(chemin), timeout=10)
+    try:
+        if not bureau.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='claude5675_masques'").fetchone():
+            return 0
+        comptes = [r[0] for r in bureau.execute("SELECT DISTINCT compte FROM claude5675_masques WHERE original<>''")]
+        return sum(purger_masques(bureau, c) for c in comptes if c not in actifs)
+    finally:
+        bureau.close()
+
+
+def detail_appel(pseudo):
+    """Journal des appels : un appel servi en clair (exception admise par le cabinet) est noté comme tel."""
+    return '' if pseudo else 'en clair'
+
+
+def distinction_html():
+    """Deux usages de Claude à ne pas confondre : l'API (dans AxiorHub) et ce connecteur (dans Claude)."""
+    return ('<div class="cl75-distinction" id="cl75-distinction"><h3>API Claude ou connecteur : deux choses différentes</h3><ul>'
+            '<li><strong>API Claude</strong> (modèle choisi dans AxiorHub, Paramètres › Modèles d’IA) : vous travaillez dans AxiorHub ; la demande part '
+            'pseudonymisée, la réponse revient sur le serveur du cabinet et les noms y sont rétablis avant de vous être affichés.</li>'
+            '<li><strong>Connecteur Claude</strong> (cette rubrique) : vous travaillez dans Claude ; Claude ne voit et n’affiche que des marqueurs. '
+            'AxiorHub ne rétablit pas les noms dans la conversation de Claude, ni dans sa mémoire : il les rétablit seulement dans ce que Claude '
+            'dépose dans AxiorHub (brouillon, note, fait proposé).</li>'
+            '<li>Les deux se règlent séparément : autoriser un fournisseur d’API n’ouvre pas le connecteur, et l’inverse non plus. La table de '
+            'correspondance du connecteur est conservée sur le serveur, par compte, sans jamais être transmise ni exportée ; elle est retirée quand '
+            'le compte n’a plus aucune connexion Claude, ou après un an sans usage.</li></ul></div>')
+
+
+def alerte_clair_html(en_clair, imposee):
+    """Exception visible : une connexion qui reçoit les données en clair, quand le cabinet a laissé ce choix."""
+    if imposee or not en_clair:
+        return ''
+    return ('<p class="m5-warn" id="cl75-clair" role="status"><strong>Exception en clair :</strong> la pseudonymisation n’est pas imposée par le cabinet et '
+            'au moins une connexion Claude reçoit les noms, adresses et numéros en clair. Chaque appel servi ainsi est noté « en clair » dans le journal '
+            'des appels. Pour y mettre fin : « Pseudonymiser » sur la connexion, ou « imposée à tous les comptes » dans les réglages du cabinet.</p>')
 
 
 # ------------------------------------------------------------------------------------------------ contexte d'un appel
@@ -1190,7 +1296,12 @@ def instructions(pseudo):
                  '[REFERENCE_1]…). Conservez-les à l’identique (sans accord, traduction ni reformulation) dans vos réponses et dans ce que '
                  'vous déposez : AxiorHub rétablit les vraies données au dépôt. Ne cherchez jamais à deviner les données réelles. '
                  'Les marqueurs sont stables pour ce compte : vous pouvez les retenir dans votre mémoire ; n’y retenez jamais de donnée '
-                 'réelle que l’utilisateur écrirait en clair.')
+                 'réelle que l’utilisateur écrirait en clair. '
+                 # 5.6.109 (P06) : aucune promesse de restitution dans l'interface de Claude ; (P03) littéraux des documents
+                 'Les noms ne sont pas rétablis dans cette conversation ni dans votre mémoire : seul ce qui est déposé dans AxiorHub les '
+                 'retrouve ; dites-le à l’utilisateur s’il attend de lire les vrais noms ici. Un marqueur de la forme [LITTERAL_PERSONNE_1] '
+                 'n’est pas une personne : c’est un marqueur écrit tel quel dans un document du cabinet ; recopiez-le à l’identique, il '
+                 'redeviendra [PERSONNE_1] au dépôt. Un marqueur que le serveur signale comme inconnu n’est jamais rétabli.')
     return text
 
 
@@ -1294,7 +1405,7 @@ def call_tool(ctx, db, name, args):
             code = str(error).split(':')[0]
             _log_call(db, ctx.grant, ctx.user, name, False, code)
             return {'content': [{'type': 'text', 'text': '%s (%s)' % (_explain(code), code)}], 'isError': True}
-    _log_call(db, ctx.grant, ctx.user, name, True)
+    _log_call(db, ctx.grant, ctx.user, name, True, detail_appel(ctx.pseudo))   # 5.6.109 (P06) : un appel servi en clair est noté comme tel
     return {'content': [{'type': 'text', 'text': json.dumps(payload, ensure_ascii=False, indent=1)}], 'isError': False}
 
 
@@ -1370,7 +1481,12 @@ def mcp(db, env, auth, desk, raw):
     except (ValueError, UnicodeError):
         return _json(_rpc_error(None, -32700, 'JSON invalide'), '400 Bad Request')
     from . import membres5650
-    ctx = Ctx(desk, auth, grant, user, db)
+    try:
+        ctx = Ctx(desk, auth, grant, user, db)
+    except Stop as error:     # 5.6.109 (P01) : registre des identités illisible : rien n'est servi à Claude, et l'arrêt est expliqué
+        membres5650.clear()
+        code = str(error).split(':')[0]
+        return _json(_rpc_error(message.get('id') if isinstance(message, dict) else None, -32002, '%s (%s)' % (_explain(code), code)), '503 Service Unavailable')
     try:
         if isinstance(message, list):
             replies = [r for r in (dispatch(ctx, db, m) for m in message[:20]) if r is not None]
@@ -1453,6 +1569,13 @@ def remove_grant(state_dir, user, grant_id):
         db.execute('DELETE FROM claude5675_codes WHERE grant_id=?', (row['id'],))
         db.execute('DELETE FROM claude5675_acces WHERE id=?', (row['id'],))
         db.commit()
+        purgees = None
+        if not db.execute('SELECT 1 FROM claude5675_acces WHERE user_id=?', (int(user['id']),)).fetchone():
+            try:
+                purgees = purger_masques(state_dir, 'u:%s' % user['id'])   # 5.6.109 (P06) : dernier accès du compte retiré : ses correspondances aussi
+            except Exception:   # noqa: BLE001 — l'accès est retiré ; la purge sera refaite à la durée de conservation
+                purgees = -1
+            cx._log(db, str(user.get('owner') or 'cabinet')[:80], 'claude_correspondances', 'retirées : %s' % ('échec, à refaire' if purgees == -1 else purgees))
         cx._log(db, str(user.get('owner') or 'cabinet')[:80], 'claude_retire', row['client_name'])
         return {'ok': True, 'message': 'Accès de « %s » retiré : Claude ne peut plus rien lire ni déposer avec ce compte.' % row['client_name']}
     finally:
@@ -1468,7 +1591,12 @@ def set_pseudo(state_dir, user, grant_id, value):
         db.commit()
         if not n:
             raise Stop('connexion_claude_introuvable')
-        return {'ok': True, 'message': 'Pseudonymisation %s pour cette connexion.' % ('activée' if str(value) == '1' else 'désactivée')}
+        from . import connexion5648 as cx   # 5.6.109 (P06) : le passage en clair (ou le retour au masquage) est inscrit au journal des comptes
+        cx._log(db, str(user.get('owner') or 'cabinet')[:80], 'claude_pseudonymise' if str(value) == '1' else 'claude_en_clair', str(grant_id)[:40])
+        if str(value) == '1':
+            return {'ok': True, 'message': 'Pseudonymisation activée pour cette connexion.'}
+        return {'ok': True, 'message': 'Pseudonymisation désactivée pour cette connexion : Claude y reçoit désormais les noms, adresses et numéros en clair. '
+                                       'Chaque appel est noté « en clair » dans le journal des appels.'}
     finally:
         db.close()
 
@@ -1483,6 +1611,10 @@ def save_settings(state_dir, user, data):
         if str(data.get('pseudo_impose')) == '1':
             db.execute('UPDATE claude5675_acces SET pseudonymiser=1')
         db.commit()
+        try:
+            purger_inactifs(db, state_dir)   # 5.6.109 (P06) : durée de conservation des correspondances (comptes sans accès ou sans usage depuis un an)
+        except Exception:   # noqa: BLE001 — les réglages sont enregistrés ; la purge sera refaite au prochain enregistrement
+            pass
         cx._log(db, str(user.get('owner') or 'cabinet')[:80], 'claude_reglages', json.dumps({k: str(data.get(k, '')) for k in SETTINGS})[:200])
         return {'ok': True, 'message': 'Réglages du connecteur Claude enregistrés.'}
     finally:
@@ -1491,6 +1623,15 @@ def save_settings(state_dir, user, data):
 
 def _select(name, value, options):
     return '<select name="%s">%s</select>' % (name, ''.join('<option value="%s"%s>%s</option>' % (v, ' selected' if v == value else '', e(t)) for v, t in options))
+
+
+def _acces_en_clair(state_dir):
+    """Nombre de connexions Claude du cabinet qui reçoivent les données en clair (vue de l'administrateur)."""
+    db = connect(state_dir)
+    try:
+        return db.execute('SELECT COUNT(*) FROM claude5675_acces WHERE pseudonymiser=0').fetchone()[0]
+    finally:
+        db.close()
 
 
 def settings_html(state_dir, auth, user):
@@ -1533,8 +1674,10 @@ def settings_html(state_dir, auth, user):
                   'data-confirm="Retirer cet accès ? Claude ne pourra plus rien lire ni déposer avec votre compte."><input type="hidden" name="id" value="%s">'
                   '<button class="ax-btn ghost" type="submit">Retirer</button></form></li>') % (
             e(g['client_name']), e(g['created'][:10]), e((g['last_used'] or '—')[:16].replace('T', ' ')), pseudo, toggle, e(g['id'], quote=True))
-    journal = ''.join('<li>%s · %s · %s</li>' % (e(c['at'][:16].replace('T', ' ')), e(c['outil']), 'ok' if c['ok'] else 'refusé (%s)' % e(c['detail']))
-                      for c in calls)
+    journal = ''.join('<li>%s · %s · %s</li>' % (e(c['at'][:16].replace('T', ' ')), e(c['outil']),
+                                                 ('ok' + (' · %s' % e(c['detail']) if c['detail'] else '')) if c['ok'] else 'refusé (%s)' % e(c['detail']))
+                      for c in calls)   # 5.6.109 (P06) : « ok · en clair » pour un appel servi sans pseudonymisation
+    html += distinction_html() + alerte_clair_html(any(not g['pseudonymiser'] for g in rows) or (admin and _acces_en_clair(state_dir)), values['pseudo_impose'])
     html += ('<h3>Ajouter AxiorHub à Claude</h3><p>Adresse du connecteur : <code class="cl75-url">%s</code></p>'
              '<ol class="cl75-steps"><li>Dans Claude (claude.ai ou Claude Desktop) : <em>Personnaliser › Connecteurs</em>, « + Ajouter » puis '
              '« Ajouter un connecteur personnalisé ». Nom : « AxiorHub » ; adresse : celle ci-dessus. Gardez les réglages détectés '
@@ -1573,7 +1716,9 @@ def skill_markdown(resource):
             'valide et envoie lui-même.\n'
             '2. **Marqueurs.** Si les données sont pseudonymisées ([PERSONNE_1], [SOCIETE_1], [REFERENCE_1]…), les garder exactement tels quels '
             'dans les réponses et les dépôts ; ne jamais deviner les données réelles. AxiorHub les rétablit au dépôt. Ils sont stables pour le '
-            'compte : ils peuvent être retenus en mémoire.\n'
+            'compte : ils peuvent être retenus en mémoire. Les noms ne sont pas rétablis dans la conversation de Claude : seul ce qui est déposé '
+            'dans AxiorHub les retrouve. `[LITTERAL_PERSONNE_1]` est un marqueur écrit tel quel dans un document, pas une personne : le recopier '
+            'à l’identique.\n'
             '3. **Sources.** Avant d’affirmer un fait, lire la pièce (`lire_document`) et citer son nom ; distinguer faits validés et proposés '
             '(`memoire_dossier`). Pour `proposer_fait`, copier un extrait EXACT du texte lu.\n'
             '4. **Méthode du cabinet.** Consulter `savoir_faire` pour la structure des courriers, les listes de vérification et les clauses ; '

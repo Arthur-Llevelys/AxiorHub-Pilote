@@ -13,6 +13,17 @@ de jumeau (``ai_usage_v391`` sans ``call_id``, ``ai_reservations_v567`` et ``res
 - Les crédits et remises sont des lignes distinctes : ils ne modifient pas l'usage brut.
 - L'estimation par la taille du texte reste une approximation : ce registre tient un plafond AxiorHub, il ne garantit pas la facture du
   fournisseur, et les autres logiciels utilisant le même compte restent hors de ce plafond.
+
+5.6.109 (C12, F18) :
+- Le coût d'un appel vient du normaliseur commun (``consommation56109.observer``) : cache compris ou ajouté selon le fournisseur, tarif
+  manquant jamais lu comme zéro, usage partiel jamais réglé comme une mesure. Sans montant calculable, la réservation reste incertaine, avec
+  son motif (``usage_non_fourni``, ``usage_partiel``, ``tarif_non_renseigne``, ``usage_incoherent``), y compris en fin d'étape routée.
+- Montant calculé (``computed_micro``) et relevé du fournisseur (``provider_amount_micro``) sont deux colonnes ; ``amount_source`` dit
+  d'où vient le montant retenu. Un relevé arrivant sur une ligne déjà réglée est conservé à côté du calcul, avec un écart à contrôler.
+- Quantités de service typées (``budget_quantites56109`` : fournisseur, unité, quantité, état), liées au même ``call_id``, sous la même
+  autorité : jamais une fausse devise à trois lettres, jamais additionnées aux dollars ni aux jetons.
+- ``projection`` est le seul calcul des montants d'une période : le bilan du mois et le relevé « Consommation et coûts » la lisent tous deux.
+  Les fenêtres des plafonds (mois et année du registre, en UTC) ne changent pas.
 """
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_CEILING, Decimal, InvalidOperation
@@ -25,6 +36,8 @@ import uuid
 from .common import Stop
 
 VERSION = 1
+VERSION_56109 = 1               # ajouts de la 5.6.109 (colonnes, quantités de service) : clé distincte, un travailleur plus ancien ne la relit pas
+SANS_MESURE = ('usage_non_fourni', 'usage_partiel', 'tarif_non_renseigne', 'usage_incoherent')   # motifs d'une ligne incertaine faute de montant calculable
 PROTOCOLE = 1                   # protocole de budget des travailleurs ; un ancien travailleur n'en a pas
 MICRO = Decimal(1_000_000)
 CREDITS = 'CRD'                 # repère des abonnements : jamais additionné aux dollars
@@ -140,24 +153,28 @@ def connect(state_dir):
 
 def _pret(db):
     try:
-        row = db.execute("SELECT valeur FROM budget_meta5689 WHERE cle='schema'").fetchone()
+        lues = {str(r[0]): str(r[1]) for r in db.execute("SELECT cle,valeur FROM budget_meta5689 WHERE cle IN ('schema','schema56109')")}
     except sqlite3.Error:
         return False
-    return bool(row) and str(row[0]) == str(VERSION)
+    return lues.get('schema') == str(VERSION) and lues.get('schema56109') == str(VERSION_56109)
 
 
 def ensure(db):
-    """Migration idempotente ; sûre si plusieurs travailleurs démarrent ensemble."""
+    """Migration idempotente ; sûre si plusieurs travailleurs démarrent ensemble. 5.6.109 : colonnes et table ajoutées dans la même
+    transaction (``PRAGMA table_info`` puis ``ALTER TABLE``) ; une base déjà prête n'est jamais réécrite."""
     if _pret(db):
         return
     from .budget567 import SCHEMA as ANCIEN
     from .conso5682 import SCHEMA as CONSO
+    from .consommation56109 import migrer
     db.executescript('BEGIN IMMEDIATE;' + ANCIEN.rstrip().rstrip(';') + ';' + CONSO + SCHEMA + 'COMMIT;')
     db.execute('BEGIN IMMEDIATE')
     try:
         if 'call_id' not in {r[1] for r in db.execute('PRAGMA table_info(ai_usage_v391)')}:
             db.execute("ALTER TABLE ai_usage_v391 ADD COLUMN call_id TEXT NOT NULL DEFAULT ''")
+        migrer(db)
         db.execute("INSERT OR REPLACE INTO budget_meta5689 VALUES('schema',?)", (str(VERSION),))
+        db.execute("INSERT OR REPLACE INTO budget_meta5689 VALUES('schema56109',?)", (str(VERSION_56109),))
         db.commit()
     except BaseException:
         db.rollback()
@@ -317,7 +334,8 @@ def _transaction(db, travail):
 
 
 def tarif_de(cfg):
-    return 'usd_par_million:%s/%s' % (cfg.get('input_usd_per_million') or 0, cfg.get('output_usd_per_million') or 0)
+    """Tarif de la réservation, tel qu'il est au moment de l'appel. 5.6.109 : un tarif absent s'écrit « non_renseigne », jamais 0."""
+    return 'usd_par_million:%s/%s' % (cfg.get('input_usd_per_million') or 'non_renseigne', cfg.get('output_usd_per_million') or 'non_renseigne')
 
 
 def reserver_appel(cfg, montant, db_factory):
@@ -408,8 +426,11 @@ def vue(ligne):
 
 # ------------------------------------------------------------------------------------------------ émission
 def preparer_emission(cfg):
-    """À appeler juste après la réservation. ``arret5643.interruptible`` exécute le marquage au dernier moment, après son contrôle de pause."""
+    """À appeler juste après la réservation. ``arret5643.interruptible`` exécute le marquage au dernier moment, après son contrôle de pause.
+    5.6.109 (C12) : chaque émission reçoit son identifiant de tentative. Une reprise réellement réémise a donc sa propre observation ; la
+    répétition de l'événement d'une même émission garde le même identifiant et révise la même ligne (``conso5682.note``)."""
     cfg['_emission5689'] = 'preparee'
+    cfg['_tentative56109'] = uuid.uuid4().hex
 
     def emettre():
         marquer_emis(cfg)
@@ -443,30 +464,48 @@ def marquer_emis(cfg):
 
 # ------------------------------------------------------------------------------------------------ règlement
 def _clore(db, ligne, etat, motif, retenu=None):
-    """Clôture commune : allocations et vue ancienne suivent, dans la transaction de l'appelant."""
+    """Clôture commune : allocations et vue ancienne suivent, dans la transaction de l'appelant. 5.6.109 : un forfait ou une estimation
+    retenue le disent dans ``amount_source`` : ni l'un ni l'autre n'est une mesure."""
     valeur = 0 if etat == 'released' else retenu
     db.execute('UPDATE budget_reservations5689 SET state=?,reason=?,closed_at=? WHERE cabinet_id=? AND reservation_id=?', (etat, motif, _iso(), ligne['cabinet_id'], ligne['reservation_id']))
+    if etat == 'settled' and motif in ('forfait', 'estimation_retenue'):
+        db.execute('UPDATE budget_reservations5689 SET amount_source=? WHERE cabinet_id=? AND reservation_id=?', (motif, ligne['cabinet_id'], ligne['reservation_id']))
     db.execute('UPDATE budget_allocations5689 SET settled_micro=? WHERE cabinet_id=? AND reservation_id=?', (valeur, ligne['cabinet_id'], ligne['reservation_id']))
     if ligne['legacy_ref']:
         db.execute("UPDATE ai_reservations_v567 SET state='closed' WHERE id=? AND state IN ('reserved','uncertain')", (ligne['legacy_ref'],))
 
 
-def _regler(db, ligne, montant, devise=None, taux=None, date_taux=None, reference='', usage=None):
-    """Règlement idempotent : la répétition d'un même ``call_id`` n'est comptée qu'une fois ; une mesure différente est notée, jamais recomptée."""
+def _regler(db, ligne, montant, devise=None, taux=None, date_taux=None, reference='', usage=None, source='releve_fournisseur'):
+    """Règlement idempotent : la répétition d'un même ``call_id`` n'est comptée qu'une fois ; une mesure différente est notée, jamais recomptée.
+    5.6.109 (C12) : ``source`` distingue le montant calculé depuis l'usage (``calcule_depuis_usage``, ``majorant_*`` : colonne
+    ``computed_micro``) du relevé ou de la facture du fournisseur (``releve_fournisseur`` : colonnes ``provider_*``). Un calcul n'écrit
+    jamais dans les colonnes du relevé. Un relevé reçu sur une ligne déjà réglée y est conservé une fois, à côté du calcul, et l'écart est
+    noté : le montant retenu, lui, ne change pas en silence."""
+    releve = source == 'releve_fournisseur'
     if ligne['state'] == 'settled':
         if ligne['retained_micro'] != montant:
-            _evenement(db, 'ecart_reglement', ligne['call_id'], ligne['provider'], ligne['model'], montant, 'a_controler', {'retenu': ligne['retained_micro']})
+            _evenement(db, 'ecart_reglement', ligne['call_id'], ligne['provider'], ligne['model'], montant, 'a_controler',
+                       {'retenu': ligne['retained_micro'], 'origine_retenu': ligne['amount_source'], 'origine_recu': source})
+        if releve and ligne['provider_amount_micro'] is None:
+            db.execute('UPDATE budget_reservations5689 SET provider_amount_micro=?,provider_currency=?,fx_rate=?,fx_date=?,provider_ref=? WHERE cabinet_id=? AND reservation_id=?',
+                       (montant, devise or ligne['currency'], str(taux) if taux is not None else '1', date_taux or _iso()[:10], str(reference)[:120],
+                        ligne['cabinet_id'], ligne['reservation_id']))
         return False
     taux_texte = str(taux) if taux is not None else '1'
     try:
         retenu = int((Decimal(montant) * Decimal(taux_texte)).to_integral_value(rounding=ROUND_CEILING))
     except InvalidOperation:
         raise Stop('taux_invalide') from None
-    db.execute('UPDATE budget_reservations5689 SET actual_micro=?,provider_amount_micro=?,provider_currency=?,fx_rate=?,fx_date=?,retained_micro=?,provider_ref=?,usage_json=? '
-               'WHERE cabinet_id=? AND reservation_id=?',
-               (retenu, montant, devise or ligne['currency'], taux_texte, date_taux or _iso()[:10], retenu, str(reference)[:120], json.dumps(usage or {}, sort_keys=True),
-                ligne['cabinet_id'], ligne['reservation_id']))
-    _clore(db, ligne, 'settled', 'mesure' if ligne['state'] != 'released' else 'mesure_apres_liberation', retenu)
+    if releve:
+        db.execute('UPDATE budget_reservations5689 SET actual_micro=?,provider_amount_micro=?,provider_currency=?,fx_rate=?,fx_date=?,retained_micro=?,provider_ref=?,usage_json=?,'
+                   'amount_source=? WHERE cabinet_id=? AND reservation_id=?',
+                   (retenu, montant, devise or ligne['currency'], taux_texte, date_taux or _iso()[:10], retenu, str(reference)[:120],
+                    json.dumps(usage, sort_keys=True) if usage else ligne['usage_json'], source, ligne['cabinet_id'], ligne['reservation_id']))
+    else:
+        db.execute('UPDATE budget_reservations5689 SET actual_micro=?,computed_micro=?,retained_micro=?,usage_json=?,amount_source=? WHERE cabinet_id=? AND reservation_id=?',
+                   (retenu, montant, retenu, json.dumps(usage or {}, sort_keys=True), source, ligne['cabinet_id'], ligne['reservation_id']))
+    motif = 'mesure_apres_liberation' if ligne['state'] == 'released' else ('majorant' if str(source).startswith('majorant') else 'mesure')
+    _clore(db, ligne, 'settled', motif, retenu)
     plafond = ligne['ceiling_micro']
     if retenu > plafond:
         bloquant = Decimal(retenu) > Decimal(plafond) * TOLERANCE
@@ -475,13 +514,12 @@ def _regler(db, ligne, montant, devise=None, taux=None, date_taux=None, referenc
 
 
 def cout_usage(cfg, usage):
-    """Coût mesuré d'après les jetons fournis et le tarif de l'appel ; None si l'usage n'est pas fourni."""
-    from .conso5682 import fields
-    used = fields(usage)
-    if used['entree'] is None and used['sortie'] is None:
-        return None
-    total = Decimal(used['entree'] or 0) * Decimal(str(cfg.get('input_usd_per_million') or 0)) + Decimal(used['sortie'] or 0) * Decimal(str(cfg.get('output_usd_per_million') or 0))
-    return int(total.to_integral_value(rounding=ROUND_CEILING))       # dollars par million de jetons × jetons = micro-dollars
+    """Coût calculé de l'appel, en micro-dollars, d'après l'usage normalisé par le format du fournisseur et la grille de l'appel.
+    ``None`` dès qu'une quantité nécessaire ou son tarif manque : jamais un coût partiel présenté comme une mesure. 5.6.109 (C12) : même
+    normaliseur que l'observation et que la vue (``consommation56109.observer``) ; l'ancienne formule ignorait le cache et lisait un
+    tarif absent comme zéro."""
+    from .consommation56109 import observer
+    return observer(cfg, usage)['montant_micro']
 
 
 def regler_appel(db, cfg, legacy, status, released, usage):
@@ -496,23 +534,23 @@ def regler_appel(db, cfg, legacy, status, released, usage):
     if ligne is None or ligne['state'] == 'settled':
         return
     if status == 'done':
-        montant = cout_usage(cfg, usage) if ligne['currency'] != CREDITS else None
-        if montant is not None:
-            _regler(db, ligne, montant, usage=_jetons(usage))
-        elif ligne['currency'] == CREDITS:
+        from .consommation56109 import fiche_observation, observer
+        obs = observer(cfg, usage)
+        if ligne['currency'] == CREDITS:
             _clore(db, ligne, 'settled', 'forfait', ligne['ceiling_micro'])
+        elif obs['montant_micro'] is not None:
+            _regler(db, ligne, obs['montant_micro'], usage=fiche_observation(obs), source=obs['etat_montant'])
         else:
-            db.execute("UPDATE budget_reservations5689 SET state='uncertain',reason='usage_non_fourni' WHERE cabinet_id=? AND reservation_id=?", (ligne['cabinet_id'], ligne['reservation_id']))
+            # 5.6.109 (C12) : sans montant calculable, l'estimation réservée reste comptée, incertaine, avec son motif ; ce qui a été observé
+            # (quantités partielles, grille) est conservé pour le rapprochement. Rien n'est réglé comme une consommation mesurée.
+            motif = {'usage_absent': 'usage_non_fourni', 'usage_partiel': 'usage_partiel', 'tarif_manquant': 'tarif_non_renseigne'}.get(obs['etat_montant'], 'usage_incoherent')
+            db.execute("UPDATE budget_reservations5689 SET state='uncertain',reason=?,usage_json=? WHERE cabinet_id=? AND reservation_id=?",
+                       (motif, json.dumps(fiche_observation(obs), sort_keys=True), ligne['cabinet_id'], ligne['reservation_id']))
     elif released:
         _clore(db, ligne, 'released', 'non_facture')
     else:
         db.execute("UPDATE budget_reservations5689 SET state='uncertain',reason='coupure_apres_emission' WHERE cabinet_id=? AND reservation_id=? AND state IN ('reserved','dispatched')",
                    (ligne['cabinet_id'], ligne['reservation_id']))
-
-
-def _jetons(usage):
-    from .conso5682 import fields
-    return {k: v for k, v in fields(usage).items() if v is not None}
 
 
 def regler_mission(state_dir, ident, etat, reel=None):
@@ -527,7 +565,9 @@ def regler_mission(state_dir, ident, etat, reel=None):
                 return
             if etat == 'consomme':
                 if reel is not None:
-                    _regler(db, ligne, micro(reel))
+                    _regler(db, ligne, micro(reel), source='mesure_transmise')
+                elif ligne['state'] == 'uncertain' and ligne['currency'] != CREDITS and ligne['reason'] in SANS_MESURE:
+                    return       # 5.6.109 (C12) : l'appel a abouti sans montant calculable : l'estimation reste incertaine, elle n'est pas une mesure
                 else:
                     _clore(db, ligne, 'settled', 'estimation_retenue', ligne['ceiling_micro'])
             elif ligne['state'] == 'reserved':
@@ -619,50 +659,177 @@ def admissible(state_dir, provider, cfg, montant):
     return engage_fournisseur_usd(state_dir, provider) + Decimal(str(montant)) <= Decimal(str(limite))
 
 
+def mission_lue(db, desk, ident, restriction=('', ())):
+    """Coût d'une mission sur une connexion déjà ouverte (lecture seule possible). Les appels des étapes et des sous-agents portent le même
+    identifiant de mission : le total en est la projection, jamais un second montant ajouté, et leur plafond est celui de la mission.
+    ``restriction`` : clause du lecteur (ses propres appels), posée par ``consommation56109``."""
+    lignes = db.execute('SELECT r.state,r.currency,r.ceiling_micro,r.retained_micro,r.provider,r.model,r.reason FROM budget_reservations5689 r WHERE r.mission_id=?' + restriction[0],
+                        [str(ident)] + list(restriction[1])).fetchall()
+    from .politique5682 import normalize
+    rule = normalize(desk.settings('ai:politique', {}) or {})
+    out = {'mission_id': str(ident), 'plafond_usd': str(rule['plafond_mission_usd']), 'appels': len(lignes), 'reel_micro': 0, 'provisoire_micro': 0, 'incertain_micro': 0, 'credits_micro': 0,
+           'estime_micro': 0}
+    for r in lignes:
+        if r['currency'] == CREDITS:
+            out['credits_micro'] += int(r['retained_micro'] or r['ceiling_micro']) if r['state'] != 'released' else 0
+        elif r['state'] == 'settled' and r['retained_micro'] is None:
+            out['estime_micro'] += int(r['ceiling_micro'])       # 5.6.109 : estimation retenue sans mesure : dite estimée, plus jamais un coût réel de zéro
+        elif r['state'] == 'settled':
+            out['reel_micro'] += int(r['retained_micro'] or 0)
+        elif r['state'] == 'uncertain':
+            out['incertain_micro'] += int(r['ceiling_micro'])
+        elif r['state'] in OUVERTS:
+            out['provisoire_micro'] += int(r['ceiling_micro'])
+    out['etat'] = 'aucun_appel_facturable_enregistre' if not lignes else ('incertain' if out['incertain_micro'] else ('provisoire' if out['provisoire_micro'] or out['estime_micro'] else 'reel'))
+    out['engage_micro'] = engage(db, _cap_mission(ident, 'usd')) if not restriction[0] else None      # plafond commun de la mission et de ses enfants
+    out['limite'] = 'Plafond AxiorHub : l’estimation par la taille du texte n’est pas une garantie de facture.'
+    return out
+
+
 def mission(desk, ident):
     """Estimation, plafond, coût provisoire ou réel d'une mission. Sans ligne, rien n'est présenté comme nul : ``etat`` le dit."""
     db = connect(desk.c['state_dir'])
     try:
-        lignes = db.execute('SELECT state,currency,ceiling_micro,retained_micro,provider,model FROM budget_reservations5689 WHERE mission_id=?', (str(ident),)).fetchall()
-        from .politique5682 import normalize
-        rule = normalize(desk.settings('ai:politique', {}) or {})
-        out = {'mission_id': str(ident), 'plafond_usd': str(rule['plafond_mission_usd']), 'appels': len(lignes), 'reel_micro': 0, 'provisoire_micro': 0, 'incertain_micro': 0, 'credits_micro': 0}
-        for r in lignes:
-            if r['currency'] == CREDITS:
-                out['credits_micro'] += int(r['retained_micro'] or r['ceiling_micro']) if r['state'] != 'released' else 0
-            elif r['state'] == 'settled':
-                out['reel_micro'] += int(r['retained_micro'] or 0)
-            elif r['state'] == 'uncertain':
-                out['incertain_micro'] += int(r['ceiling_micro'])
-            elif r['state'] in OUVERTS:
-                out['provisoire_micro'] += int(r['ceiling_micro'])
-        out['etat'] = 'aucun_appel_facturable_enregistre' if not lignes else ('incertain' if out['incertain_micro'] else ('provisoire' if out['provisoire_micro'] else 'reel'))
-        out['limite'] = 'Plafond AxiorHub : l’estimation par la taille du texte n’est pas une garantie de facture.'
-        return out
+        return mission_lue(db, desk, ident)
     finally:
         db.close()
 
 
+def plafonds_lus(db, desk):
+    """Plafonds et dépassements du mois sur une connexion déjà ouverte (lecture seule possible) : même calcul pour la page des plafonds,
+    le diagnostic et le relevé « Consommation et coûts »."""
+    from .ai_gateway import provider_registry
+    mois = _mois()
+    rows = []
+    caps = []
+    try:
+        caps = plafonds_cabinet(db, mois)
+    except AttenteBudget as error:
+        rows.append({'perimetre': 'cabinet', 'libelle': LIBELLES['cabinet'], 'erreur': str(error)})
+    for pid, item in sorted(provider_registry(desk.c).items()):
+        if item.get('monthly_budget_usd'):
+            caps.append(_plafond('fournisseur', pid, micro(item['monthly_budget_usd']), 'USD', mois))
+    for cap in [c for c in caps if c['limit'] is not None]:
+        rows.append({'perimetre': cap['scope'], 'cle': cap['cle'], 'libelle': LIBELLES[cap['scope']], 'plafond_micro': cap['limit'], 'engage_micro': engage(db, cap)})
+    ouverts = [dict(r) for r in db.execute("SELECT id,at,provider,model,micro FROM budget_events5689 WHERE nature='depassement' AND etat='ouvert' ORDER BY at DESC")]
+    incertains = db.execute("SELECT COUNT(*),COALESCE(SUM(ceiling_micro),0) FROM budget_reservations5689 WHERE state='uncertain'").fetchone()
+    return {'mois': mois, 'plafonds': rows, 'depassements_ouverts': ouverts, 'incertains': int(incertains[0]), 'incertains_micro': int(incertains[1])}
+
+
 def etat(desk):
     """Plafonds et dépassements du mois, pour la page et le diagnostic."""
-    from .ai_gateway import provider_registry
     db = connect(desk.c['state_dir'])
     try:
-        mois = _mois()
-        rows = []
-        caps = []
+        return plafonds_lus(db, desk)
+    finally:
+        db.close()
+
+
+def _vide():
+    return {'appels': 0, 'regle_micro': None, 'regle_n': 0, 'calcule_micro': None, 'majorant_micro': None, 'releve_micro': None, 'autre_micro': None, 'estime_micro': None,
+            'estime_n': 0, 'reserve_micro': None, 'reserve_n': 0, 'incertain_micro': None, 'incertain_n': 0, 'dernier_rapprochement': None}
+
+
+def _plus(a, b):
+    return b if a is None else (a if b is None else a + b)
+
+
+def projection(db, debut, fin, extra='', params=()):
+    """Montants du registre pour la fenêtre ``created_at >= début`` et ``< fin`` (UTC), par fournisseur, modèle et devise. Lecture pure,
+    partagée par le bilan du mois et par le relevé « Consommation et coûts » : un seul calcul, donc jamais deux compteurs. Par devise :
+    réglé (dont calculé depuis l'usage, majorant, relevé du fournisseur, autre origine), estimation retenue sans mesure, réservé en cours,
+    incertain. ``None`` : aucun montant de cette nature (ce n'est pas un zéro mesuré). Les forfaits (crédits) sont seulement dénombrés ;
+    une réservation libérée ne compte pas. ``extra`` : clauses de l'appelant sur l'alias ``r``, avec leurs paramètres."""
+    rows = db.execute(
+        "SELECT r.provider,r.model,r.currency,r.state,COALESCE(r.amount_source,'') source,r.reason,COUNT(*) n,SUM(r.retained_micro) retenu,SUM(r.ceiling_micro) plafond,"
+        "SUM(COALESCE(r.retained_micro,r.ceiling_micro)) retenu_ou_plafond,MAX(r.closed_at) clos FROM budget_reservations5689 r WHERE r.created_at>=? AND r.created_at<?" + extra +
+        ' GROUP BY r.provider,r.model,r.currency,r.state,source,r.reason', [debut, fin] + list(params)).fetchall()
+    lignes, totaux, forfaits = {}, {}, 0
+    for r in rows:
+        if r['state'] == 'released':
+            continue
+        if r['currency'] == CREDITS:
+            forfaits += int(r['n'])
+            continue
+        for c in (lignes.setdefault((r['provider'], r['model'], r['currency']), _vide()), totaux.setdefault(r['currency'], _vide())):
+            c['appels'] += int(r['n'])
+            if r['state'] == 'settled' and (r['reason'] == 'estimation_retenue' or r['source'] == 'estimation_retenue'):
+                c['estime_micro'], c['estime_n'] = _plus(c['estime_micro'], r['retenu_ou_plafond']), c['estime_n'] + int(r['n'])
+            elif r['state'] == 'settled':
+                c['regle_micro'], c['regle_n'] = _plus(c['regle_micro'], r['retenu']), c['regle_n'] + int(r['n'])
+                nature = ('calcule_micro' if r['source'] == 'calcule_depuis_usage' else 'majorant_micro' if r['source'].startswith('majorant') else
+                          'releve_micro' if r['source'] == 'releve_fournisseur' else 'autre_micro')
+                c[nature] = _plus(c[nature], r['retenu'])
+                if r['source'] == 'releve_fournisseur' and r['clos'] and str(r['clos']) > str(c['dernier_rapprochement'] or ''):
+                    c['dernier_rapprochement'] = r['clos']
+            elif r['state'] == 'uncertain':
+                c['incertain_micro'], c['incertain_n'] = _plus(c['incertain_micro'], r['plafond']), c['incertain_n'] + int(r['n'])
+            else:
+                c['reserve_micro'], c['reserve_n'] = _plus(c['reserve_micro'], r['plafond']), c['reserve_n'] + int(r['n'])
+    return {'lignes': [{'fournisseur': k[0], 'modele': k[1], 'devise': k[2], **v} for k, v in sorted(lignes.items())], 'total': totaux, 'forfaits': forfaits}
+
+
+def couts_fixes_lus(db, mois):
+    """Coûts fixes saisis pour un mois (licences et forfaits, matériel, énergie, stockage, maintenance…), tels que renseignés : une catégorie
+    sans saisie reste inconnue, chaque montant garde sa devise."""
+    saisis = {r['categorie']: r for r in db.execute('SELECT * FROM couts_mensuels5689 WHERE month=?', (str(mois)[:7],))}
+    out = []
+    for cle, libelle in BILAN:
+        if cle == 'api':
+            continue
+        r = saisis.get(cle)
+        out.append({'categorie': cle, 'libelle': libelle, 'montant_micro': None if r is None or r['amount_micro'] is None else int(r['amount_micro']),
+                    'devise': r['currency'] if r is not None else '', 'etat': r['statut'] if r is not None and r['amount_micro'] is not None else 'inconnu',
+                    'note': (r['note'] or '') if r is not None else ''})
+    return out
+
+
+def noter_quantite(state_dir, call_id, fournisseur, unite, quantite, etat='declaree', operation='', mission='', source='', config=None):
+    """Quantité native d'un service externe (crédits Pappers, recherches…), liée à l'appel par son ``call_id`` : même registre, même
+    transaction courte. ``unite`` est un code explicite (« credit_pappers », « recherche_tavily ») : jamais une fausse devise à trois lettres,
+    jamais des dollars. ``quantite`` ``None`` : inconnue, gardée inconnue. Le même relevé reçu deux fois ne change rien ; une valeur
+    différente révise la ligne (``revision``) sans en ajouter une. N'appelle aucun service et ne réserve rien : le plafond en dollars d'un
+    service payant passe par ``reserver_service``."""
+    import re
+    call_id, fournisseur, unite = str(call_id or '').strip(), str(fournisseur or '').strip()[:80], str(unite or '').strip().lower()
+    if not call_id or len(call_id) > 120 or not fournisseur:
+        raise Stop('cle_idempotence_requise')
+    if not re.fullmatch(r'[a-z][a-z0-9_]{3,39}', unite) or unite in ('credits', 'jetons', 'tokens'):
+        raise Stop('unite_service_invalide')
+    if etat not in ('estimee', 'declaree', 'rapprochee', 'inconnue'):
+        raise Stop('etat_quantite_invalide')
+    milli = None
+    if quantite is not None and etat != 'inconnue':
         try:
-            caps = plafonds_cabinet(db, mois)
-        except AttenteBudget as error:
-            rows.append({'perimetre': 'cabinet', 'libelle': LIBELLES['cabinet'], 'erreur': str(error)})
-        for pid, item in sorted(provider_registry(desk.c).items()):
-            if item.get('monthly_budget_usd'):
-                caps.append(_plafond('fournisseur', pid, micro(item['monthly_budget_usd']), 'USD', mois))
-        for cap in [c for c in caps if c['limit'] is not None]:
-            rows.append({'perimetre': cap['scope'], 'cle': cap['cle'], 'libelle': LIBELLES[cap['scope']], 'plafond_micro': cap['limit'], 'engage_micro': engage(db, cap)})
-        ouverts = [dict(r) for r in db.execute("SELECT id,at,provider,model,micro FROM budget_events5689 WHERE nature='depassement' AND etat='ouvert' ORDER BY at DESC")]
-        incertains = db.execute("SELECT COUNT(*),COALESCE(SUM(ceiling_micro),0) FROM budget_reservations5689 WHERE state='uncertain'").fetchone()
-        return {'mois': mois, 'plafonds': rows, 'depassements_ouverts': ouverts, 'incertains': int(incertains[0]), 'incertains_micro': int(incertains[1])}
+            valeur = quantite if isinstance(quantite, Decimal) else Decimal(str(quantite))
+        except (InvalidOperation, TypeError, ValueError):
+            raise Stop('montant_invalide') from None
+        if isinstance(quantite, bool) or not valeur.is_finite() or valeur < 0:
+            raise Stop('montant_invalide')
+        milli = int((valeur * 1000).to_integral_value(rounding=ROUND_CEILING))
+    if milli is None:
+        etat = 'inconnue'
+    auteur = ''
+    try:
+        from .membres5650 import current_author
+        auteur = str(current_author() or '')[:200]
+    except Exception:   # noqa: BLE001 — hors requête et hors mission : pas d'auteur
+        pass
+    db = connect(state_dir)
+    try:
+        def travail():
+            cabinet = cabinet_ref(config)
+            ancienne = db.execute('SELECT * FROM budget_quantites56109 WHERE cabinet_id=? AND call_id=? AND provider=? AND unit_code=?', (cabinet, call_id, fournisseur, unite)).fetchone()
+            if ancienne is None:
+                db.execute('INSERT INTO budget_quantites56109(cabinet_id,call_id,provider,unit_code,quantite_milli,etat,operation,mission_id,auteur,source,at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+                           (cabinet, call_id, fournisseur, unite, milli, etat, str(operation)[:60], str(mission)[:120], auteur, str(source)[:120], _iso()))
+                return {'revision': 0, 'compte': True}
+            if (ancienne['quantite_milli'], ancienne['etat']) == (milli, etat) or milli is None:
+                return {'revision': int(ancienne['revision']), 'compte': False}       # même relevé, ou relevé sans quantité : rien n'est remplacé
+            db.execute('UPDATE budget_quantites56109 SET quantite_milli=?,etat=?,source=?,revision=revision+1,revise_le=? WHERE cabinet_id=? AND call_id=? AND provider=? AND unit_code=?',
+                       (milli, etat, str(source)[:120] or ancienne['source'], _iso(), cabinet, call_id, fournisseur, unite))
+            return {'revision': int(ancienne['revision']) + 1, 'compte': False}
+        return _transaction(db, travail)
     finally:
         db.close()
 
@@ -713,19 +880,31 @@ def saisir_cout(desk, data, acteur):
     if montant is None:
         statut = 'inconnu'
     mois = str(data.get('mois') or _mois())[:7]
+    # 5.6.109 (F18) : la devise est celle de la saisie, dite en trois lettres ; elle est conservée et affichée telle quelle. Un montant en
+    # euros n'est jamais additionné aux dollars : aucune conversion sans taux, date et source explicites.
+    devise = str(data.get('devise') or 'USD').strip().upper()
+    if len(devise) != 3 or not devise.isalpha() or not devise.isascii() or devise == CREDITS:
+        raise Stop('devise_invalide')
     db = connect(desk.c['state_dir'])
     try:
         _transaction(db, lambda: db.execute('INSERT INTO couts_mensuels5689 VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(month,categorie) DO UPDATE SET amount_micro=excluded.amount_micro,'
-                                            'statut=excluded.statut,note=excluded.note,saisi_par=excluded.saisi_par,saisi_le=excluded.saisi_le',
-                                            (uuid.uuid4().hex, mois, categorie, montant, str(data.get('devise') or 'USD')[:3].upper(), statut, str(data.get('note') or '')[:400], _h(acteur), _iso())))
+                                            'currency=excluded.currency,statut=excluded.statut,note=excluded.note,saisi_par=excluded.saisi_par,saisi_le=excluded.saisi_le',
+                                            (uuid.uuid4().hex, mois, categorie, montant, devise, statut, str(data.get('note') or '')[:400], _h(acteur), _iso())))
     finally:
         db.close()
     return {'ok': True, 'message': 'Coût enregistré pour ' + mois + '.'}
 
 
+def _fenetre_mois(desk, mois):
+    """Bornes du mois du cabinet, en UTC (``consommation56109.periode``) : une vue mensuelle ne se filtre pas par un préfixe de date UTC."""
+    from .consommation56109 import periode
+    p = periode(desk, {'periode': 'mois', 'mois': mois})
+    return p['debut_utc'], p['fin_utc']
+
+
 def _appels_locaux(desk, mois):
     try:
-        row = desk.db.execute('SELECT COUNT(*) FROM decisions_5682 WHERE at LIKE ? AND unite=\'aucune\'', (mois + '%',)).fetchone()
+        row = desk.db.execute('SELECT COUNT(*) FROM decisions_5682 WHERE at>=? AND at<? AND unite=\'aucune\'', _fenetre_mois(desk, mois)).fetchone()
         return int(row[0] or 0)
     except sqlite3.Error:
         return 0
@@ -734,24 +913,34 @@ def _appels_locaux(desk, mois):
 def bilan_mensuel(desk, mois=None):
     """Bilan par catégorie. Une catégorie non renseignée reste « inconnue » : le total n'est alors jamais présenté comme complet.
     Ce bilan ne crée ni temps, ni diligence, ni ligne de facture : l'activité de l'IA n'est pas convertie en temps facturable."""
-    mois = str(mois or _mois())[:7]
+    if not mois:                                           # mois en cours du cabinet (son fuseau), pas le mois UTC du serveur
+        from .consommation56109 import periode
+        mois = periode(desk)['debut']
+    mois = str(mois)[:7]
+    debut, fin = _fenetre_mois(desk, mois)
     db = connect(desk.c['state_dir'])
     try:
         saisis = {r['categorie']: r for r in db.execute('SELECT * FROM couts_mensuels5689 WHERE month=?', (mois,))}
-        api = db.execute("SELECT COALESCE(SUM(CASE WHEN state='settled' THEN retained_micro ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='uncertain' THEN ceiling_micro ELSE 0 END),0),"
-                         "COALESCE(SUM(CASE WHEN state IN ('reserved','dispatched') THEN ceiling_micro ELSE 0 END),0),COUNT(*) FROM budget_reservations5689 WHERE currency='USD' AND created_at LIKE ?",
-                         (mois + '%',)).fetchone()
-        anciens = micro(Decimal(str(db.execute("SELECT COALESCE(SUM(estimated_cost_usd),0) FROM ai_usage_v391 WHERE status='done' AND at LIKE ? AND COALESCE(call_id,'')=''", (mois + '%',)).fetchone()[0] or 0)))
+        # 5.6.109 (F18) : même projection que le relevé « Consommation et coûts » ; fenêtre du mois du cabinet convertie en UTC
+        api = projection(db, debut, fin)['total'].get('USD') or _vide()
+        anciens = micro(Decimal(str(db.execute("SELECT COALESCE(SUM(estimated_cost_usd),0) FROM ai_usage_v391 WHERE status='done' AND at>=? AND at<? AND COALESCE(call_id,'')=''", (debut, fin)).fetchone()[0] or 0)))
         credits_ = [dict(r) for r in db.execute('SELECT nature,provider,amount_micro,currency,conditions,expires_at FROM budget_credits5689 WHERE month=?', (mois,))]
     finally:
         db.close()
-    lignes, total, complet = [], 0, True
+    lignes, total, complet, par_devise = [], 0, True, {}
     for cle, libelle in BILAN:
         if cle == 'api':
-            confirme = int(api[0]) + anciens
-            ligne = {'categorie': cle, 'libelle': libelle, 'montant_micro': confirme, 'etat': 'provisoire' if api[1] or api[2] else 'connu', 'incertain_micro': int(api[1]), 'en_cours_micro': int(api[2]),
-                     'note': 'Usage brut. Montant confirmé ; les appels coupés restent à part jusqu’au rapprochement.' if api[1] else 'Usage brut, hors crédits et remises.'}
+            confirme = int(api['regle_micro'] or 0) + anciens
+            incertain, en_cours, estime = int(api['incertain_micro'] or 0), int(api['reserve_micro'] or 0), int(api['estime_micro'] or 0)
+            note = 'Usage brut, hors crédits et remises.'
+            if incertain:
+                note = 'Usage brut. Montant confirmé ; les appels coupés ou sans mesure restent à part jusqu’au rapprochement.'
+            elif estime:
+                note = 'Usage brut. Montant confirmé ; les estimations retenues sans mesure restent à part.'
+            ligne = {'categorie': cle, 'libelle': libelle, 'montant_micro': confirme, 'devise': 'USD', 'etat': 'provisoire' if incertain or en_cours or estime else 'connu',
+                     'incertain_micro': incertain, 'en_cours_micro': en_cours, 'estime_micro': estime, 'note': note}
             total += confirme
+            par_devise['USD'] = par_devise.get('USD', 0) + confirme
         else:
             r = saisis.get(cle)
             if r is None or r['amount_micro'] is None:
@@ -759,6 +948,7 @@ def bilan_mensuel(desk, mois=None):
                 complet = False
             else:
                 ligne = {'categorie': cle, 'libelle': libelle, 'montant_micro': int(r['amount_micro']), 'devise': r['currency'], 'etat': r['statut'], 'note': r['note']}
+                par_devise[r['currency']] = par_devise.get(r['currency'], 0) + int(r['amount_micro'])
                 if r['currency'] == 'USD':
                     total += int(r['amount_micro'])
                 else:
@@ -768,7 +958,10 @@ def bilan_mensuel(desk, mois=None):
     limites = ['Plafond et bilan AxiorHub : les autres logiciels utilisant le même compte fournisseur n’y figurent pas.', 'Aucune conversion automatique en temps facturable.']
     if locaux:
         limites.insert(0, 'Modèle local : %d appel(s) sans coût d’API. Le coût total du local n’est pas nul : matériel, énergie, stockage et maintenance restent à renseigner.' % locaux)
-    return {'mois': mois, 'devise': 'USD', 'lignes': lignes, 'total_connu_micro': total, 'total_complet': complet, 'credits': credits_, 'appels_locaux': locaux, 'limites': limites}
+    if len(par_devise) > 1:
+        limites.append('Plusieurs devises : chaque montant reste dans la sienne, aucun n’est converti ni additionné à une autre.')
+    return {'mois': mois, 'devise': 'USD', 'lignes': lignes, 'total_connu_micro': total, 'total_complet': complet, 'totaux_par_devise': par_devise, 'credits': credits_,
+            'appels_locaux': locaux, 'limites': limites}
 
 
 # ------------------------------------------------------------------------------------------------ bascule et travailleurs

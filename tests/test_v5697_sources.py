@@ -107,7 +107,17 @@ class Catalogue(Base):
                     'openeu_auto', 'patriboum', 'canlii', 'de_bund', 'es_boe', 'gb_legislation', 'ca_federal', 'ca_quebec'):
             self.assertIn(pid, fiches)
             p = fiches[pid]
-            self.assertFalse(p['configured'] or p['enabled'] or p['secret_configured'])
+            # 5.6.109 (lot S, F11) : les sources publiques sans clé qualifiées sont préconfigurées au démarrage (demande d'activation
+            # enregistrée, sans réseau) ; aucune n'est ACTIVE ni n'a de secret avant la preuve ; les autres restent non configurées.
+            # 5.6.109 (intégration I1, relecture) : liste attendue FIGÉE dans le test (et non relue dans le produit) : une source préconfigurée
+            # ajoutée ou retirée fait échouer ce test tant qu'on ne l'a pas voulue
+            PRECONFIGUREES = ('datagouv', 'justicelibre', 'de_bund', 'es_boe', 'gb_legislation', 'ca_federal', 'ca_quebec')
+            from agent import sources_publiques56109
+            self.assertEqual(set(sources_publiques56109.PRECONFIGUREES), set(PRECONFIGUREES))
+            self.assertEqual(len(sources_publiques56109.PRECONFIGUREES), 7)
+            self.assertEqual(p['configured'], pid in PRECONFIGUREES, pid)
+            self.assertEqual(p['activation_demandee'], pid in PRECONFIGUREES, pid)
+            self.assertFalse(p['enabled'] or p['secret_configured'])
             self.assertIn(p['category'], s.CATEGORIES)
             self.assertIn(p['transport'], s.TRANSPORTS)
             self.assertTrue(set(p['capabilities']) <= set(s.CAPACITES) and p['capabilities'])

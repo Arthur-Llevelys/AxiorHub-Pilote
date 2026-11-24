@@ -51,6 +51,13 @@ class Bandeau(carbon.Base):
         noms = re.findall(r'<span class="r99-nom">([^<]+)</span>', ligne)
         self.assertGreaterEqual(len(noms), 3)
         self.assertEqual(ligne.count('<li class="r99-routine'), len(noms))
+        # 5.6.109 (lot B, intégration I2) : les routines Bland (rappel de rendez-vous au client, agents IA : lignes « b109-ligne ») n'ont
+        # volontairement aucun bouton « Lancer » : un rappel ne part que par le lot confirmé par l'avocat, un agent IA est en lecture seule.
+        # Toutes les autres routines gardent leur bouton, vérifié comme avant ; aucune ligne Bland ne porte de bouton de lancement.
+        bland = re.findall(r'<li class="r99-routine b109-ligne[^"]*">.*?</li>', ligne)
+        self.assertFalse([x for x in bland if 'c5614-run' in x])
+        noms = [n for n in noms if not any('<span class="r99-nom">%s</span>' % n in x for x in bland)]
+        self.assertGreaterEqual(len(noms), 3)
         self.assertEqual(ligne.count('title="Lancer">▶</button>'), len(noms))         # Lancer : bouton court, nom lu par les lecteurs d'écran
         for nom in noms:
             self.assertIn('aria-label="Lancer : %s"' % nom, ligne)

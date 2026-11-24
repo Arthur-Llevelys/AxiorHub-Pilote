@@ -153,6 +153,68 @@ PROVIDERS = {
                                   'documents.read_selected': ('Lister le dossier Drive choisi', 'lecture', None), 'documents.export': ('Exporter un document (PDF)', 'lecture', None)},
                          'usage': 'Gmail, Drive et Docs en plus de l’agenda Google.'},
 }
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.109 (lot S, G21) : accès étrangers
+# Une fiche par service d'API du catalogue de qualification (``international56109`` : liens officiels, territoires, capacités déclarées) ;
+# même registre, même coffre, mêmes états et mêmes preuves par capacité que les autres connexions (aucun second registre). Aucun champ de
+# clé pour un service public sans clé (SEC : seulement le contact exigé dans l'en-tête User-Agent). Un seul compte par service et par
+# titulaire : ces services n'ont pas de bac à sable, l'environnement est toujours « production » (``sans_bac_a_sable``).
+FAMILIES['international'] = 'Registres et sources étrangers'
+API_INTERNATIONALES = ('uk_companies_house', 'pappers_international', 'opencorporates', 'ca_canlii', 'us_courtlistener', 'us_sec')
+CAPACITES_INTERNATIONALES = {'societe.rechercher': 'Rechercher une société', 'societe.lire': 'Lire la fiche d’une société',
+                             'documents.lister': 'Lister les documents déposés (historique paginé)',
+                             'documents.telecharger': 'Télécharger un document disponible (format d’origine)',
+                             'decisions.metadonnees': 'Métadonnées de décisions (pas le texte intégral)', 'textes.metadonnees': 'Métadonnées de textes',
+                             'decisions.rechercher': 'Rechercher des décisions', 'decisions.lire': 'Lire une décision'}
+AUTH_INTERNATIONALES = {'cle_basic': 'Clé API en HTTP Basic (la clé comme identifiant, mot de passe vide) ; lecture seulement : déposer une formalité demande un autre accès',
+                        'cle_fournisseur': 'Clé API de l’offre internationale (droits, pays et crédits selon le contrat ; routes différentes de Pappers France)',
+                        'cle_x_api_token': 'Clé API (en-tête X-API-TOKEN) ; données d’identité et de registre, pas d’actes officiels',
+                        'cle_query': 'Clé API transmise dans l’adresse : elle est retirée de tous les journaux et messages d’erreur',
+                        'cle_token': 'Jeton (Authorization: Token) ; aucune récupération PACER payante',
+                        'aucune': 'Aucune clé : seulement un contact dans l’en-tête User-Agent, exigé par le service'}
+
+
+def _fiches_internationales():
+    from .international56109 import catalogue
+    out = {}
+    for sid, s in catalogue().items():
+        if sid not in API_INTERNATIONALES:
+            continue
+        fields = [F('contact', 'Contact pour l’en-tête User-Agent (nom du cabinet et adresse électronique)')] if s['auth'] == 'aucune' else \
+            [F('api_key', 'Clé API', True)] + ([F('offre', 'Référence de l’offre (facultatif)', required=False)] if s['auth'] == 'cle_fournisseur' else [])
+        out[sid] = {'label': s['label'], 'family': 'international', 'auth': AUTH_INTERNATIONALES.get(s['auth'], s['auth']), 'access': s['acces_url'],
+                    'docs': s['docs_url'], 'fields': fields, 'sans_bac_a_sable': True, 'territoires': tuple(s['territoires']),
+                    'caps': {c: (CAPACITES_INTERNATIONALES.get(c, c), 'lecture', None) for c in s['capacites']},
+                    'usage': 'Territoires : %s. %s' % (', '.join(s['territoires']), s['limite']), 'note': 'Couverture, droits et coûts selon le compte : à vérifier.'}
+    return out
+
+
+# Fiches à part (comme les stockages de ``cloud5688``) : mêmes connexions, même coffre, mêmes preuves ; ``_spec`` les résout, les
+# Paramètres les affichent dans la famille « Registres et sources étrangers ». Aucun outil de l'agent n'en dépend (``TOOLS`` inchangé).
+PROVIDERS_INTERNATIONAUX = _fiches_internationales()
+
+# 5.6.109 (lot B) : téléphonie par IA (Bland, serveur MCP distant) — même registre, même coffre ; une seule connexion du cabinet ; carte propre
+# dans les Paramètres (``bland56109.carte_html``) ; chaque effet est une opération préparée puis confirmée par l'avocat.
+FAMILIES['telephonie'] = 'Téléphonie par IA'
+
+
+def _fiches_telephonie():
+    from .bland56109 import PROVIDER, SPEC
+    return {PROVIDER: SPEC}
+
+
+PROVIDERS_TELEPHONIE = _fiches_telephonie()
+
+
+def _fiches_pappers():
+    """5.6.109 (lot G4, G17) : capacité « API Pappers Entreprises », distincte de Pappers MCP et de Pappers Justice ; hors de ``TOOLS``."""
+    from .pappers_documents56109 import PROVIDER, SPEC
+    return {PROVIDER: SPEC}
+
+
+PROVIDERS_PAPPERS = _fiches_pappers()
+
 PUBLIC = {'recherche_entreprises': {'label': 'Recherche d’entreprises (data.gouv.fr)', 'family': 'facturer_encaisser',
                                     'caps': {'company.lookup': ('Rechercher une entreprise par SIREN ou nom', 'lecture', None)}}}
 # outils exposés à l'agent : nom → (capacité, nature)
@@ -296,6 +358,12 @@ def _spec(provider):
     """Fiche d'un fournisseur ; 5.6.88 : les stockages cloud ont la leur (cloud5688), hors des outils proposés à l'agent."""
     if provider in PROVIDERS:
         return PROVIDERS[provider]
+    if provider in PROVIDERS_INTERNATIONAUX:   # 5.6.109 (lot S, G21)
+        return PROVIDERS_INTERNATIONAUX[provider]
+    if provider in PROVIDERS_TELEPHONIE:   # 5.6.109 (lot B)
+        return PROVIDERS_TELEPHONIE[provider]
+    if provider in PROVIDERS_PAPPERS:   # 5.6.109 (lot G4, G17)
+        return PROVIDERS_PAPPERS[provider]
     from .cloud5688 import PROVIDERS as storages
     return storages.get(provider, {})
 
@@ -348,6 +416,12 @@ def _context(desk, row):
 
 def adapter(desk, row):
     from .adaptateurs5652 import ADAPTERS
+    if row['provider'] in PROVIDERS_TELEPHONIE:   # 5.6.109 (lot B) : Bland (MCP distant) ; l'adaptateur relit pause, activation et confirmation
+        from .bland56109 import Adaptateur
+        return Adaptateur(_context(desk, row), desk)
+    if row['provider'] in PROVIDERS_PAPPERS:   # 5.6.109 (lot G4, G17) : API Pappers Entreprises (domaine et routes fermés)
+        from .pappers_documents56109 import PappersEntreprises
+        return PappersEntreprises(_context(desk, row))
     if row['provider'] not in ADAPTERS:
         from .cloud5688 import adapter_class
         return adapter_class(row['provider'])(_context(desk, row))
@@ -394,6 +468,8 @@ def save(desk, owner, role, data):
     else:
         scope_owner = 'cabinet' if str(data.get('portee') or 'cabinet') == 'cabinet' else owner
     env = env or 'test'
+    if spec.get('sans_bac_a_sable'):   # 5.6.109 (lot S, G21) : pas de bac à sable chez ce service : une seule connexion par service et titulaire
+        env = 'production'
     if env not in ('test', 'production'):
         raise Stop('environnement_invalide')
     _may_configure(desk, scope_owner, owner, role)
@@ -918,6 +994,9 @@ def validate(desk, owner, role, op_id, version, sheet_hash=''):
     premier appel distant laisse l'opération « échec avant envoi », réessayable sans doublon (F02) ; chaque étape distante est journalisée
     (F04)."""
     op, row = _op_access(desk, owner, role, op_id)
+    if op['provider'] in PROVIDERS_TELEPHONIE:   # 5.6.109 (lot B) : confirmation de l'avocat (route de l'interface) ou exception bornée du rappel, sinon rien
+        from .bland56109 import exiger_confirmation
+        exiger_confirmation(op)
     right = _right_for(op['capability'])
     from .membres5650 import effective_rights
     try:
@@ -1250,7 +1329,7 @@ def operations(desk, owner, role, matter=''):
         d = dict(r)
         d.pop('payload_json', None)
         d['etat'] = OP_STATES.get(r['state'], r['state'])
-        d['libelle'] = PROVIDERS.get(r['provider'], {}).get('caps', {}).get(r['capability'], (r['capability'],))[0]
+        d['libelle'] = (PROVIDERS.get(r['provider']) or PROVIDERS_TELEPHONIE.get(r['provider'], {})).get('caps', {}).get(r['capability'], (r['capability'],))[0]   # 5.6.109 (lot B)
         out.append(d)
     return out
 
@@ -1272,7 +1351,7 @@ def queue_items(desk, prefix='', actor='cabinet', role='administrateur'):
             continue
         items.append({'class': 'engagement', 'object': 'operation:' + o['id'], 'revision': o['updated'], 'matter': '',
                       'matter_name': names.get(o['matter'], 'Cabinet') if o['matter'] else 'Cabinet',
-                      'title': '%s — %s (%s)' % (PROVIDERS.get(o['provider'], {}).get('label', o['provider']), o['libelle'], o['etat']),
+                      'title': '%s — %s (%s)' % ((PROVIDERS.get(o['provider']) or PROVIDERS_TELEPHONIE.get(o['provider'], {})).get('label', o['provider']), o['libelle'], o['etat']),
                       'consequence': 'Engagement externe : à relire sur sa fiche (compte, document, destinataires) avant toute transmission.',
                       'href': prefix + '/operation?id=' + o['id'], 'choices': ('ouvrir',)})
     return items
@@ -1288,6 +1367,12 @@ def _matter_name(desk, mid):
 
 
 # ------------------------------------------------------------------------------------------------ fiche d'opération (U01)
+def _row_op_provider(desk, op_id):
+    ensure_schema(desk)
+    row = desk.db.execute('SELECT provider FROM connexion_ops5652 WHERE id=?', (str(op_id or ''),)).fetchone()
+    return row['provider'] if row else ''
+
+
 def sheet(desk, owner, role, op_id):
     """Fiche de ce qui ENGAGE le cabinet : dossier et client lisibles, compte émetteur et environnement, document et sa version,
     destinataires et ordre, données réellement transmises, déclencheur. L'approbation porte sur l'empreinte de cet ensemble."""
@@ -1336,6 +1421,13 @@ def sheet(desk, owner, role, op_id):
 
 def sheet_html(desk, prefix, owner, role, op_id):
     from html import escape as e
+    fournisseur = _row_op_provider(desk, op_id)
+    if PROVIDERS_TELEPHONIE and fournisseur in PROVIDERS_TELEPHONIE:   # 5.6.109 (lot B) : fiche propre (numéro, texte, montant, confirmation)
+        from .bland56109 import fiche_html
+        return fiche_html(desk, prefix, owner, role, op_id)
+    if fournisseur.startswith('portail_'):   # 5.6.109 (lot G3, intégration I1) : formalité supervisée : accord par la route des formalités
+        from .formalites56109 import fiche_operation_html
+        return fiche_operation_html(desk, prefix, owner, role, op_id)
     s = sheet(desk, owner, role, op_id)
     doc = s['document']
     link = ''
@@ -1441,9 +1533,13 @@ def settings_html(desk, prefix, owner, role, args=None, redirect=''):
     families = ''.join('<a href="%s"%s>%s</a>' % (e(prefix + '/parametres?' + urlencode({'rubrique': 'connexions', 'famille': k}) + '#cx52', quote=True),
                                                   ' aria-current="true"' if k == fam else '', e(v)) for k, v in (('', 'Toutes'),) + tuple(FAMILIES.items()))
     cards = []
-    order = sorted(PROVIDERS.items(), key=lambda kv: (kv[0] not in rows, FAMILIES[kv[1]['family']], kv[1]['label']))
+    order = sorted(list(PROVIDERS.items()) + list(PROVIDERS_INTERNATIONAUX.items()) + list(PROVIDERS_PAPPERS.items()),   # 5.6.109 (lot G4) : fiche Pappers Entreprises
+                   key=lambda kv: (kv[0] not in rows, FAMILIES[kv[1]['family']], kv[1]['label']))
+    pays = str(args.get('pays') or '').strip().upper()[:8]   # 5.6.109 (lot S, G21) : filtre Pays (GB, CA, CA-QC, DE, ES, US)
     for pid, spec in order:
         if fam and spec['family'] != fam:
+            continue
+        if pays and not any(t == pays or t.startswith(pays + '-') for t in spec.get('territoires', ())):
             continue
         if search and search not in (spec['label'] + ' ' + spec['usage']).lower():
             continue
@@ -1505,6 +1601,9 @@ def settings_html(desk, prefix, owner, role, args=None, redirect=''):
                 ('<p class="cx52-note">Dernière erreur : %s</p>' % e(view['derniere_erreur'])) if view and view['derniere_erreur'] else '',
                 ' open' if not view else '', hidden, e(pid, quote=True), ' selected' if (view or {}).get('environment', 'test') == 'test' else '',
                 ' selected' if (view or {}).get('environment') == 'production' else '', ''.join(fields), caps, actions))
+    if fam in ('', 'telephonie') and not pays and (not search or search in 'bland téléphonie par ia appels sms agents vocaux'):   # 5.6.109 (lot B) : carte propre
+        from .bland56109 import carte_html
+        cards.append(carte_html(desk, prefix, owner, role))
     ops = operations(desk, owner, role)
     op_rows = ''.join(
         '<li id="op-%s"><a href="%s"><strong>%s</strong> — %s</a> <span class="cx52-note">%s · %s · %s%s</span></li>' % (
@@ -1516,9 +1615,32 @@ def settings_html(desk, prefix, owner, role, args=None, redirect=''):
             'Les écritures (signature, recommandé, courrier, facture, prélèvement) sont toujours préparées puis validées une à une.</p>'
             '<form class="cx52-search" method="get" action="%s"><input type="hidden" name="rubrique" value="connexions"><label>Rechercher une connexion'
             '<input name="q" value="%s" maxlength="60"></label></form><nav class="cx52-families" aria-label="Familles">%s</nav><div class="cx52-list">%s</div>'
-            '<h3>Opérations</h3><ul class="cx52-ops">%s</ul></section>') % (
+            '%s<h3>Opérations</h3><ul class="cx52-ops">%s</ul></section>') % (
         e(prefix + '/parametres', quote=True), e(search, quote=True), families, ''.join(cards) or '<p class="ax-muted">Aucune connexion ne correspond.</p>',
-        op_rows or '<li class="ax-muted">Aucune opération.</li>')
+        _services_etrangers_html(prefix, fam, pays), op_rows or '<li class="ax-muted">Aucune opération.</li>')
+
+
+PAYS_FILTRES = (('GB', 'Royaume-Uni'), ('CA', 'Canada'), ('CA-QC', 'Québec'), ('DE', 'Allemagne'), ('ES', 'Espagne'), ('US', 'États-Unis'))
+MODES_SITE = {'navigateur': 'Compte, ou consultation sur le site', 'a_qualifier': 'Contrat ou accès à qualifier', 'formats_publics': 'Textes publics (fonds de Sources juridiques)',
+              'api': 'API publique'}
+
+
+def _services_etrangers_html(prefix, fam, pays):
+    """5.6.109 (lot S, G21) : filtre Pays et services étrangers SANS API de clé ici (comptes, certificats, contrats, fonds de textes) : lien
+    officiel et mode d'accès seulement — jamais un champ de clé factice ni un statut « Connecté » tiré d'une simple adresse."""
+    from html import escape as e
+    if fam != 'international' and not pays:
+        return ''
+    from .international56109 import catalogue
+    liens = ''.join('<a href="%s"%s>%s</a>' % (e(prefix + '/parametres?' + urlencode({'rubrique': 'connexions', 'famille': 'international', 'pays': code}) + '#cx52', quote=True),
+                                               ' aria-current="true"' if code == pays else '', e(nom)) for code, nom in PAYS_FILTRES)
+    lignes = ''.join('<li><strong>%s</strong> · %s · %s · <a href="%s" target="_blank" rel="noopener noreferrer">Obtenir mes accès</a></li>' % (
+        e(s['label']), e(', '.join(s['territoires'])), e(MODES_SITE.get(s['transport'], s['transport'])), e(s['acces_url'], quote=True))
+        for sid, s in catalogue().items() if sid not in PROVIDERS_INTERNATIONAUX and (not pays or any(t == pays or t.startswith(pays + '-') for t in s['territoires'])))
+    return ('<section class="cx52-etrangers" aria-label="Services étrangers"><h3>Services étrangers</h3><nav class="cx52-families" aria-label="Pays">%s</nav>'
+            '<p class="cx52-note">Ces services se consultent avec un compte, un certificat ou un contrat du cabinet, ou sur leur site : aucune clé n’est '
+            'demandée ici et aucun n’est déclaré « connecté ». Les textes publics (Royaume-Uni, Allemagne, Canada, Espagne) sont dans Sources juridiques.</p>'
+            '<ul class="cx52-ops">%s</ul></section>') % (liens, lignes or '<li class="ax-muted">Aucun service pour ce pays.</li>')
 
 
 # ------------------------------------------------------------------------------------------------ recherche juridique avant réponse (5.6.49)
@@ -1613,3 +1735,15 @@ def prepare_from_form(desk, owner, role, data):
     else:
         raise Stop('outil_inconnu')
     return prepare(desk, owner, role, tool, payload)
+
+
+def _lectures_internationales():
+    """5.6.109 (lot S, G21) : sondes de lecture des capacités étrangères pour la qualification commune (``connector_readiness5689``) :
+    chaque adaptateur fait une lecture neutre et bornée (aucune donnée du cabinet) quand il reçoit ``sonde`` ; fiche, historique et
+    documents se qualifient séparément."""
+    from . import connector_readiness5689 as cr
+    for cap in CAPACITES_INTERNATIONALES:
+        cr.LECTURES.setdefault(cap, {'sonde': True})
+
+
+_lectures_internationales()

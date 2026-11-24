@@ -48,8 +48,14 @@ TASK_TYPES = {'briefing': 'Briefing du matin', 'tri': 'Tri des courriels', 'bila
               'synthese': 'Compte rendu selon la consigne', 'nouveautes': 'Point des nouveautés des dossiers',
               'mission': 'Projet préparé dans chaque dossier (mission)'}
 LEGACY = ('briefing', 'tri', 'bilan')
+# 5.6.109 (lot B) : types FERMÉS, créés par le programme seulement (jamais par le formulaire générique ni par le modèle, absents de TASK_TYPES) :
+# agent IA Bland (passage en lecture seule) et rappel de rendez-vous au client ; exécutés par ``bland56109.executer``.
+TYPES_FERMES = {'agent_ia': 'Agent IA (téléphonie Bland)', 'rappel_rdv': 'Rappel de rendez-vous au client'}
+# 5.6.109 (lot G4, G12) : collecte d'un portail procédural tous les N jours (profil versionné figé dans ``permissions_json``), exécutée par
+# ``collecte_portail56109.executer_routine`` : préparer et collecter seulement (aucun dépôt, aucune confirmation, aucun envoi).
+TYPES_FERMES['collecte_portail'] = 'Relever mes messages procéduraux (portail)'
 FREQS = {'quotidien': 'Tous les jours', 'jours': 'Certains jours de la semaine', 'hebdomadaire': 'Une fois par semaine',
-         'mensuel': 'Une fois par mois', 'ponctuel': 'Une seule fois'}
+         'mensuel': 'Une fois par mois', 'ponctuel': 'Une seule fois', 'intervalle': 'Tous les N jours'}
 DAYS = (('1', 'lun.'), ('2', 'mar.'), ('3', 'mer.'), ('4', 'jeu.'), ('5', 'ven.'), ('6', 'sam.'), ('7', 'dim.'))
 STATES = {'reservee': 'Réservée', 'en_file': 'En file', 'en_cours': 'En cours', 'terminee': 'Terminée', 'partielle': 'Terminée avec réserves',
           'bloquee': 'Bloquée', 'echec': 'Échec', 'a_reprogrammer': 'À reprogrammer', 'reportee_pause': 'Reportée : pause',
@@ -66,7 +72,7 @@ TEMPLATES = {
     'documents': {'title': 'Documents à préparer', 'task_type': 'consultation', 'consultation': True},
 }
 CAPABILITIES = {'briefing': ('modele', 'agenda'), 'tri': ('modele', 'messagerie'), 'bilan': ('modele',), 'synthese': ('modele',),
-                'nouveautes': (), 'mission': ('modele', 'stockage')}
+                'nouveautes': (), 'mission': ('modele', 'stockage'), 'collecte_portail': ('stockage',)}   # 5.6.109 (lot G4) : aucun modèle requis
 CAP_LABELS = {'modele': 'Modèle d’IA', 'messagerie': 'Lecture de la messagerie', 'agenda': 'Lecture de l’agenda', 'stockage': 'Dossiers (fichiers)'}
 RETRY_MINUTES = (0, 0, 0, 5, 15, 60, 60, 60)
 MAX_ATTEMPTS = len(RETRY_MINUTES)
@@ -133,6 +139,18 @@ def normalize_schedule(raw):
         if not days or (freq == 'hebdomadaire' and len(days) != 1):
             raise Stop('jours_routine_invalides')
         out['days'] = days
+    elif freq == 'intervalle':
+        n = raw.get('interval_days')
+        if isinstance(n, bool) or not re.fullmatch(r'[1-9][0-9]?', str(n or '')) or not 1 <= int(n) <= 30:
+            raise Stop('intervalle_routine_invalide')
+        anchor = str(raw.get('anchor') or '')
+        try:
+            parsed = date.fromisoformat(anchor)
+            if parsed.isoformat() != anchor:
+                raise ValueError
+        except ValueError:
+            raise Stop('ancrage_routine_invalide') from None
+        out.update(interval_days=int(n), anchor=anchor)
     elif freq == 'mensuel':
         try:
             md = int(raw.get('monthday') or 1)
@@ -155,6 +173,9 @@ def _matches(schedule, d):
     f = schedule['freq']
     if f in ('quotidien', 'jours', 'hebdomadaire'):
         return str(d.isoweekday()) in schedule.get('days', '1234567')
+    if f == 'intervalle':
+        delta = (d - date.fromisoformat(schedule['anchor'])).days
+        return delta >= 0 and delta % schedule['interval_days'] == 0
     if f == 'mensuel':
         return d.day == schedule['monthday']
     return d.isoformat() == schedule['date']
@@ -288,7 +309,8 @@ def _clean(desk, actor, data, hidden=frozenset(), legacy=''):
         raise Stop('dossiers_routine_requis')
     schedule = normalize_schedule(data.get('schedule') if isinstance(data.get('schedule'), dict) else {
         'freq': data.get('freq'), 'days': data.get('days') or ''.join(k for k, _ in DAYS if data.get('day_' + k) in (True, 'true', 'on')),
-        'time': data.get('time') or data.get('heure'), 'monthday': data.get('monthday'), 'date': data.get('date')})
+        'time': data.get('time') or data.get('heure'), 'monthday': data.get('monthday'), 'date': data.get('date'),
+        'interval_days': data.get('interval_days'), 'anchor': data.get('anchor')})
     tzname = str(data.get('timezone') or '') or None
     try:
         catchup = max(0, min(int(data.get('catchup_hours') if data.get('catchup_hours') not in (None, '') else 4), 72))
@@ -360,9 +382,10 @@ def update(desk, actor, role, rid, data, version):
     row = get(desk, rid)
     authorize(row, actor, role, write=True)
     form = _as_form(row)
-    if any(k in data for k in ('freq', 'time', 'days', 'monthday', 'date', 'schedule')) or any(str(k).startswith('day_') for k in data):
+    if any(k in data for k in ('freq', 'time', 'days', 'monthday', 'date', 'schedule', 'interval_days', 'anchor')) or any(str(k).startswith('day_') for k in data):
         old = form.pop('schedule')                       # calendrier modifié : les champs saisis remplacent l'ancien calendrier
-        form.update({'freq': old.get('freq'), 'time': old.get('time'), 'monthday': old.get('monthday'), 'date': old.get('date')})
+        form.update({'freq': old.get('freq'), 'time': old.get('time'), 'monthday': old.get('monthday'), 'date': old.get('date'),
+                     'interval_days': old.get('interval_days'), 'anchor': old.get('anchor')})
         if not any(str(k).startswith('day_') for k in data) and 'days' not in data:
             form['days'] = old.get('days', '')
     fields = _clean(desk, actor, {**form, **data}, _hidden_for(desk, row['owner'] if row['scope'] == 'personnel' else 'cabinet'),
@@ -408,6 +431,29 @@ def _as_form(row):
 
 def set_enabled(desk, actor, role, rid, enabled, version):
     return update(desk, actor, role, rid, {'enabled': 'true' if enabled else 'false'}, version)
+
+
+def basculer_type_ferme(desk, actor, role, rid, enabled, version):
+    """5.6.109 (lot B) : activer ou mettre en pause une routine d'un type fermé (sans formulaire générique) ; écriture conditionnelle (409),
+    version journalisée ; une pause suspend les passages automatiques non commencés, comme ``update``."""
+    row = get(desk, rid)
+    authorize(row, actor, role, write=True)
+    if row['task_type'] not in TYPES_FERMES:
+        raise Stop('type_routine_invalide')
+    now = _iso()
+    on = 1 if enabled else 0
+    cur = desk.db.execute('UPDATE routines5652 SET enabled=?,version=version+1,updated_at=?,updated_by=?,active_since=CASE WHEN ?=1 AND enabled=0 THEN ? '
+                          'ELSE active_since END WHERE id=? AND version=? AND deleted_at IS NULL', (on, now, actor, on, now, rid, int(version)))
+    if not cur.rowcount:
+        desk.db.rollback()
+        raise Stop('version_en_conflit')
+    if not on:
+        desk.db.execute("UPDATE routines5652_occ SET state='reportee_pause',error_code='routine_en_pause',updated=? WHERE routine_id=? AND manual=0 "
+                        "AND state IN ('reservee','en_file','a_reprogrammer')", (now, rid))
+    new = get(desk, rid)
+    _log_version(desk, new, actor, 'modification')
+    desk.db.commit()
+    return dict(new)
 
 
 def duplicate(desk, actor, role, rid):
@@ -802,6 +848,12 @@ def execute(desk, args):
             ref = _run_missions(desk, oid, snap, matters, result, owner)
         elif task == 'synthese':
             ref = _run_synthesis(desk, oid, snap, matters, result)
+        elif task == 'collecte_portail':   # 5.6.109 (lot G4, G12) : avant la branche des types fermés du lot B
+            from .collecte_portail56109 import executer_routine as _executer_g4
+            ref = _executer_g4(desk, oid, snap, result)
+        elif task in TYPES_FERMES:   # 5.6.109 (lot B)
+            from .bland56109 import executer as _executer_b109
+            ref = _executer_b109(desk, oid, snap, result)
         else:
             raise Stop('type_routine_invalide')
     except Stop as ex:

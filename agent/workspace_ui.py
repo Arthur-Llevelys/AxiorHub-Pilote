@@ -54,6 +54,8 @@ def assistant_panel(c,desk,matters,args,form,link):
     if selected:
         thread=desk.db.execute('SELECT * FROM assistant_threads WHERE id=?',(selected,)).fetchone()
         if not thread:raise Stop('conversation_absente')
+        from .historique56109 import exiger_lecture_requete   # 5.6.109 (lot H, F09) : droits relus avant tout titre, dossier, courriel ou message
+        exiger_lecture_requete(desk,selected)
     matter_id=args.get('matter','') or (thread['matter'] if thread else '')
     mail_key=args.get('key','') or (thread['mail_key'] if thread else '')
     matter=next((m for m in matters if m['id']==matter_id),None) if matter_id else None
@@ -112,5 +114,5 @@ def assistant_panel(c,desk,matters,args,form,link):
         scope='Cabinet' if not item['matter'] and not item['mail_key'] else ('Dossier '+item['matter'] if item['matter'] else 'Courriel')
         out+='<p>'+link('/assistant',item['title'],thread=item['id'])+'<small>'+e(scope+' · '+date(item['updated']))+'</small></p>'
     if not recent:out+='<p class="empty">Aucune conversation pour le moment.</p>'
-    out+='</div><p class="muted">Les réponses s’appuient sur les contenus déjà indexés et indiquent leurs sources. Les conversations sont conservées 90 jours et ne déclenchent aucun envoi automatique.</p>'
+    out+='</div><p class="muted">Les réponses s’appuient sur les contenus déjà indexés et indiquent leurs sources. Les conversations restent dans votre historique (aucune purge à l’affichage) et ne déclenchent aucun envoi automatique.</p>'
     return out

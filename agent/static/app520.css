@@ -4381,6 +4381,25 @@ label.cfg98-case input { margin-top: .2rem; }
   .d98-grille { grid-template-columns: 1fr; }
   .d98-form-ligne { align-items: stretch; flex-direction: column; }
 }
+
+/* 5.6.109 (C03) : contraste de l'onglet Fichiers. Le fil d'Ariane et la pagination sont des <nav> : l'ancienne règle « nav a { color: #fff } »
+   (menu latéral d'origine) y rendait les liens blancs sur blanc ; les lignes du tableau héritaient d'anciennes couleurs de th. Texte ET fond
+   sont fixés ensemble, par jetons : Carbon (clair et sombre), sinon les jetons d'origine (--ws-*), sinon une valeur du thème clair. Une règle
+   par ligne, toutes sous l'identifiant du bloc. Survol, sélection et focus restent visibles ; aucun état n'est porté par la couleur seule. */
+#d98-fichiers .d98-fil { background: transparent; color: var(--cds-text-secondary, var(--ws-muted, #525252)); }
+#d98-fichiers .d98-fil a { color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); background: transparent; }
+#d98-fichiers .d51-pager a { color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); background: transparent; }
+#d98-fichiers .d51-pager span { background: transparent; color: var(--cds-text-primary, var(--ws-ink, #161616)); }
+#d98-fichiers .d98-fil a:hover, #d98-fichiers .d51-pager a:hover { background: transparent; color: var(--cds-link-primary-hover, var(--ws-accent-hover, #0043ce)); text-decoration: underline; }
+#d98-fichiers .d51-pager a:focus-visible, #d98-fichiers .d98-arbre a:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+#d98-fichiers .d98-arbre thead th { color: var(--cds-text-primary, var(--ws-ink, #161616)); background: var(--cds-layer-01, var(--ws-surface, #fff)); }
+#d98-fichiers .d98-arbre tbody th, #d98-fichiers .d98-arbre tbody td { color: var(--cds-text-primary, var(--ws-ink, #161616)); background: var(--cds-layer-01, var(--ws-surface, #fff)); }
+#d98-fichiers .d98-arbre tbody th a { color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); background: transparent; }
+#d98-fichiers .d98-arbre tbody tr:hover th, #d98-fichiers .d98-arbre tbody tr:hover td { color: var(--cds-text-primary, var(--ws-ink, #161616)); background: var(--cds-layer-hover-01, var(--ws-surface-alt, #e8e8e8)); }
+#d98-fichiers .d98-arbre tbody tr:hover th a { background: transparent; color: var(--cds-link-primary-hover, var(--ws-accent-hover, #0043ce)); }
+#d98-fichiers .d98-chemin { background: transparent; color: var(--cds-text-primary, var(--ws-ink, #161616)); font-size: .8125rem; margin: 0 0 .5rem; overflow-wrap: anywhere; }
+#d98-fichiers .d98-chemin > summary { background: transparent; color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); cursor: pointer; }
+#d98-fichiers .d98-chemin > summary:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
 /* ==== v5699.css ==== */
 /* AxiorHub 5.6.99 — Aujourd'hui : routines en bandeau d'une ligne au-dessus de « À décider / À relire » ; le détail s'ouvre au clic */
 .r99-bandeau { position: relative; }
@@ -6561,4 +6580,683 @@ body[data-densite=compacte] #ws-main .d100-carte h3 { font-size: .9375rem; margi
   .l108-dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .l108-dl dd { margin-block-end: .35rem; }
   .l108-ligne > .ax-btn, .l108-ligne > button { flex: 1 1 100%; }
+}
+/* ==== v56109-repertoire.css ==== */
+/* AxiorHub 5.6.109 (lot L, F02) — onglet Fichiers › Par répertoire : en-têtes triables, dates sur dix caractères, métadonnées inconnues en mots,
+   ligne choisie. Texte et fond fixés ensemble par jetons (Carbon clair et sombre, sinon jetons d'origine --ws-*). Une règle par ligne. */
+#d98-fichiers .r109-etat { background: transparent; color: var(--cds-text-secondary, var(--ws-muted, #525252)); margin: .25rem 0 .5rem; }
+#d98-fichiers .r109-tri { display: inline; margin: 0; }
+#d98-fichiers .r109-tri-bouton { align-items: center; background: transparent; border: 0; border-radius: 4px; color: var(--cds-text-primary, var(--ws-ink, #161616)); cursor: pointer; display: inline-flex; font: inherit; font-size: .875rem; font-weight: 600; gap: .25rem; min-height: 2rem; padding: .125rem .375rem; text-align: left; }
+#d98-fichiers .r109-tri-bouton:hover { background: var(--cds-layer-hover-01, var(--ws-surface-alt, #e8e8e8)); color: var(--cds-text-primary, var(--ws-ink, #161616)); }
+#d98-fichiers .r109-tri-bouton:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+#d98-fichiers th[aria-sort] .r109-tri-bouton { background: transparent; color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); text-decoration: underline; }
+#d98-fichiers th[aria-sort] .r109-tri-bouton:hover { background: var(--cds-layer-hover-01, var(--ws-surface-alt, #e8e8e8)); color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); }
+#d98-fichiers .r109-fleche { font-size: .75rem; }
+#d98-fichiers .d98-arbre .r109-date, #d98-fichiers .d98-arbre .r109-taille { white-space: nowrap; }
+#d98-fichiers .d98-arbre .r109-inconnu { background: transparent; color: var(--cds-text-secondary, var(--ws-muted, #525252)); font-style: italic; }
+#d98-fichiers .d98-arbre .r109-compte { background: transparent; color: var(--cds-text-secondary, var(--ws-muted, #525252)); }
+#d98-fichiers .d98-arbre tbody tr.r109-choisi th, #d98-fichiers .d98-arbre tbody tr.r109-choisi td { background: var(--cds-layer-selected-01, var(--ws-accent-soft, #e0e0e0)); color: var(--cds-text-primary, var(--ws-ink, #161616)); }
+#d98-fichiers .d98-arbre tbody tr.r109-choisi th a { background: transparent; color: var(--cds-text-primary, var(--ws-ink, #161616)); text-decoration: underline; }
+#d98-fichiers .d98-arbre tbody tr.r109-choisi th { box-shadow: inset 4px 0 0 var(--cds-border-interactive, var(--ws-accent, #0f62fe)); font-weight: 600; }
+.d79-preview .r109-resume { margin: 6px 10px 0; }
+@media (max-width: 720px) {
+  /* petit écran : l'en-tête devient une barre de tri ; type, dates et taille restent lisibles sous le nom */
+  #d98-fichiers .d98-arbre thead { display: block; }
+  #d98-fichiers .d98-arbre thead tr { border: 0; display: flex; flex-wrap: wrap; gap: .25rem; padding: 0 0 .5rem; }
+  #d98-fichiers .d98-arbre thead th { border: 0; display: inline-block; padding: 0; width: auto; }
+  #d98-fichiers .d98-arbre tbody td[data-label] { display: inline-block; margin-right: .75rem; width: auto; }
+}
+/* ==== v56109-pieces.css ==== */
+/* AxiorHub 5.6.109 (lot L, F01) — lecteur des courriels : barre des pièces jointes sous l'en-tête, aperçu, classement d'une pièce ou d'un lot.
+   Couleurs par jetons du lecteur (--ax-*), valeurs du thème sombre posées à part ; un état est toujours écrit en mots, jamais porté par la
+   couleur seule. Les noms longs passent à la ligne (jamais coupés sans moyen de les lire : infobulle et texte entier). */
+.p109-barre{border:1px solid var(--ax-line,#c3cad5);border-radius:10px;padding:6px 8px;background:var(--ax-soft,#f7f9fd);color:var(--ax-ink,#16202e)}
+.p109-barre[hidden]{display:none}
+.p109-tete{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between}
+.p109-tete h3{margin:0}
+.p109-liste{display:grid;gap:4px;list-style:none;margin:0;padding:0}
+.p109-piece{background:var(--ax-surface,#fff);color:var(--ax-ink,#16202e)}
+.p109-identite{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;min-width:0;flex:1 1 14rem}
+.p109-nom{font-weight:600;overflow-wrap:anywhere}
+.p109-meta{color:var(--ax-muted,#4b5563);font-size:13px;overflow-wrap:anywhere}
+.p109-etat{display:inline-flex;flex-wrap:wrap;gap:4px}
+.p109-puce{border:1px solid var(--ax-line,#8d96a3);border-radius:10px;font-size:12px;font-weight:600;padding:1px 6px;background:var(--ax-surface,#fff);color:var(--ax-ink,#16202e)}
+.p109-puce.p109-verifiee{border-color:#198038;background:#defbe6;color:#0e3d1c}
+.p109-puce.p109-a_verifier{border-color:#8a6d00;background:#fff4ce;color:#3d2e00}
+.p109-puce.p109-refusee{border-color:#a2191f;background:#fff1f1;color:#750e13}
+.p109-indisponible{color:var(--ax-muted,#4b5563);font-size:13px;align-self:center}
+.p109-barre .ax-btn{min-height:32px;padding:4px 10px;font-size:14px}
+.p109-barre :focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.p109-integrees>summary{cursor:pointer;font-size:14px;color:var(--ax-muted,#4b5563);padding:2px 0}
+.p109-apercu{display:grid;gap:6px;border-top:1px solid var(--ax-line,#c3cad5);padding-top:6px}
+.p109-apercu[hidden]{display:none}
+.p109-apercu-tete{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.p109-apercu-tete strong{overflow-wrap:anywhere;min-width:0}
+.p109-choix{border:1px solid var(--ax-line,#c3cad5);border-radius:8px;display:grid;gap:4px;margin:0;padding:6px 8px}
+.p109-choix legend{font-size:14px;font-weight:600;padding:0 4px}
+.p109-case{display:flex;gap:6px;align-items:flex-start}
+.p109-case label{display:block;overflow-wrap:anywhere}
+.p109-avant h4{font-size:14px;margin:4px 0}
+.p109-lot{display:grid;gap:4px;border-top:1px solid var(--ax-line,#c3cad5);padding-top:6px}
+.p109-phrase{margin:0;font-size:14px;overflow-wrap:anywhere}
+:root[data-theme=dark] .p109-barre{background:#1b222c;color:#e8edf3;border-color:#465263}
+:root[data-theme=dark] .p109-piece,:root[data-theme=dark] .p109-puce{background:#161b22;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .p109-meta,:root[data-theme=dark] .p109-indisponible,:root[data-theme=dark] .p109-integrees>summary{color:#c1c9d4}
+:root[data-theme=dark] .p109-puce.p109-verifiee{background:#0e3d1c;color:#defbe6;border-color:#42be65}
+:root[data-theme=dark] .p109-puce.p109-a_verifier{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+:root[data-theme=dark] .p109-puce.p109-refusee{background:#520408;color:#ffd7d9;border-color:#ff8389}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]) .p109-barre{background:#1b222c;color:#e8edf3;border-color:#465263}
+  :root:not([data-theme=light]) .p109-piece,:root:not([data-theme=light]) .p109-puce{background:#161b22;color:#e8edf3;border-color:#6b7685}
+  :root:not([data-theme=light]) .p109-meta,:root:not([data-theme=light]) .p109-indisponible,:root:not([data-theme=light]) .p109-integrees>summary{color:#c1c9d4}
+  :root:not([data-theme=light]) .p109-puce.p109-verifiee{background:#0e3d1c;color:#defbe6;border-color:#42be65}
+  :root:not([data-theme=light]) .p109-puce.p109-a_verifier{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+  :root:not([data-theme=light]) .p109-puce.p109-refusee{background:#520408;color:#ffd7d9;border-color:#ff8389}
+}
+@media (max-width:48rem){
+  /* petit écran : l'aperçu passe en vue pleine, avec « Fermer l'aperçu » toujours visible en tête ; le retour rend le même message */
+  .p109-apercu:not([hidden]){position:fixed;inset:0;z-index:90;background:inherit;padding:8px;overflow:auto;grid-template-rows:auto 1fr;border:0}
+  .p109-apercu .lx56106-apercu{height:auto;min-height:0}
+  .p109-apercu-tete{position:sticky;top:0;background:inherit}
+  .p109-barre .ax-btn{flex:1 1 auto}
+}
+@media print{.p109-barre .lx56106-actions,.p109-apercu,.p109-classement{display:none}}
+/* ==== v56109-fiche.css ==== */
+/* AxiorHub 5.6.109 (lot D, F04) — fiche Conseil / Contentieux du dossier (d109-) : première carte, cartes repliables par fonction, propositions
+   à décider, provenance des parties. Jetons Carbon avec repli (clair et sombre) ; un état est toujours écrit en mots, jamais par la seule couleur. */
+.d109-fiche { display: grid; gap: .75rem; min-width: 0; }
+.d109-premiere { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); padding-bottom: .75rem; }
+.d109-bref { display: grid; gap: .5rem 1rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); margin: 0 0 .5rem; }
+.d109-bref div { min-width: 0; }
+.d109-bref dt { color: var(--cds-text-secondary, #525252); font-size: .8125rem; }
+.d109-bref dd { margin: 0; overflow-wrap: anywhere; }
+.d109-questions { display: grid; gap: .5rem 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+.d109-champ { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; padding: .5rem .75rem; }
+.d109-champ h3 { font-size: .9375rem; margin: 0 0 .25rem; }
+.d109-valeur { overflow-wrap: anywhere; }
+.d109-liste { margin: 0; padding-left: 1.1rem; }
+.d109-origine, .d109-provenance, .d109-pied { font-size: .8125rem; margin: .25rem 0 0; }
+.d109-carte { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; }
+.d109-carte.d109-premiere { border-left: 0; border-radius: 0; border-right: 0; border-top: 0; }
+.d109-carte > summary { align-items: baseline; cursor: pointer; display: flex; font-weight: 600; gap: .5rem; padding: .5rem .75rem; }
+.d109-carte > summary:focus-visible, .d109-perso > summary:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.d109-corps { display: grid; gap: .5rem; padding: 0 .75rem .75rem; }
+.d109-elements { margin: 0; }
+.d109-item { overflow-wrap: anywhere; }
+.d109-attribution { font-style: italic; }
+.d109-force, .d109-statut { border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 10px; color: var(--cds-text-secondary, #525252); font-size: .75rem;
+  padding: 0 .4rem; white-space: nowrap; }
+.d109-statut { background: var(--ui-attention-doux, #fcf4d6); border-color: var(--cds-support-warning, #b28600); color: var(--ui-attention-texte, #3d2f00); }
+.d109-avis { border-left: 4px solid var(--cds-support-warning, #b28600); margin: .25rem 0; padding: .125rem .5rem; }
+.d109-nettoyage { border-style: dashed; }
+.d109-proposition { border: 1px dashed var(--cds-border-strong, #8d8d8d); border-radius: 6px; margin-top: .5rem; padding: .5rem; }
+.d109-comparaison { display: grid; gap: .5rem 1rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); margin: .25rem 0; }
+.d109-comparaison dt { color: var(--cds-text-secondary, #525252); font-size: .8125rem; }
+.d109-comparaison dd { margin: 0; overflow-wrap: anywhere; }
+.d109-instances { list-style: none; margin: .25rem 0; padding: 0; }
+.d109-outils { align-items: flex-start; display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
+.d109-perso { min-width: 0; }
+.d109-perso[open] { flex: 1 1 100%; }
+.d109-cartes input[type=number] { width: 4.5rem; }
+@media (max-width: 640px) {
+  .d109-questions, .d109-bref { grid-template-columns: 1fr; }
+}
+/* ==== v56109-honoraires.css ==== */
+/* AxiorHub 5.6.109 (lot D, F05) — Paramètres › Cabinet › Prestations et honoraires (h109-) : catalogue du cabinet, éditeur d'une prestation,
+   règles conditionnelles, simulation, bibliothèque de trames. Jetons Carbon avec repli (clair et sombre) ; un état est toujours écrit en mots. */
+.h109 { display: grid; gap: .75rem; min-width: 0; }
+.h109-filtres { align-items: end; display: flex; flex-wrap: wrap; gap: .5rem .75rem; }
+.h109-filtres label { display: grid; gap: .25rem; min-width: 0; }
+.h109-liste { display: grid; gap: .5rem; list-style: none; margin: 0; padding: 0; }
+.h109-offre { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; padding: .5rem .75rem; }
+.h109-tete { align-items: baseline; display: flex; flex-wrap: wrap; gap: .25rem .75rem; }
+.h109-tete strong { overflow-wrap: anywhere; }
+.h109-etat { border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 10px; color: var(--cds-text-secondary, #525252); font-size: .75rem; padding: 0 .4rem;
+  white-space: nowrap; }
+.h109-etat-brouillon, .h109-etat-a_chiffrer { background: var(--ui-attention-doux, #fcf4d6); border-color: var(--cds-support-warning, #b28600);
+  color: var(--ui-attention-texte, #3d2f00); }
+.h109-prix { font-variant-numeric: tabular-nums; }
+.h109-gestes { align-items: flex-start; display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .25rem; }
+.h109-gestes > details[open] { flex: 1 1 100%; }
+.h109-gestes > details > summary { color: var(--cds-link-primary, #0f62fe); cursor: pointer; }
+.h109-gestes > details > summary:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.h109-grille { display: grid; gap: .5rem .75rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); min-width: 0; }
+.h109-grille label, .h109-large { display: grid; gap: .25rem; min-width: 0; }
+.h109-large { grid-column: 1 / -1; }
+.h109-regle { border-left: 3px solid var(--cds-border-strong, #8d8d8d); margin: .25rem 0; padding: .125rem .5rem; }
+.h109-avis { border-left: 4px solid var(--cds-support-warning, #b28600); margin: .25rem 0; padding: .125rem .5rem; }
+.h109-resultat { border: 1px dashed var(--cds-border-strong, #8d8d8d); border-radius: 6px; margin-top: .5rem; padding: .5rem; }
+.h109-resultat table { border-collapse: collapse; width: 100%; }
+.h109-resultat td, .h109-resultat th { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); padding: .25rem .5rem; text-align: left; }
+.h109-resultat td:last-child, .h109-resultat th:last-child { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+@media (max-width: 640px) {
+  .h109-grille { grid-template-columns: 1fr; }
+}
+/* ==== v56109-conso.css ==== */
+/* 5.6.109 (lot M, F18) : section « Consommation et coûts » de Paramètres › Modèles d'IA. Résumé compact, puis tableaux par mode (API,
+   abonnement, IA locale, services externes) et détail à ouvrir. Lisible à 1920 × 1080 et à 125 % : aucune largeur fixe, les tableaux
+   défilent dans leur propre cadre, jamais la page. Contraste clair et sombre par les jetons de la page ; focus visible ; cibles d'au
+   moins 2.5rem. Le choix « Prix et tokens », « Prix » ou « Tokens » masque des colonnes : il ne change rien à ce qui est enregistré. */
+.m109 { display: grid; gap: .7rem; min-inline-size: 0; }
+.m109 h3 { margin: .6rem 0 .1rem; font-size: 1rem; }
+.m109-filtres { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .5rem .7rem; align-items: end; }
+.m109-filtres label { display: grid; gap: .2rem; min-inline-size: 0; font-size: .875rem; }
+.m109-filtres select, .m109-filtres input { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.m109-filtres .ax-btn { min-block-size: 2.5rem; justify-self: start; }
+.m109-filtres [hidden] { display: none !important; }
+.m109-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; grid-column: 1 / -1; }
+.m109-affichage { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .3rem 1rem; align-items: center; min-inline-size: 0; }
+.m109-affichage legend { font-weight: 600; padding: 0; float: left; margin-inline-end: .8rem; }
+.m109-affichage label { display: inline-flex; gap: .35rem; align-items: center; min-block-size: 2.5rem; cursor: pointer; }
+.m109-affichage small { flex-basis: 100%; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.m109-resume { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .5rem; margin: 0; }
+.m109-resume > div { padding: .5rem .65rem; border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem;
+  background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit); min-inline-size: 0; overflow-wrap: anywhere; }
+.m109-resume dt { font-size: .8125rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.m109-resume dd { margin: .15rem 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.m109-resume dd small { display: block; font-weight: 400; margin-block-start: .15rem; }
+.m109-cadre { overflow-x: auto; max-inline-size: 100%; }
+.m109-table { inline-size: 100%; border-collapse: collapse; }
+.m109-table caption { text-align: start; }
+.m109-table th, .m109-table td { text-align: start; vertical-align: top; padding: .4rem .5rem; border-block-end: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); }
+.m109-table td.m109-n, .m109-table th.m109-n { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.m109-inconnu { color: var(--cds-text-secondary, var(--ax-muted, #525252)); font-style: italic; }
+.m109-partiel { border-block-end: 1px dashed var(--cds-support-warning, #8e6a00); }
+.m109-etat { display: inline-block; padding: .05rem .45rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.m109-etat.incomplet { border-color: var(--cds-support-warning, #8e6a00); border-style: dashed; }
+.m109-note { color: var(--cds-text-secondary, var(--ax-muted, #525252)); margin: .2rem 0 0; }
+.m109-detail > summary { cursor: pointer; min-block-size: 2.5rem; display: flex; align-items: center; font-weight: 600; }
+.m109-detail > summary:focus-visible, .m109-filtres select:focus-visible, .m109-filtres input:focus-visible, .m109-affichage input:focus-visible,
+.m109-pages button:focus-visible, .m109 a:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.m109-pages { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .4rem 0 0; }
+.m109-pages button { min-block-size: 2.5rem; }
+.m109-liens { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin: .2rem 0 0; padding: 0; list-style: none; }
+.m109-vue[aria-busy="true"] { opacity: .6; }
+/* « Prix » : les colonnes de jetons sont masquées ; « Tokens » : les colonnes de montants. Par défaut, tout est montré. */
+.m109[data-affichage="prix"] .m109-t, .m109[data-affichage="tokens"] .m109-p { display: none; }
+/* ==== v56109-reanalyse.css ==== */
+/* AxiorHub 5.6.109 (lot A, F03) — bloc « Analyse du dossier » de la fiche : état, dialogue de lancement, étapes, couverture, comparaison.
+   Couleurs par les variables communes (clair et sombre) ; focus visible ; colonnes repliées sous 720 px. */
+.a109 { margin: 0 0 var(--ax-gap, 16px); }
+.a109 .d79-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.a109-etat, .a109-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--ax-border, #c9ced6); font-size: .875em;
+  background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.a109-e-a_jour, .a109-s-ok .a109-badge { border-color: var(--ax-success-text, #1a7f37); }
+.a109-e-partielle, .a109-e-perimee, .a109-s-partielle .a109-badge, .a109-s-interrompue .a109-badge, .a109-b-perimee, .a109-b-precision { border-color: var(--ax-warning, #9a6700); }
+.a109-s-erreur .a109-badge { border-color: var(--ax-danger, #b42318); }
+.a109-resume { margin: 6px 0 10px; }
+.a109-bandeau { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--ax-border, #c9ced6);
+  border-radius: 8px; background: var(--ax-surface-2, #f3f4f6); }
+.a109-lancer > summary { display: inline-block; cursor: pointer; list-style: none; }
+.a109-lancer > summary::-webkit-details-marker { display: none; }
+.a109-lancer > summary:focus-visible, .a109 details > summary:focus-visible, .a109 button:focus-visible, .a109 a:focus-visible, .a109 input:focus-visible,
+.a109 textarea:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+.a109-form { margin: 10px 0 0; padding: 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.a109-form h3 { margin: 0 0 8px; font-size: 1em; }
+.a109-avant { margin: 0; }
+.a109-avant > div { margin: 0 0 8px; }
+.a109-avant dt, .a109-compare dt { font-weight: 600; }
+.a109-avant dd, .a109-compare dd { margin: 2px 0 0; }
+.a109-mode { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; }
+.a109-mode label { display: block; margin: 4px 0; }
+.a109-avis { margin: 8px 0; padding: 8px 10px; border-left: 3px solid var(--ax-warning, #9a6700); background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.a109-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.a109-suivi, .a109-couverture { margin: 10px 0 0; }
+.a109-etapes { margin: 8px 0 0; padding-left: 20px; }
+.a109-etape { margin: 4px 0; }
+.a109-compteurs { display: flex; flex-wrap: wrap; gap: 6px 14px; list-style: none; margin: 8px 0; padding: 0; }
+.a109-liste { margin: 6px 0 8px; padding-left: 20px; }
+.a109-liste-etat { margin: 4px 0; }
+.a109-nom { overflow-wrap: anywhere; }
+.a109-comparaison { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--ax-border, #c9ced6); }
+.a109-comparaison h3 { margin: 0 0 6px; font-size: 1.05em; }
+.a109-compte { display: inline-block; min-width: 1.6em; padding: 0 6px; border-radius: 999px; text-align: center; background: var(--ax-warning-bg, #fff4d6); color: var(--ax-warning-text, #5c3d00); border: 1px solid var(--ax-warning, #9a6700); font-size: .85em; }
+.a109-prop { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.a109-prop h4 { margin: 0 0 8px; font-size: 1em; }
+.a109-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 0; }
+.a109-compare p { margin: 2px 0; overflow-wrap: anywhere; }
+.a109-decision { margin: 10px 0 0; }
+.a109-champ { display: block; margin: 6px 0; }
+.a109-champ input, .a109-champ textarea { display: block; width: 100%; max-width: 640px; margin-top: 2px; }
+@media (max-width: 720px) {
+  .a109-compare { grid-template-columns: 1fr; }
+}
+/* ==== v56109-sources.css ==== */
+/* AxiorHub 5.6.109 (lot S, F11, G18, G19, G21) — état des sources publiques (Paramètres et guide), services étrangers (Connexions API),
+   registre étranger et documents publics de la fiche de contact. Couleurs par les variables communes (clair et sombre) ; focus visible. */
+.s56109-etat { margin: 4px 0 8px; padding: 4px 10px; border-left: 3px solid var(--ax-border, #c9ced6); background: var(--ax-surface-2, #f3f4f6);
+  color: var(--ax-text, #1b1f24); border-radius: 4px; }
+.s56109-etat[data-etat="pret"] { border-left-color: var(--ax-success-text, #1a7f37); }
+.s56109-etat[data-etat="hors_ligne"], .s56109-etat[data-etat="indisponible"], .s56109-etat[data-etat="quota"], .s56109-etat[data-etat="corpus_absent"],
+.s56109-etat[data-etat="outils_a_valider"], .s56109-etat[data-etat="verification_en_cours"] { border-left-color: var(--ax-warning, #9a6700); }
+.s56109-etat[data-etat="refuse"], .s56109-etat[data-etat="bloque_local_strict"], .s56109-etat[data-etat="restreint_politique"] { border-left-color: var(--ax-danger, #b42318); }
+.s56109-detail { display: inline-block; margin-left: 6px; color: var(--ax-muted, #57606a); font-size: .9em; }
+.s56109-reverifier { display: inline-block; margin: 0 0 8px; }
+.s56109-installation ul { padding-left: 20px; }
+.s56109-acces { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px; margin: 4px 0 10px; }
+.cx52-etrangers { margin: 16px 0; }
+.i56109-identite { margin: 8px 0; }
+.i56109-dossier { margin: 10px 0 0; padding: 8px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff);
+  color: var(--ax-text, #1b1f24); }
+.i56109-dossier h3 { margin: 0 0 6px; font-size: 1em; }
+.s56109-reverifier button:focus-visible, .s56109-acces button:focus-visible, .s56109-acces input:focus-visible, .i56109 summary:focus-visible,
+.i56109 button:focus-visible, .i56109 input:focus-visible, .cx52-etrangers a:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+@media (max-width: 720px) { .s56109-acces { display: block; } }
+/* ==== v56109-navigateur.css ==== */
+/* AxiorHub 5.6.109 (lot O) : modèle du navigateur, acquittement de la prise de main, accès à ce poste. Contraste clair et sombre. */
+.n56109-table { border-collapse: collapse; width: 100%; max-width: 48rem; }
+.n56109-table th, .n56109-table td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--ax-border, #c9ced6); vertical-align: top; }
+.n56109-table th { font-weight: 600; width: 16rem; }
+.n56109-modele { font-size: .92em; }
+.n56109-main { margin: .4rem 0; padding: .45rem .6rem; border-left: 4px solid #8a5a00; background: #fff6e0; color: #3d2a00; }
+.n56109-main.ok { border-left-color: #1d6b35; background: #e8f5ec; color: #0f3b1d; }
+.n56109-delegation { margin-top: .6rem; }
+@media (prefers-color-scheme: dark) {
+  .n56109-main { background: #3a2c08; color: #ffe7b0; border-left-color: #f0b84a; }
+  .n56109-main.ok { background: #12301c; color: #c9f0d5; border-left-color: #5fd18a; }
+}
+[data-theme="dark"] .n56109-main { background: #3a2c08; color: #ffe7b0; border-left-color: #f0b84a; }
+[data-theme="dark"] .n56109-main.ok { background: #12301c; color: #c9f0d5; border-left-color: #5fd18a; }
+/* ==== v56109-historique.css ==== */
+/* AxiorHub 5.6.109 (lot H, F09 et F10) : Historique dans l'assistant (volet et vue agrandie /assistant), actions des discussions.
+   Volet : l'en-tête et le composeur restent fixes, seule la zone centrale défile (min-height: 0 sur les enfants flex). */
+#ws-ai-dock .h109-tete-barre { align-items: center; display: flex; flex: none; flex-wrap: wrap; gap: .25rem; }
+#ws-ai-dock .h109-tete-bouton { align-items: center; background: transparent; border: 1px solid var(--cds-border-subtle-01, #c6c6c6); border-radius: 4px;
+  color: var(--cds-text-primary, var(--ws-ink, #161616)); cursor: pointer; display: inline-flex; font-size: var(--ui-taille-petit, .875rem); gap: .25rem;
+  height: auto; min-height: 2.5rem; padding: .25rem .5rem; text-decoration: none; width: auto; }
+#ws-ai-dock .h109-tete-bouton:hover { background: var(--cds-layer-hover-01, #e8e8e8); }
+#ws-ai-dock .h109-tete-bouton:focus-visible, .h109 :is(a, button, select, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; box-shadow: 0 0 0 4px var(--cds-background, #fff); }
+#ws-ai-dock .h109-tete-bouton[aria-expanded=true] { border-color: currentColor; font-weight: 600; }
+#ws-ai-dock .h109-panneau [hidden], .h109 [hidden] { display: none !important; }   /* les règles globales « button { display } » rendaient hidden inopérant */
+#ws-ai-dock .h109-panneau .h109-texte, .h109 .h109-texte, #ws-ai-dock .h109-panneau .h109-titre { color: var(--cds-text-primary, var(--ws-ink, #161616)); opacity: 1; }
+#ws-ai-dock .h109-panneau .h109-meta, #ws-ai-dock .h109-panneau .h109-extrait { opacity: 1; }
+#ws-ai-dock .h109-panneau { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); margin: 0 0 .75rem; padding: 0 0 .75rem; }
+#ws-ai-dock .h109-panneau input[type=search] { box-sizing: border-box; margin: 0 0 .5rem; width: 100%; }
+.h109-fils { list-style: none; margin: 0; padding: 0; }
+.h109-ligne { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); }
+.h109-lien { background: transparent; border: 0; color: inherit; cursor: pointer; display: block; font: inherit; padding: .5rem .25rem; text-align: left;
+  text-decoration: none; width: 100%; }
+.h109-lien:hover, .h109-choisi > .h109-lien { background: var(--cds-layer-hover-01, #e8e8e8); }
+.h109-choisi > .h109-lien { box-shadow: inset 3px 0 currentColor; font-weight: 600; }
+.h109-titre { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.h109-meta, .h109-extrait { color: var(--cds-text-secondary, #525252); display: block; font-size: var(--ui-taille-petit, .875rem); overflow-wrap: anywhere; }
+.h109-extrait { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.h109-etat[data-etat=echec] { color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.h109-etat[data-etat=en_pause], .h109-etat[data-etat=a_preciser] { font-weight: 600; }
+.h109-message { border-left: 3px solid var(--cds-border-subtle-01, #c6c6c6); margin: .5rem 0; padding: .25rem .75rem; }
+.h109-message.h109-user { border-left-color: var(--cds-interactive, #0f62fe); }
+.h109-texte { white-space: pre-wrap; overflow-wrap: anywhere; margin: .25rem 0; }
+.h109-note, .h109-portee { color: var(--cds-text-secondary, #525252); font-size: var(--ui-taille-petit, .875rem); }
+.h109-alerte { color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.h109-statut:empty { display: none; }
+.h109-retour, .h109-reprendre, .h109-suite, .h109-bouton-lien { background: transparent; border: 0; color: var(--cds-link-primary, #0f62fe); cursor: pointer;
+  font: inherit; min-height: 2rem; padding: .25rem 0; text-decoration: underline; }
+.h109-continuer { display: inline-block; margin: .5rem 0; }
+
+/* vue agrandie : liste et fil côte à côte ; le fil garde sa saisie visible (seuls les messages défilent) */
+.h109 { align-items: start; display: grid; gap: 1rem 1.5rem; grid-template-columns: minmax(17rem, 25rem) minmax(0, 1fr); }
+.h109-entete { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; }
+.h109-entete h2 { margin: 0; }
+.h109-filtres { display: grid; gap: .5rem; grid-template-columns: 1fr 1fr; margin: .75rem 0 .25rem; }
+.h109-filtres label { display: flex; flex-direction: column; font-weight: 600; gap: .125rem; min-width: 0; }
+.h109-filtres label:first-of-type { grid-column: 1 / -1; }
+.h109-filtres .h109-case { align-items: center; flex-direction: row; font-weight: 400; gap: .375rem; }
+.h109-liste [data-h109-liste] { max-height: calc(100dvh - 22rem); min-height: 8rem; overflow: auto; }
+.h109-detail { display: flex; flex-direction: column; gap: .5rem; max-height: calc(100dvh - 6rem); min-height: 0; position: sticky; top: 4.5rem; }
+.h109-messages { flex: 1 1 auto; min-height: 6rem; overflow: auto; overscroll-behavior: contain; }
+.h109-composeur { flex: none; }
+.h109-composeur textarea { box-sizing: border-box; max-height: 30dvh; width: 100%; }
+.h109-barre { display: flex; flex-wrap: wrap; gap: .375rem; }
+.h109-barre .h109-groupe { align-items: center; display: inline-flex; gap: .25rem; }
+.h109-membres, .h109-groupes { margin: .5rem 0; }
+.h109-partage { display: flex; flex-wrap: wrap; gap: .375rem; align-items: center; }
+.h109-sous-titre { font-size: var(--ui-taille-petit, .875rem); margin: .75rem 0 .25rem; text-transform: none; }
+.h109-attribuer { border-left: 3px solid var(--cds-support-warning, #f1c21b); margin: .75rem 0; padding: .25rem .5rem; }
+@media (max-width: 960px) {
+  .h109 { grid-template-columns: 1fr; }
+  .h109-detail { max-height: none; position: static; }
+  .h109-liste [data-h109-liste] { max-height: none; }
+}
+/* F10 : écran 1920 × 1080 à 125 % (1536 × 864 px CSS) et moins haut : le composeur du volet se resserre pour que la saisie, Envoyer, le
+   micro et l'en-tête (Historique, Nouvelle discussion, Fermer) restent visibles sans défiler. */
+@media (max-height: 900px) {
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-hint { display: none; }
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-tete { padding-bottom: .375rem; padding-top: .375rem; }
+  #ws-ai-dock:not(.ws-ai-dock--embedded) #ws-ai-question { max-height: min(9rem, 22dvh); }
+  #ws-ai-dock:not(.ws-ai-dock--embedded) #ws-ai-status { font-size: var(--ui-taille-petit, .875rem); margin: 0; }
+}
+/* Téléphone (volet en pleine largeur, 375 px) : la barre Historique / Nouvelle discussion / Ouvrir en grand passe sous le titre. Sans cela
+   elle prenait toute la largeur : titre écrasé à une lettre par ligne, « Fermer » hors de l'écran, saisie repoussée sous la vue (constaté
+   par le parcours P96a à l'intégration). La barre tient sur une seule ligne et défile sur elle-même si elle dépasse : la zone de
+   conversation et la saisie gardent leur hauteur, clavier logiciel ouvert compris. */
+@media (max-width: 40rem) {
+  #ws-ai-dock .ws-ai-tete { flex-wrap: wrap; }
+  #ws-ai-dock .ws-ai-tete-texte { flex: 1 1 0; min-width: 8rem; }
+  #ws-ai-dock .h109-tete-barre { flex: 1 1 100%; flex-wrap: nowrap; min-width: 0; order: 5; overflow-x: auto; overscroll-behavior: contain; }
+  #ws-ai-dock .h109-tete-bouton { flex: none; padding: .25rem .375rem; white-space: nowrap; }
+}
+@media (forced-colors: active) {
+  .h109-choisi > .h109-lien { border-left: 3px solid Highlight; }
+  #ws-ai-dock .h109-tete-bouton { border-color: ButtonText; }
+}
+/* ==== v56109-apparence.css ==== */
+/* AxiorHub 5.6.109 (lot H, F10) : couleur du menu de gauche (référence apparence109.css du dossier technique, raccordée). La classe
+   ax-nav-custom n'est posée par v56109-apparence.js qu'après validation de la préférence ; sans elle, le rendu du produit est inchangé.
+   Seule la barre latérale #ws-sidebar change : aucune couleur sémantique de page n'est touchée. */
+:root body #ws-sidebar.ax-nav-custom { background: var(--ax-nav-bg); color: var(--ax-nav-fg); border-right-color: var(--ax-nav-fg); }
+:root body #ws-sidebar.ax-nav-custom :is(a, summary, button, p, small, .muted, .brand-subtitle, .ws-brand-subtitle, .ws-brand-name, .ws-about) {
+  color: var(--ax-nav-fg) !important; opacity: 1; }
+:root body #ws-sidebar.ax-nav-custom :is(a, summary, button) { background: transparent; }
+:root body #ws-sidebar.ax-nav-custom svg { color: inherit; fill: currentColor; }
+:root body #ws-sidebar.ax-nav-custom .ws-secondary details[open] { background: var(--ax-nav-bg) !important; }
+:root body #ws-sidebar.ax-nav-custom :is(a, summary, button):hover { background: var(--ax-nav-hover) !important; color: var(--ax-nav-hover-fg) !important; }
+:root body #ws-sidebar.ax-nav-custom a[aria-current=page] { background: var(--ax-nav-active) !important; color: var(--ax-nav-active-fg) !important;
+  box-shadow: inset 4px 0 var(--ax-nav-marker); font-weight: 700; }
+:root body #ws-sidebar.ax-nav-custom :focus-visible { outline: 2px solid var(--ax-nav-focus-outer) !important; outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--ax-nav-focus-inner) !important; }
+#ws-sidebar.ax-nav-custom :is(a, summary, button) { scroll-margin: 6px; }
+:root body #ws-sidebar.ax-nav-custom :is(a, summary, button) :is(span, small, .muted) { color: inherit !important; background: transparent !important; opacity: 1; }
+@media (forced-colors: active) {
+  :root body #ws-sidebar.ax-nav-custom, :root body #ws-sidebar.ax-nav-custom :is(a, summary, button, p, small, .muted, .brand-subtitle) {
+    color: CanvasText !important; background: Canvas !important; border-color: CanvasText; forced-color-adjust: auto; }
+  :root body #ws-sidebar.ax-nav-custom a[aria-current=page] { color: HighlightText !important; background: Highlight !important;
+    border-inline-start: 4px solid HighlightText; text-decoration: underline; }
+  :root body #ws-sidebar.ax-nav-custom :focus-visible { outline: 2px solid Highlight !important; }
+}
+
+/* Paramètres › Apparence */
+.ax109-apparence { display: grid; gap: .75rem; max-width: 46rem; }
+.ax109-presets { display: flex; flex-wrap: wrap; gap: .375rem; }
+.ax109-preset { align-items: center; display: inline-flex; gap: .375rem; min-height: 2.25rem; }
+.ax109-pastille { border: 1px solid var(--cds-border-strong-01, #8d8d8d); border-radius: 50%; display: inline-block; height: 1rem; width: 1rem; }
+.ax109-champ label { display: block; font-weight: 600; }
+.ax109-saisie { align-items: center; display: flex; gap: .5rem; }
+.ax109-saisie input[type=color] { height: 2.25rem; padding: 0; width: 3rem; }
+.ax109-saisie input[type=text] { font-family: var(--ui-police-mono, monospace); width: 8rem; }
+.ax109-saisie input[aria-invalid=true] { outline: 2px solid var(--cds-support-error, #da1e28); }
+.ax109-mesure, .ax109-aide, .ax109-apercu-titre { color: var(--cds-text-secondary, #525252); font-size: var(--ui-taille-petit, .875rem); margin: .25rem 0 0; }
+.ax109-case { align-items: center; display: flex; gap: .5rem; }
+.ax109-apercu { border: 1px solid var(--cds-border-subtle-01, #c6c6c6); display: flex; flex-direction: column; max-width: 16rem; padding: .5rem 0; }
+.ax109-apercu-lien { padding: .375rem .75rem; }
+.ax109-apercu.ax-nav-custom { background: var(--ax-nav-bg); color: var(--ax-nav-fg); }
+.ax109-apercu.ax-nav-custom .ax109-apercu-survol { background: var(--ax-nav-hover); color: var(--ax-nav-hover-fg); }
+.ax109-apercu.ax-nav-custom .ax109-apercu-actif { background: var(--ax-nav-active); box-shadow: inset 4px 0 var(--ax-nav-marker); color: var(--ax-nav-active-fg); font-weight: 700; }
+.ax109-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ax109-etat:empty { display: none; }
+/* ==== v56109-bland.css ==== */
+/* AxiorHub 5.6.109 (lot B) — téléphonie par IA (Bland) : carte des Paramètres › Connexions API, demande à confirmer (/operation), routines
+   « Mes routines | Mes agents IA » (rappel de rendez-vous, agents IA). Couleurs par les variables communes (clair et sombre) ; focus visible. */
+.b109-carte .cx52-state { margin-left: 8px; }
+.b109-etat-pret { color: var(--ax-success-text, #1a7f37); }
+.b109-etat-cle_refusee, .b109-etat-hors_ligne { color: var(--ax-danger, #b42318); }
+.b109-etat-a_verifier, .b109-etat-non_configure { color: var(--ax-warning, #9a6700); }
+.b109-avertissement, .b109-exception, .b109-alerte { margin: 6px 0 10px; padding: 6px 10px; border-left: 3px solid var(--ax-warning, #9a6700);
+  background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); border-radius: 4px; }
+.b109-alerte { border-left-color: var(--ax-danger, #b42318); }
+.b109-form { margin: 4px 6px 4px 0; }
+.b109-form label { display: block; margin: 4px 0; }
+.b109-form.r52-inline { display: inline-block; }
+.b109-outils ul, .b109-demandes, .b109-lot ul { padding-left: 20px; max-height: 320px; overflow: auto; }
+.b109-texte { white-space: pre-wrap; word-break: break-word; margin: 4px 0; padding: 6px 8px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 4px;
+  background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.b109-fiche dd strong { font-size: 1.05em; }
+.b109-lot { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff);
+  color: var(--ax-text, #1b1f24); }
+.b109-lot h4, .b109-carte h4 { margin: 8px 0 4px; font-size: 1em; }
+.b109-carte summary:focus-visible, .b109-carte button:focus-visible, .b109-carte input:focus-visible, .b109-carte a:focus-visible,
+.b109-fiche button:focus-visible, .b109-fiche input:focus-visible, .b109-fiche summary:focus-visible, .b109-routine summary:focus-visible,
+.b109-routine button:focus-visible, .b109-routine input:focus-visible, .b109-routine textarea:focus-visible, .b109-routine select:focus-visible,
+.b109-creer summary:focus-visible, .b109-creer input:focus-visible, .b109-creer button:focus-visible, .b109-agent button:focus-visible {
+  outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+@media (max-width: 720px) { .b109-form.r52-inline { display: block; } }
+/* ==== v56109-produire.css ==== */
+/* AxiorHub 5.6.109 (lot V, F08 et F16) — Produire en trois vues (Créer, Livrables, Modèles), livrables structurés dans le lecteur commun,
+   modèles Word du cabinet, éditeurs Craft facultatifs (page dédiée et cadre). Couleurs par les variables communes (clair et sombre) ;
+   focus visible ; commandes hors de la zone défilante ; une colonne sous 720 px. */
+.v109-vues { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--ax-gap, 16px); }
+.v109-vues a { padding: 6px 14px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; color: var(--ax-text, #1b1f24);
+  background: var(--ax-surface, #fff); text-decoration: none; }
+.v109-vues a[aria-current="page"] { border-color: var(--ax-focus, #0b57d0); background: var(--ax-surface-2, #f3f4f6); font-weight: 600; }
+.v109-vues a:focus-visible, .v109-panneau a:focus-visible, .v109-panneau button:focus-visible, .v109-panneau input:focus-visible, .v109-panneau select:focus-visible,
+.v109-panneau textarea:focus-visible, .v109-edition button:focus-visible, .v109-edition input:focus-visible, .v109-edition select:focus-visible,
+.v109-edition textarea:focus-visible, .v109-panneau summary:focus-visible, .v109-edition summary:focus-visible, .c109 button:focus-visible, .c109 a:focus-visible,
+.c109 textarea:focus-visible, .c109-reglages input:focus-visible, .c109-reglages button:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+.v109-panneau { margin: 0 0 var(--ax-gap, 16px); }
+.v109-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; list-style: none; margin: 0 0 14px; padding: 0; }
+.v109-carte { display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px;
+  color: var(--ax-text, #1b1f24); background: var(--ax-surface, #fff); text-decoration: none; }
+.v109-carte span, .v109-meta, .v109-question { color: var(--ax-text-muted, #59636e); font-size: .9em; }
+.v109-question { display: block; }
+.v109-form { display: grid; gap: 8px; max-width: 640px; margin: 10px 0 0; padding: 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px;
+  background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.v109-form h3 { margin: 0; font-size: 1em; }
+.v109-form label { display: grid; gap: 4px; }
+.v109-form textarea, .v109-form input, .v109-form select { max-width: 100%; }
+.v109-etat { min-height: 1.2em; margin: 4px 0 0; }
+.v109-erreur, .c109-erreur { color: var(--ax-danger, #b42318); }
+.v109-note { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--ax-warning, #9a6700); background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.v109-trames { margin: 0; padding-left: 20px; }
+.v109-trames li { margin: 6px 0; }
+.v109-modele { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; }
+.v109-modele h3 { margin: 0 0 6px; font-size: 1em; }
+.v109-fixes { max-height: 14em; overflow: auto; }
+.v109-edition { margin: 0 0 var(--ax-gap, 16px); }
+.v109-editeur { max-height: 60vh; overflow: auto; }
+.v109-table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+.v109-table th, .v109-table td { padding: 6px 8px; border-bottom: 1px solid var(--ax-border, #c9ced6); text-align: left; vertical-align: top; }
+.v109-table th { background: var(--ax-surface-2, #f3f4f6); font-size: .9em; }
+.v109-table input, .v109-table select { width: 100%; min-width: 7em; }
+.v109-texte { display: block; width: 100%; margin: 6px 0; }
+.v109-exports { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.v109-recents { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--ax-border, #c9ced6); }
+.v109-recents h3 { margin: 0 0 4px; font-size: .95em; }
+.v109-recents ul { margin: 0; padding-left: 18px; }
+.v109-source { display: inline-block; margin: 0 4px 0 0; padding: 0 6px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 999px; font-size: .8em; }
+/* éditeurs Craft : page dédiée, zone utile pleine hauteur, barre et commandes hors de la zone défilante */
+.c109 { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; min-height: calc(100dvh - 140px); }
+.c109-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.c109-barre h1 { margin: 0; font-size: 1.2em; }
+.c109-badge { display: inline-block; padding: 1px 8px; border: 1px solid var(--ax-warning, #9a6700); border-radius: 999px; font-size: .75em; font-weight: 400; }
+.c109-stockage { margin: 0; }
+.c109-zone { min-height: 0; }
+.c109-iframe { width: 100%; height: 100%; min-height: 60vh; border: 1px solid var(--ax-border, #c9ced6); background: var(--ax-surface, #fff); }
+.c109-controle, .c109-ia { padding: 10px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; }
+.c109-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.c109-alerte { padding: 8px 10px; border-left: 3px solid var(--ax-danger, #b42318); }
+.c109-attention { color: var(--ax-warning, #9a6700); }
+.c109-cadre-corps { margin: 0; height: 100vh; overflow: hidden; }
+.c109-toile { display: block; width: 100%; height: 100%; }
+.c109-chargement { position: absolute; top: 12px; left: 12px; margin: 0; }
+@media (max-width: 720px) {
+  .v109-cartes { grid-template-columns: minmax(0, 1fr); }
+  .v109-table { display: block; overflow-x: auto; }
+  .c109-iframe { min-height: 50vh; }
+}
+/* ==== v56109-simulation.css ==== */
+/* AxiorHub 5.6.109 (lot N, F14) — onglet « Simulation de décision » du dossier : bandeau, quatre actions, résultat, tiroir Sources.
+   Couleurs par les variables communes (clair et sombre) ; focus visible ; commandes visibles à 1920 × 1080 (seuls les contenus longs
+   défilent) ; une colonne sous 60rem, le tiroir Sources reste accessible au clavier (élément <details> natif, jamais masqué). */
+.s109-onglet { display: grid; gap: 12px; min-height: 0; }
+.s109-onglet h2 { margin: 0; }
+.s109-bandeau { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px 16px; padding: 10px 12px;
+  border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.s109-bandeau p { margin: 2px 0; }
+.s109-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.s109-form { display: inline-grid; gap: 6px; margin: 0; }
+.s109-cadrage { flex-basis: 100%; }
+.s109-cadrage > summary, .s109-corriger > summary { display: inline-block; cursor: pointer; list-style: none; }
+.s109-cadrage > summary::-webkit-details-marker, .s109-corriger > summary::-webkit-details-marker { display: none; }
+.s109-cadrage[open] .s109-form { display: grid; width: 100%; max-width: 60rem; margin-top: 8px; }
+.s109-cadrage textarea, .s109-cadrage select, .s109-lancer textarea, .s109-lancer input, .s109-corriger textarea { width: 100%; box-sizing: border-box; }
+.s109-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 8px; }
+.s109-onglet fieldset { border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; margin: 4px 0; padding: 6px 10px; }
+.s109-case { display: block; margin: 2px 0; }
+.s109-nav { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--ax-border, #c9ced6); }
+.s109-nav a { padding: 6px 10px; border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; color: var(--ax-link, #0b57d0); text-decoration: none; }
+.s109-nav a[aria-current="page"] { border-color: var(--ax-border, #c9ced6); background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); font-weight: 600; }
+.s109-corps { display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); gap: 1rem; min-height: 0; }
+.s109-resultat, .s109-sources { min-height: 0; overflow: auto; max-height: calc(100dvh - var(--ax-header-height, 8rem)); }
+.s109-bloc { margin: 0 0 12px; }
+.s109-bloc h3 { margin: 0 0 4px; font-size: 1.05em; }
+.s109-interne { font-weight: 600; color: var(--ax-warning, #9a6700); }
+.s109-defile { overflow-x: auto; }
+.s109-table { border-collapse: collapse; width: 100%; font-size: .95em; }
+.s109-table th, .s109-table td { border: 1px solid var(--ax-border, #c9ced6); padding: 4px 6px; vertical-align: top; text-align: left; }
+.s109-table caption { text-align: left; font-weight: 600; }
+.s109-niveau, .s109-statut, .s109-etat, .s109-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--ax-border, #c9ced6);
+  font-size: .875em; background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.s109-n-etayee, .s109-verifiee, .s109-e-completed { border-color: var(--ax-success-text, #1a7f37); }
+.s109-n-discutee, .s109-piste, .s109-perime, .s109-e-partial, .s109-e-needs_information, .s109-e-queued, .s109-e-running { border-color: var(--ax-warning, #9a6700); }
+.s109-n-insuffisant, .s109-e-blocked, .s109-e-failed { border-color: var(--ax-danger, #b42318); }
+.s109-alerte, .s109-prepa, .s109-pause { padding: 6px 10px; border-left: 4px solid var(--ax-warning, #9a6700); background: var(--ax-surface-2, #f3f4f6); }
+.s109-stat { font-size: .9em; color: var(--ax-muted, #57606a); }
+.s109-liste { margin: 4px 0; padding-left: 1.2em; }
+.s109-technique pre { white-space: pre-wrap; max-height: 20rem; overflow: auto; }
+.s109-onglet a:focus-visible, .s109-onglet button:focus-visible, .s109-onglet summary:focus-visible, .s109-onglet input:focus-visible,
+.s109-onglet select:focus-visible, .s109-onglet textarea:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+@media (max-width: 60rem) {
+  .s109-corps { grid-template-columns: minmax(0, 1fr); }
+  .s109-resultat, .s109-sources { max-height: none; }
+}
+/* ==== v56109-fonds.css ==== */
+/* AxiorHub 5.6.109 (lot Q) : « Fonds juridique local » (G23) et « Fichiers de ce poste » (F13) dans les Paramètres. Contraste clair et sombre. */
+.f56109 form, .l56109 form { display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: flex-end; margin: .6rem 0; }
+.f56109 form label, .l56109 form label { flex-basis: 100%; font-weight: 600; }
+.f56109 form input[type="text"], .f56109 form input[type="search"], .l56109 form input[type="text"], .l56109 form input[type="search"] { min-width: 18rem; flex: 1 1 18rem; }
+.f56109-fonds { border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; padding: .5rem .75rem; margin: .5rem 0; }
+.f56109-fonds h3 { margin: 0 0 .3rem; font-size: 1rem; }
+.f56109-fonds ul { margin: 0; padding-left: 1.1rem; }
+.f56109-actions, .l56109 td:last-child { display: flex; flex-wrap: wrap; gap: .35rem; }
+.f56109-echec { color: #8a1f11; }
+.f56109-resultats article, .l56109-resultats article { border-left: 4px solid #2f5d8a; padding: .35rem .6rem; margin: .45rem 0; background: #f2f6fb; color: #13253a; }
+.f56109-resultats .a-verifier, .l56109-resultats .a-verifier { border-left-color: #8a5a00; background: #fff6e0; color: #3d2a00; }
+.f56109-resultats .verifiee, .l56109-resultats .verifiee { border-left-color: #1d6b35; background: #e8f5ec; color: #0f3b1d; }
+.f56109-resultats small, .l56109-resultats small { display: block; opacity: .85; }
+.f56109 button:focus-visible, .l56109 button:focus-visible, .f56109 input:focus-visible, .l56109 input:focus-visible { outline: 3px solid #2f5d8a; outline-offset: 2px; }
+@media (prefers-color-scheme: dark) {
+  .f56109-echec { color: #ffb4a8; }
+  .f56109-resultats article, .l56109-resultats article { background: #14263a; color: #d8e6f5; border-left-color: #7fb0e0; }
+  .f56109-resultats .a-verifier, .l56109-resultats .a-verifier { background: #3a2c08; color: #ffe7b0; border-left-color: #f0b84a; }
+  .f56109-resultats .verifiee, .l56109-resultats .verifiee { background: #12301c; color: #c9f0d5; border-left-color: #5fd18a; }
+  .f56109 button:focus-visible, .l56109 button:focus-visible, .f56109 input:focus-visible, .l56109 input:focus-visible { outline-color: #9cc7f0; }
+}
+[data-theme="dark"] .f56109-echec { color: #ffb4a8; }
+[data-theme="dark"] .f56109-resultats article, [data-theme="dark"] .l56109-resultats article { background: #14263a; color: #d8e6f5; border-left-color: #7fb0e0; }
+[data-theme="dark"] .f56109-resultats .a-verifier, [data-theme="dark"] .l56109-resultats .a-verifier { background: #3a2c08; color: #ffe7b0; border-left-color: #f0b84a; }
+[data-theme="dark"] .f56109-resultats .verifiee, [data-theme="dark"] .l56109-resultats .verifiee { background: #12301c; color: #c9f0d5; border-left-color: #5fd18a; }
+/* ==== v56109-relations.css ==== */
+/* AxiorHub 5.6.109 (lot G2) — relations du dossier : « Partager avec le client » (G03), appels (G06), remplacements et postulation (G07),
+   kit d'audience hors ligne (G08). Couleurs par les variables communes (clair et sombre) ; focus visible ; une colonne sur petit écran ;
+   les commandes restent visibles, seuls les textes longs défilent. */
+.rl109-section { display: grid; gap: 8px; margin: 12px 0; min-width: 0; }
+.rl109-section h2 { margin: 0; }
+.rl109-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rl109-carte { padding: 10px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); min-width: 0; }
+.rl109-carte p { margin: 2px 0; overflow-wrap: anywhere; }
+.rl109-carte ul { margin: 4px 0; padding-left: 1.2rem; }
+.rl109-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; margin-top: 6px; }
+.rl109-form { display: inline-grid; gap: 4px; margin: 0; max-width: 100%; }
+.rl109-form label { display: grid; gap: 2px; }
+.rl109-form input, .rl109-form select, .rl109-form textarea { max-width: 100%; box-sizing: border-box; }
+.rl109-form textarea { min-height: 4.5rem; width: min(40rem, 100%); }
+.rl109-panneau > summary { display: inline-block; cursor: pointer; list-style: none; }
+.rl109-panneau > summary::-webkit-details-marker { display: none; }
+.rl109-panneau[open] > .rl109-form { display: grid; width: 100%; max-width: 48rem; margin-top: 8px; }
+.rl109-panneau fieldset { border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; margin: 4px 0; padding: 6px 10px; }
+.rl109-case { display: flex !important; gap: 6px; align-items: center; }
+.rl109-a-confirmer { color: var(--ax-warning, #9a6700); font-weight: 600; }
+.rl109-manquant { color: var(--ax-danger, #b42318); }
+.rl109-texte { white-space: pre-wrap; max-height: 16rem; overflow: auto; }
+.rl109-form :focus-visible, .rl109-panneau > summary:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) {
+  .rl109-carte { background: var(--ax-surface, #1d2127); color: var(--ax-text, #e6e8eb); border-color: var(--ax-border, #3a4049); }
+  .rl109-a-confirmer { color: var(--ax-warning, #e3b341); }
+  .rl109-manquant { color: var(--ax-danger, #ff8a80); }
+}
+@media (max-width: 40rem) {
+  .rl109-actions { flex-direction: column; align-items: stretch; }
+  .rl109-form textarea { width: 100%; }
+}
+/* ==== v56109-gestion.css ==== */
+/* AxiorHub 5.6.109 (lot G1) — sections insérées dans les pages existantes (g109-) : Préfacturation (Temps et honoraires), Assistance régulière
+   (fiche du contact client), Fonds, frais et débours (dossier). Jetons Carbon avec repli (clair et sombre) ; un état est toujours écrit en mots. */
+.g109 { display: grid; gap: .75rem; min-width: 0; }
+.g109-filtres { align-items: end; display: flex; flex-wrap: wrap; gap: .5rem .75rem; }
+.g109-filtres label, .g109-champ { display: grid; gap: .25rem; min-width: 0; }
+.g109-form { display: grid; gap: .5rem .75rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); min-width: 0; }
+.g109-form.g109-inline { align-items: end; display: flex; flex-wrap: wrap; }
+.g109-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; grid-column: 1 / -1; }
+.g109-table-wrap { grid-column: 1 / -1; max-width: 100%; overflow-x: auto; }
+.g109-table td { vertical-align: top; }
+.g109-table td:nth-child(5) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.g109-min { max-width: 6rem; }
+.g109-origine { border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 10px; color: var(--cds-text-secondary, #525252); font-size: .75rem;
+  padding: 0 .4rem; white-space: nowrap; }
+.g109-estimee, .g109-inconnue, .g109-alerte { background: var(--ui-attention-doux, #fcf4d6); border-color: var(--cds-support-warning, #b28600);
+  color: var(--ui-attention-texte, #3d2f00); }
+.g109-alerte { border-left: 4px solid var(--cds-support-warning, #b28600); margin: .25rem 0; padding: .125rem .5rem; }
+.g109-ok { border-left: 4px solid var(--cds-support-success, #24a148); margin: .25rem 0; padding: .125rem .5rem; }
+.g109-err { color: var(--cds-text-error, #da1e28); font-size: .8125rem; }
+.g109-err:empty { display: none; }
+.g109-compteurs { font-weight: 600; }
+.g109-liste { display: grid; gap: .375rem; list-style: none; margin: 0; padding: 0; }
+.g109-familles { display: grid; gap: .5rem .75rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); min-width: 0; }
+.g109-famille { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; padding: .5rem .75rem; }
+.g109-famille h4 { margin: 0 0 .25rem; }
+.g109 details > summary { color: var(--cds-link-primary, #0f62fe); cursor: pointer; }
+.g109 details > summary:focus-visible, .g109 input:focus-visible, .g109 select:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.g109 [aria-invalid="true"] { border-color: var(--cds-support-error, #da1e28); }
+@media (max-width: 640px) {
+  .g109-form, .g109-familles { grid-template-columns: 1fr; }
+}
+/* ==== v56109-parcours.css ==== */
+/* AxiorHub 5.6.109 (lot G4) — cartes de « Mes routines | Mes agents IA » : relever les messages procéduraux (G11-G12), offre et PDF joint au
+   brouillon (G10), documents publics des sociétés par l'API Pappers Entreprises (G17). Couleurs par les variables communes (clair et sombre) ;
+   focus visible ; aucune règle propre au mode sombre nécessaire (variables). */
+.g4-carte form { margin: 6px 0; }
+.g4-carte form label { display: block; margin: 4px 0; }
+.g4-carte form.r52-inline { display: inline-block; margin-right: 6px; }
+.g4-carte textarea, .g4-carte input:not([type="checkbox"]):not([type="hidden"]), .g4-carte select { width: 100%; max-width: 36rem; box-sizing: border-box; }
+.g4-liste { padding-left: 18px; margin: 6px 0; max-height: 320px; overflow: auto; }
+.g4-liste li { margin: 6px 0; color: var(--ax-text, #1b1f24); }
+.g4-carte .r52-meta { display: block; margin: 4px 0; color: var(--ax-muted, #57606a); }
+.g4-carte summary:focus-visible, .g4-carte button:focus-visible, .g4-carte input:focus-visible, .g4-carte textarea:focus-visible,
+.g4-carte select:focus-visible { outline: 2px solid var(--ax-focus, #0969da); outline-offset: 2px; }
+/* ==== v56109-operations.css ==== */
+/* AxiorHub 5.6.109 (lot G3) — blocs insérés dans les écrans existants (g3-) : « À finaliser » (Corporate et Cession), « Suites et exécution »
+   (fiche, onglet Juridiction), formalités supervisées (opération) et RIB CARPA documentaire (vue financière du dossier).
+   Jetons Carbon avec repli (clair et sombre) ; un état est toujours écrit en mots, jamais par la seule couleur. */
+.g3-closing, .g3-formalites, .g3-suites, .g3-carpa, .g3-resume { display: grid; gap: .625rem; min-width: 0; }
+.g3-etat, .g3-badge { border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 10px; color: var(--cds-text-secondary, #525252);
+  font-size: .75rem; font-weight: 600; padding: 0 .45rem; white-space: nowrap; }
+.g3-etat-prete_a_signer, .g3-etat-signee, .g3-etat-realisee, .g3-etat-formalites_terminees { border-color: var(--cds-support-success, #24a148);
+  color: var(--cds-text-primary, #161616); }
+.g3-etat-a_finaliser { border-color: var(--cds-support-warning, #b28600); color: var(--ui-attention-texte, #3d2f00);
+  background: var(--ui-attention-doux, #fcf4d6); }
+.g3-priorites { margin: 0; padding-left: 1.25rem; }
+.g3-groupe h4 { margin: .25rem 0; }
+.g3-liste, .g3-obligations { display: grid; gap: .375rem; list-style: none; margin: 0; padding: 0; }
+.g3-ligne, .g3-ob, .g3-formalite { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; padding: .5rem .75rem; }
+.g3-ligne.g3-bloque { border-left: 4px solid var(--cds-support-warning, #b28600); }
+.g3-tete { align-items: baseline; display: flex; flex-wrap: wrap; gap: .25rem .5rem; }
+.g3-detail { color: var(--cds-text-secondary, #525252); font-size: .8125rem; margin: .25rem 0 0; overflow-wrap: anywhere; }
+.g3-motif { color: var(--ui-attention-texte, #3d2f00); font-size: .8125rem; }
+.g3-ob q { font-style: italic; overflow-wrap: anywhere; }
+.g3-ob-motifs, .g3-ob-pretention, .g3-ob-antecedent { opacity: .85; }
+.g3-form { align-items: end; display: flex; flex-wrap: wrap; gap: .5rem .75rem; margin: .375rem 0; min-width: 0; }
+.g3-form label { display: grid; gap: .25rem; min-width: 0; }
+.g3-case { align-items: center; display: flex !important; gap: .375rem; }
+.g3-gestes { display: flex; flex-wrap: wrap; gap: .5rem; }
+.g3-mentions { font-size: .8125rem; margin: 0; padding-left: 1.25rem; }
+.g3-closing details > summary, .g3-suites details > summary, .g3-formalites details > summary, .g3-carpa details > summary {
+  color: var(--cds-link-primary, #0f62fe); cursor: pointer; }
+.g3-closing :focus-visible, .g3-suites :focus-visible, .g3-formalites :focus-visible, .g3-carpa :focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) {
+  .g3-etat-a_finaliser { background: transparent; color: var(--cds-text-primary, #f4f4f4); }
+  .g3-detail, .g3-etat, .g3-badge { color: var(--cds-text-secondary, #c6c6c6); }
+}
+@media (max-width: 640px) {
+  .g3-form { display: grid; grid-template-columns: 1fr; }
 }

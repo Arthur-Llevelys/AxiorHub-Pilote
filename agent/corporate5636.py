@@ -1168,6 +1168,9 @@ def realize(desk, data, owner='cabinet', externe=False, dav=None):
         raise Stop('confirmation_actes_externes_requise')
     known = desk.db.execute('SELECT id, company, kind FROM operations5636 WHERE id=?', (op,)).fetchone()
     proof_ref = _proof_reference(desk, known, data, dav) if known and known['kind'] == 'cession' else None
+    if known:   # 5.6.109 (lot G3, G04) : liste « À finaliser » de cette même opération levée, ou décision qualifiée tracée sur ces blocages
+        from .closing56109 import exiger_levee
+        exiger_levee(desk, 'corporate5636', op, 'realisation', str(data.get('decision_closing') or ''))
     if not desk.db.in_transaction:
         desk.db.execute('BEGIN IMMEDIATE')
     try:
@@ -1516,7 +1519,7 @@ STATES = {'en_file': 'actes en préparation', 'actes_prets': 'projets prêts —
           'mise_en_file_a_reprendre': 'préparation à relancer', 'realisee': 'réalisée', 'abandonnee': 'abandonnée'}
 
 
-def operations_html(desk, prefix, cid):
+def operations_html(desk, prefix, cid, finaliser=''):
     """5.6.37 (audit F09, F10) : chaque opération est un PROJET tant que l'avocat n'a pas enregistré sa réalisation (date, justificatif) ;
     seuls les effets réalisés modifient fiche, registres et table de capitalisation."""
     ops = desk.db.execute('SELECT * FROM operations5636 WHERE company=? ORDER BY created DESC LIMIT 30', (cid,)).fetchall()
@@ -1558,6 +1561,11 @@ def operations_html(desk, prefix, cid):
         if o['state'] in ('mise_en_file_a_reprendre', 'echec'):
             body += ('<form class="m5-form m5-inline" data-api="m5636/corporate/relancer" data-reload="1"><input type="hidden" name="id" value="%s">'
                      '<button class="ax-btn ghost" type="submit">Relancer la préparation</button></form>') % e(o['id'], quote=True)
+        # 5.6.109 (lot G3, G04, G14, G15, G20) : « À finaliser » et formalités supervisées de CETTE opération (aucune seconde opération)
+        body += '<br><a class="ax-btn ghost" href="%s#g3-closing">À finaliser et formalités</a>' % e(prefix + '/corporate?societe=%s&vue=actes&finaliser=%s' % (cid, o['id']), quote=True)
+        if finaliser == o['id']:
+            from . import closing56109, formalites56109
+            body += closing56109.section_html(desk, prefix, 'corporate5636', o['id']) + formalites56109.section_operation_html(desk, prefix, 'corporate5636', o['id'])
         items.append('<li>%s</li>' % body)
     return ('<section class="ax-card"><h3>Actes préparés</h3><p class="ax-muted">Une opération reste un projet tant que vous n’avez pas enregistré sa '
             'réalisation : la fiche, les registres et la table de capitalisation ne changent qu’à ce moment.</p><ul class="o5636-list">%s</ul></section>') % (
@@ -1819,10 +1827,15 @@ def page_html(desk, prefix, args):
                 e(cid, quote=True), ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (e(x['day']), e(ORGANES.get(x['organe'], x['organe'])), e(x['title']), e(x['summary']))
                                             for x in decisions) or '<tr><td colspan="4" class="ax-muted">Registre vide.</td></tr>')
         elif view == 'actes':
-            main += operations_html(desk, prefix, cid)
+            main += operations_html(desk, prefix, cid, str(args.get('finaliser') or ''))
         elif view == 'cessions':   # 5.6.83 (cahier complément § 7)
             from . import operations5683
             main += operations5683.page_html(desk, prefix, c, args)
+            dossier5683 = str(args.get('dossier') or '')
+            if dossier5683:   # 5.6.109 (lot G3) : « À finaliser » et formalités de la même cession de titres (point de montage, lecture seule)
+                from . import closing56109, formalites56109
+                if desk.db.execute('SELECT 1 FROM operation_dossiers5683 WHERE id=? AND company=?', (dossier5683, cid)).fetchone():
+                    main += closing56109.section_html(desk, prefix, 'dossier5683', dossier5683) + formalites56109.section_operation_html(desk, prefix, 'dossier5683', dossier5683)
         elif view == 'bibliotheque':   # 5.6.39 : variables pré-remplies depuis cette société
             from . import bibliotheque5639
             main += bibliotheque5639.page_html(desk, prefix, args, cid)

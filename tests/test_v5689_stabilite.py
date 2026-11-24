@@ -178,8 +178,9 @@ class Recherche(Base):
     def test_B04_factures_le_filtre_precede_la_limite(self):
         self.d.db.execute('CREATE TABLE IF NOT EXISTS b53_documents(id TEXT PRIMARY KEY,kind TEXT,number TEXT,state TEXT,matter TEXT,issue_date TEXT,snapshot_json TEXT,updated TEXT)')
         for i in range(40):
-            self.d.db.execute('INSERT INTO b53_documents VALUES(?,?,?,?,?,?,?,?)', ('F%02d' % i, 'facture', 'FA-2026-%03d' % i, 'emise', 'DOS-SECRET', '2026-10-01', '{}', '2026-10-%02dT10:00:00' % (i % 27 + 2)))
-        self.d.db.execute('INSERT INTO b53_documents VALUES(?,?,?,?,?,?,?,?)', ('PUB', 'facture', 'FA-2026-900', 'emise', 'DOS-001', '2026-01-01', '{}', '2026-01-01T10:00:00'))
+            self.d.db.execute("INSERT INTO b53_documents(id,kind,number,state,matter,issue_date,snapshot_json,updated,created_by,created) VALUES(?,?,?,?,?,?,?,?,'essai',?)", ('F%02d' % i, 'facture', 'FA-2026-%03d' % i, 'emise', 'DOS-SECRET', '2026-10-01', '{}', '2026-10-%02dT10:00:00' % (i % 27 + 2), '2026-10-01T10:00:00'))
+        # 5.6.109 (intégration I1) : le registre complet (b53_*) existe désormais dès le démarrage (gestion56109, lot G1) : colonnes nommées
+        self.d.db.execute("INSERT INTO b53_documents(id,kind,number,state,matter,issue_date,snapshot_json,updated,created_by,created) VALUES(?,?,?,?,?,?,?,?,'essai',?)", ('PUB', 'facture', 'FA-2026-900', 'emise', 'DOS-001', '2026-01-01', '{}', '2026-01-01T10:00:00', '2026-01-01T10:00:00'))
         self.d.db.commit()
         out = palette5688._factures(self.d, 'FA-2026', frozenset({'DOS-SECRET'}), {'DOS-001': 'DOS-001 DURAND'})
         self.assertEqual([r['titre'].split(' · ')[0] for r in out], ['FA-2026-900'])
@@ -846,7 +847,11 @@ class Files(Base):
         m = object.__new__(Model)
         m.cfg = {'state_dir': self.d.c['state_dir'], 'provider_type': 'openai', 'provider_id': 'openai', 'model': 'modele-fictif-4'}
         m.stage5689 = 'verify'
-        self.assertEqual(str(m._translate_error(self._erreur_http(400, corps))), 'http_400')
+        # 5.6.109 (lot E) : un refus 400 porte désormais un motif lisible (ici : paramètre d'échantillonnage) au lieu de « http_400 » ;
+        # le statut distant reste dans le détail (refus définitif, aucune relance identique).
+        traduite = m._translate_error(self._erreur_http(400, corps))
+        self.assertEqual(str(traduite), 'echantillonnage_refuse_par_fournisseur')
+        self.assertEqual(traduite.detail['remote_status'], 400)
         m._translate_error(self._erreur_http(400, corps))
         lignes = travaux5689.diagnostic(self.d)
         self.assertEqual(len(lignes), 1)                                               # alerte identique regroupée

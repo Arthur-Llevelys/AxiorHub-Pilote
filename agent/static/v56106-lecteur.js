@@ -1,6 +1,9 @@
 /* AxiorHub 5.6.106 (lot V) — lecteur des courriels : contenu « Texte / Mis en forme » (cadre isolé), impression, .eml, pièces (télécharger,
    aperçu), en-têtes complets, conversation ; « Résumer avec l'IA » les courriels cochés (volet de droite, à la place du lecteur) ; courriel →
    tâche ou agenda (formulaires préremplis, rien n'est créé sans validation).
+   5.6.109 (lot L, F01) : barre des pièces jointes juste sous l'en-tête, avant le corps — nom, type, taille, Aperçu, Télécharger, Classer dans
+   le dossier ; « Tout enregistrer » (ZIP sur le poste) et « Tout classer » (copie dans le dossier du cabinet : v56109-pieces.js). Chaque
+   adresse de pièce porte l'index ET l'empreinte de la pièce de CE message : jamais la pièce N d'un autre message du fil.
    Sûreté : aucun HTML de courriel n'entre dans le DOM de la page. Le contenu mis en forme est servi par le serveur (HTML assaini, politique
    sans script ni ressource extérieure) et affiché dans un <iframe sandbox> SANS allow-scripts NI allow-same-origin. Tout le reste est
    construit ici avec textContent. Point de montage : v5625.js appelle window.axh56106lecteur.afficher(panneau, courriel) au rendu. */
@@ -319,11 +322,12 @@
     // 5.6.107 (lot F2) : avertissements regroupés sur une ligne de puces (alerte anti-fraude repliée, texte masqué, images bloquées)
     var bandeaux = el('div', { 'class': 'lx56106-bandeaux', role: 'group', 'aria-label': 'Avertissements du courriel', 'aria-live': 'polite' });
     var corps = el('div', { 'class': 'lx56106-corps' });
-    var pieces = el('div', { 'class': 'lx56106-pieces' });
+    var pieces = el('div', { 'class': 'lx56106-pieces p109-barre', role: 'region', 'aria-label': 'Pièces jointes', hidden: 'hidden' });
     var entetes = el('details', { 'class': 'lx56106-entetes', hidden: 'hidden' }, [el('summary', { text: 'En-têtes complets' })]);
     var fil = el('div', { 'class': 'lx56106-fil', hidden: 'hidden' });
     var formulaires = el('div', { 'class': 'lx56106-formulaires' });
-    [tete, barre, bandeaux, formulaires, corps, pieces, entetes, fil].forEach(function (n) { bloc.appendChild(n); });
+    // 5.6.109 (F01) : en-tête, pièces jointes, outils de lecture et avertissements, puis le texte du message
+    [tete, pieces, barre, bandeaux, formulaires, corps, entetes, fil].forEach(function (n) { bloc.appendChild(n); });
 
     function texteBrut() {
       return el('pre', { 'class': 'lx56106-texte', tabindex: '0', text: (m.text || '') + (m.truncated ? '\n\n[… texte tronqué à l’affichage]' : '') });
@@ -410,45 +414,119 @@
         .then(function () { busy(conversation, false); });
     });
 
+    // ---------------------------------------------------------------- 5.6.109 (F01) : barre des pièces jointes
+    var classes = {}, lots = [];             // état du classement lu au serveur : par clé d'archive, et derniers lots de la personne
+    function genre(a) {
+      var ext = /\.([A-Za-z0-9]{1,8})$/.exec(a.name || '');
+      return ext ? ext[1].toUpperCase() : (a.type || 'Fichier');
+    }
+    function adressePiece(a, extra) {       // index ET empreinte de la pièce de ce message (jamais l'index seul une fois l'identité connue)
+      return adresse('piece', ref, Object.assign({ index: a.index }, a.empreinte ? { empreinte: a.empreinte } : {}, extra || {}));
+    }
     function piecesAfficher(liste) {
       pieces.textContent = '';
+      pieces.hidden = !liste.length;
       if (!liste.length) return;
-      pieces.appendChild(el('h3', { text: 'Pièces jointes (' + liste.length + ')' }));
-      liste.forEach(function (a) {
-        var vue = el('div', { 'class': 'lx56106-vue', hidden: 'hidden' });
-        var dl = el('a', { 'class': 'ax-btn ghost', href: adresse('piece', ref, { index: a.index, dl: '1' }), download: a.name || '', text: 'Télécharger' });
-        var actions = el('span', { 'class': 'lx56106-actions' }, [dl]);
+      var documents = liste.filter(function (a) { return !a.signature; }), integrees = liste.filter(function (a) { return a.signature; });
+      var classables = liste.filter(function (a) { return a.classable; });
+      var outils = window.axh56109pieces || null;
+      var apercu = el('div', { 'class': 'p109-apercu', hidden: 'hidden', role: 'group', 'aria-label': 'Aperçu de la pièce jointe' });
+      var formulaire = el('div', { 'class': 'p109-classement' });
+      var suivi = el('div', { 'class': 'p109-suivi', role: 'status', 'aria-live': 'polite' });
+      var ouvert = null;                      // bouton « Aperçu » de la pièce affichée
+      function fermerApercu() {
+        apercu.hidden = true; apercu.textContent = '';
+        if (ouvert) { ouvert.setAttribute('aria-expanded', 'false'); ouvert.focus(); }
+        ouvert = null;
+      }
+      function ouvrirApercu(a, bouton) {
+        if (ouvert === bouton) { fermerApercu(); return; }
+        if (ouvert) ouvert.setAttribute('aria-expanded', 'false');
+        ouvert = bouton; bouton.setAttribute('aria-expanded', 'true');
+        apercu.textContent = '';
+        var fermer = el('button', { type: 'button', 'class': 'ax-btn ghost p109-fermer', text: 'Fermer l’aperçu' });
+        fermer.addEventListener('click', fermerApercu);
+        apercu.appendChild(el('div', { 'class': 'p109-apercu-tete' }, [el('strong', { text: a.name || 'pièce' }), fermer]));
+        var src = adressePiece(a);
+        if (a.apercu === 'image') apercu.appendChild(el('img', { 'class': 'lx56106-apercu-image', src: src, alt: 'Aperçu de ' + a.name }));
+        else if (a.apercu === 'pdf') apercu.appendChild(el('iframe', { 'class': 'lx56106-apercu', src: src, title: 'Aperçu de ' + a.name }));   // lecteur PDF du navigateur (cadre de l'application, CSP stricte)
+        else {
+          var f = document.createElement('iframe');
+          f.setAttribute('sandbox', '');                     // texte Word mis en forme côté serveur : aucune permission
+          f.className = 'lx56106-apercu'; f.title = 'Aperçu de ' + a.name; f.setAttribute('src', src);
+          apercu.appendChild(f);
+        }
+        apercu.hidden = false;
+        fermer.focus();
+      }
+      apercu.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); fermerApercu(); } });
+      function classer(choisies) {
+        if (!outils || !info) return;
+        outils.classer({ zone: formulaire, suivi: suivi, ref: ref, toutes: classables, choisies: choisies, dossier: info.dossier_reconnu || null,
+                         fin: lireClassement });
+      }
+      function ligne(a) {
+        var actions = el('span', { 'class': 'lx56106-actions' });
         if (a.apercu) {
           var voir = el('button', { type: 'button', 'class': 'ax-btn ghost', 'aria-expanded': 'false', text: 'Aperçu' });
-          voir.addEventListener('click', function () {
-            var ouvert = !vue.hidden;
-            vue.hidden = ouvert; voir.setAttribute('aria-expanded', String(!ouvert));
-            if (ouvert || vue.childNodes.length) return;
-            var src = adresse('piece', ref, { index: a.index });
-            if (a.apercu === 'image') vue.appendChild(el('img', { 'class': 'lx56106-apercu-image', src: src, alt: 'Aperçu de ' + a.name }));
-            else if (a.apercu === 'pdf') vue.appendChild(el('iframe', { 'class': 'lx56106-apercu', src: src, title: 'Aperçu de ' + a.name }));   // lecteur PDF du navigateur (cadre de l'application, CSP stricte)
-            else {
-              var f = document.createElement('iframe');
-              f.setAttribute('sandbox', '');                     // texte Word mis en forme côté serveur : aucune permission
-              f.className = 'lx56106-apercu'; f.title = 'Aperçu de ' + a.name; f.setAttribute('src', src);
-              vue.appendChild(f);
-            }
-          });
+          voir.addEventListener('click', function () { ouvrirApercu(a, voir); });
           actions.appendChild(voir);
+        } else {
+          actions.appendChild(el('span', { 'class': 'p109-indisponible', text: 'Pas d’aperçu pour ce format' }));
         }
-        var lire = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Lire le texte' });
+        actions.appendChild(el('a', { 'class': 'ax-btn ghost', href: adressePiece(a, { dl: '1' }), download: a.name || '', text: 'Télécharger' }));
+        if (outils && a.classable) {
+          var ranger = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Classer dans le dossier' });
+          ranger.addEventListener('click', function () { classer([a]); });
+          actions.appendChild(ranger);
+        } else if (a.motif) {
+          actions.appendChild(el('span', { 'class': 'p109-indisponible', text: a.motif }));
+        }
         var sortie = el('pre', { 'class': 'lx56106-texte', hidden: 'hidden' });
-        lire.addEventListener('click', function () {
-          if (!sortie.hidden) { sortie.hidden = true; return; }
-          busy(lire, true);
-          api('m5625/boite/piece?' + qs({ uid: ref.uid, index: a.index, dossier: ref.dossier, uidvalidity: ref.uidvalidity })).then(function (d) {
-            sortie.textContent = d.text + (d.truncated ? '\n[…]' : ''); sortie.hidden = false;
-          }).catch(function (e) { toast(e.message, true); }).then(function () { busy(lire, false); });
+        if (a.texte !== false) {
+          var lire = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Lire le texte' });
+          lire.addEventListener('click', function () {
+            if (!sortie.hidden) { sortie.hidden = true; return; }
+            busy(lire, true);
+            api('m5625/boite/piece?' + qs({ uid: ref.uid, index: a.index, dossier: ref.dossier, uidvalidity: ref.uidvalidity })).then(function (d) {
+              sortie.textContent = d.text + (d.truncated ? '\n[…]' : ''); sortie.hidden = false;
+            }).catch(function (e) { toast(e.message, true); }).then(function () { busy(lire, false); });
+          });
+          actions.appendChild(lire);
+        }
+        var etat = el('span', { 'class': 'p109-etat' });
+        (classes[a.cle_archive] || []).forEach(function (c) {
+          etat.appendChild(el('span', { 'class': 'p109-puce p109-' + c.etat, text: c.libelle + ' : ' + c.dossier + (c.emplacement ? ' — ' + c.emplacement : '') }));
         });
-        actions.appendChild(lire);
-        pieces.appendChild(el('div', { 'class': 'lx56106-piece' }, [el('span', { text: (a.name || 'pièce') + ' · ' + taille(a.size) }), actions]));
-        pieces.appendChild(vue); pieces.appendChild(sortie);
-      });
+        return el('li', { 'class': 'lx56106-piece p109-piece' }, [
+          el('span', { 'class': 'p109-identite' }, [el('span', { 'class': 'p109-nom', title: a.name || '', text: a.name || 'pièce' }),
+            el('span', { 'class': 'p109-meta', text: genre(a) + ' · ' + taille(a.size) }), etat]), actions, sortie]);
+      }
+      var groupe = el('span', { 'class': 'lx56106-actions p109-groupe' });
+      var zip = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Tout enregistrer', title: 'Télécharger toutes les pièces dans un fichier ZIP sur ce poste ; rien n’est copié dans le dossier du cabinet' });
+      zip.addEventListener('click', function () { telecharger(adresse('pieces-zip', ref)); });
+      groupe.appendChild(zip);
+      if (outils && classables.length) {
+        var tout = el('button', { type: 'button', 'class': 'ax-btn', text: 'Tout classer dans le dossier', title: 'Copier les pièces dans le dossier du cabinet ; le message reste dans la messagerie, rien n’est envoyé' });
+        tout.addEventListener('click', function () { classer(classables.filter(function (a) { return !a.signature; })); });
+        groupe.appendChild(tout);
+      }
+      pieces.appendChild(el('div', { 'class': 'p109-tete' }, [el('h3', { text: 'Pièces jointes (' + documents.length + ')' }), groupe]));
+      if (documents.length) pieces.appendChild(el('ul', { 'class': 'p109-liste' }, documents.map(ligne)));
+      if (integrees.length) {                 // images de signature : repliées, pour ne pas noyer les vrais documents
+        pieces.appendChild(el('details', { 'class': 'p109-integrees' }, [el('summary', { text: 'Images intégrées au message (' + integrees.length + ')' }),
+          el('ul', { 'class': 'p109-liste' }, integrees.map(ligne))]));
+      }
+      pieces.appendChild(apercu); pieces.appendChild(formulaire); pieces.appendChild(suivi);
+      if (outils) lots.forEach(function (lot) { outils.suivre({ zone: suivi, lot: lot, ref: ref, fin: lireClassement }); });
+    }
+    function lireClassement() {             // où chaque pièce est déjà classée, lots à reprendre : relu après chaque classement
+      if (!info || !(info.pieces || []).length) return;
+      api(R + 'classement?' + qs(ref)).then(function (c) {
+        if (!bloc.isConnected) return;
+        classes = c.deja || {}; lots = (c.lots || []).slice(0, 1);   // dernier classement de la personne pour ce message : état, destination, reprise
+        if (!$('.p109-form', pieces) && $('.p109-apercu', pieces) && $('.p109-apercu', pieces).hidden) piecesAfficher(info.pieces || []);
+      }).catch(function () { /* état du classement indisponible : la barre reste utilisable (aperçu, téléchargement) */ });
     }
     piecesAfficher(m.attachments || []);
 
@@ -460,8 +538,10 @@
         'Texte masqué par la mise en forme, retiré de l’affichage : ' + d.texte_masque + '.', !!d.texte_masque_ia), zoneImages);
       if (d.confidentiel) tete.querySelector('h2').appendChild(el('span', { 'class': 'lx56106-badge', text: 'confidentiel — usage interne' }));
       if (d.dossier_reconnu) tete.appendChild(el('p', { 'class': 'lx56106-meta', text: 'Dossier : ' + d.dossier_reconnu.label + ' (' + d.dossier_reconnu.motif + ')' }));
+      else tete.appendChild(el('p', { 'class': 'lx56106-meta', text: 'Dossier : à choisir' }));   // 5.6.109 (F01) : choisi au classement
       if (d.html) { bascule.hidden = false; montrer(d.affichage === 'html' ? 'html' : 'texte'); }
       piecesAfficher(d.pieces || []);
+      lireClassement();
       if (lecteur.pieces) lecteur.pieces((d.pieces || []).length);
       if (d.entetes && d.entetes.length) {
         entetes.appendChild(el('pre', { text: d.entetes.map(function (h) { return h[0] + ': ' + h[1]; }).join('\n') + (d.entetes_complets ? '' : '\n[…]') }));

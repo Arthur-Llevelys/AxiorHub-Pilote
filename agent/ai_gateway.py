@@ -17,7 +17,9 @@ import urllib.parse
 from .common import Stop, private_json, read_secret
 
 
-PROVIDER_TYPES = {'ollama', 'openai', 'mistral', 'openrouter', 'anthropic'}   # + « chatgpt » (5.6.62), réglé par chatgpt5662 (sans clé API)
+PROVIDER_TYPES = {'ollama', 'openai', 'mistral', 'openrouter', 'anthropic', 'gemini'}   # + « chatgpt » (5.6.62), réglé par chatgpt5662 (sans clé API)
+# 5.6.109 (lot E, F15) : « gemini » (clé Google AI Studio) se teste, s'enregistre et s'active par sa carte (``gemini56109``) ; son adresse est
+# fixe et ``Model`` refuse une connexion Gemini non testée : le formulaire générique ne peut pas en ouvrir une utilisable.
 # 5.4.0 : modèles Anthropic proposés (le nom exact reste modifiable dans Paramètres › IA).
 ANTHROPIC_MODELS = (('claude-sonnet-5-5', 'Claude Sonnet 5.5 — rédaction et analyse (recommandé)'),
                     ('claude-opus-5-5', 'Claude Opus 5.5 — analyses longues et complexes'),
@@ -45,6 +47,8 @@ PURPOSES = {
     'document_drafting': ('Rédaction et révision de documents', 'complex'),
     'roundcube': ('Boutons IA de Roundcube', 'complex'),
     'control': ('Contrôle indépendant', 'control'),
+    # 5.6.109 (lot O, G24) : « Modèle du navigateur » ; « fast » est un classement, jamais une autorisation de substituer un autre modèle
+    'browser_navigation': ('Navigateur supervisé', 'fast'),
 }
 
 
@@ -254,16 +258,21 @@ def estimate_and_check_budget(cfg, messages, max_tokens):
 
 
 def record_usage(cfg, result, estimated, status='done', messages=None, error=''):
+    """Retour d'un appel externe : ligne d'usage, preuve de transmission, règlement de la réservation, observation de consommation.
+    5.6.109 (C12) : l'usage est normalisé par le format du fournisseur (``consommation56109.observer``) : un compteur absent reste inconnu
+    (colonne ``mesure``, jamais un zéro lu comme une mesure), l'entrée d'un schéma à cache ajouté (Messages) est la somme de ses trois
+    catégories, et le coût rendu est le montant calculé quand il est connu, sinon l'estimation de la réservation (jamais un tarif nul)."""
     if cfg.get('provider_type')=='ollama':return 0.0
     usage=result.get('usage',{}) if isinstance(result,dict) else {}
-    input_tokens=int(usage.get('prompt_tokens') or usage.get('input_tokens') or 0)
-    output_tokens=int(usage.get('completion_tokens') or usage.get('output_tokens') or 0)
-    if status=='done':
+    from .consommation56109 import observer
+    obs=observer(cfg,usage)
+    # None : non fourni. Entrée connue : le total, ou à défaut l'entrée ordinaire déclarée (Messages sans champs de cache : input_tokens est gardé)
+    input_tokens,output_tokens=obs['entree_connue'],obs['usage']['sortie_facturable']
+    if status=='done' and input_tokens is not None and output_tokens is not None:
         from .traces5694 import jetons
-        jetons(input_tokens,output_tokens)   # 5.6.94 (T01) : jetons connus repris par le span de l'appel (nombres seulement)
-    actual=(input_tokens*float(cfg.get('input_usd_per_million',0) or 0)+
-            output_tokens*float(cfg.get('output_usd_per_million',0) or 0))/1_000_000
-    cost=actual if actual else float(estimated or 0)
+        jetons(input_tokens,output_tokens)   # 5.6.94 (T01) : jetons connus repris par le span de l'appel (nombres seulement) ; inconnus : rien n'est noté
+    actual=None if obs['montant_micro'] is None else obs['montant_micro']/1_000_000
+    cost=actual if actual is not None else float(estimated or 0)
     from .budget5668 import not_billed
     released=status!='done' and (not_billed(error) or cfg.get('_emission5689')=='preparee')   # 5.6.68 : refus ou panne du fournisseur, rien de facturé ; 5.6.89 : ou rien n'est parti
     if released:cost=0.0
@@ -274,9 +283,10 @@ def record_usage(cfg, result, estimated, status='done', messages=None, error='')
     try:
         db.execute('BEGIN IMMEDIATE')
         stamp=datetime.now(timezone.utc).isoformat()
-        db.execute('INSERT INTO ai_usage_v391(at,provider,purpose,model,input_tokens,output_tokens,estimated_cost_usd,status,call_id) VALUES(?,?,?,?,?,?,?,?,?)',
-          (stamp,cfg.get('provider_id',''),cfg.get('purpose',''),cfg.get('model',''),input_tokens,output_tokens,cost,status,
-           str(cfg.get('_budget_call5689') or cfg.get('decision5682') or '')))   # 5.6.89 : ligne reliée au registre : elle n'est pas un second compteur
+        # 5.6.109 : les colonnes de jetons sont NOT NULL depuis la 3.9.1 : un compteur inconnu y vaut 0, et « mesure » dit qu'il n'est pas mesuré
+        db.execute('INSERT INTO ai_usage_v391(at,provider,purpose,model,input_tokens,output_tokens,estimated_cost_usd,status,call_id,mesure) VALUES(?,?,?,?,?,?,?,?,?,?)',
+          (stamp,cfg.get('provider_id',''),cfg.get('purpose',''),cfg.get('model',''),input_tokens or 0,output_tokens or 0,cost,status,
+           str(cfg.get('_budget_call5689') or cfg.get('decision5682') or ''),obs['mesure']))   # 5.6.89 : ligne reliée au registre : elle n'est pas un second compteur
         if messages is not None:
             canonical=json.dumps(messages,ensure_ascii=False,sort_keys=True,separators=(',',':'))
             roles=[str(x.get('role') or '') for x in messages if isinstance(x,dict)]
@@ -298,13 +308,21 @@ def record_usage(cfg, result, estimated, status='done', messages=None, error='')
 
 
 def usage_snapshot(desk, provider_id=''):
-    db=_usage_db(desk.c['state_dir']);prefix=datetime.now(timezone.utc).strftime('%Y-%m-')+'%'
+    """Usage du mois par fournisseur. 5.6.109 (C12) : mois du cabinet (son fuseau, bornes converties en UTC), et jetons des seuls appels
+    mesurés : ``None`` quand aucun ne l'est (plus de zéro par défaut), ``sans_mesure`` les dénombre. Une ligne d'avant la 5.6.109 dont les
+    deux compteurs valent zéro n'est pas reconstituée : elle compte parmi les appels sans mesure."""
+    from .consommation56109 import periode
+    mois=periode(desk);db=_usage_db(desk.c['state_dir'])
     try:
-        where='at LIKE ?';params=[prefix]
+        where='at>=? AND at<?';params=[mois['debut_utc'],mois['fin_utc']]
         if provider_id:where+=' AND provider=?';params.append(_provider_id(provider_id))
+        ancien='(input_tokens>0 OR output_tokens>0)'
+        connu=("(mesure IN ('complete','sans_detail_cache','cache_non_declare') OR (mesure='' AND "+ancien+'))') if 'mesure' in {r[1] for r in db.execute('PRAGMA table_info(ai_usage_v391)')} else ancien
         # 5.6.68 : coût des seuls appels terminés (un appel en échec n'est plus additionné à son estimation)
-        rows=db.execute("SELECT provider,COUNT(*) requests,COALESCE(SUM(input_tokens),0) input_tokens,COALESCE(SUM(output_tokens),0) output_tokens,ROUND(COALESCE(SUM(CASE WHEN status='done' THEN estimated_cost_usd ELSE 0 END),0),6) cost_usd FROM ai_usage_v391 WHERE "+where+' GROUP BY provider ORDER BY provider',params).fetchall()
-        return [dict(zip(('provider','requests','input_tokens','output_tokens','cost_usd'),row)) for row in rows]
+        rows=db.execute('SELECT provider,COUNT(*) requests,SUM(CASE WHEN '+connu+' THEN input_tokens END) input_tokens,SUM(CASE WHEN '+connu+' THEN output_tokens END) output_tokens,'
+          "ROUND(COALESCE(SUM(CASE WHEN status='done' THEN estimated_cost_usd ELSE 0 END),0),6) cost_usd,SUM(CASE WHEN "+connu+' THEN 0 ELSE 1 END) sans_mesure '
+          'FROM ai_usage_v391 WHERE '+where+' GROUP BY provider ORDER BY provider',params).fetchall()
+        return [dict(zip(('provider','requests','input_tokens','output_tokens','cost_usd','sans_mesure'),row)) for row in rows]
     finally:db.close()
 
 
@@ -334,6 +352,9 @@ def save_route(desk, purpose, provider_id, model):
     candidate['model'] = model
     Model(candidate)
     value = {'provider': provider_id, 'model': model}
+    if purpose == 'browser_navigation':   # 5.6.109 (lot O, G24) : choix explicite et révision (verrou du navigateur)
+        from .navigateur56109 import marque_route
+        value.update(marque_route(desk))
     desk.setting('ai:route:' + purpose, value)
     desk.c.setdefault('model_routing', {})[purpose] = value
     desk.audit('routage_ia_modifie', {'purpose': purpose, **value})

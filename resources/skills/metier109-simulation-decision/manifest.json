@@ -1,0 +1,40 @@
+{
+  "id": "builtin.metier109.simulation_decision",
+  "name": "Simulation de décision contradictoire",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub adaptation méthodologique des fichiers transmis par le cabinet",
+  "license": "AGPL-3.0",
+  "description": "Complément court de méthode pour simulation de décision contradictoire",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "controle"
+  ],
+  "target_kinds": [
+    "prepare_legal_opinion"
+  ],
+  "situations": [],
+  "auto_select_tags": [
+    "simulation de décision",
+    "simulation de decision",
+    "simuler le jugement",
+    "simuler la décision"
+  ],
+  "enabled_default": false,
+  "activation_suggeree": true,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "source_note": "Archive outils prompts et skills.zip, 20 novembre 2026 ; méthode reformulée, aucun script tiers exécuté."
+}

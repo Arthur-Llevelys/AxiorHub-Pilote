@@ -1,0 +1,37 @@
+{
+  "id": "builtin.metier109.assignation_jex",
+  "name": "Préparation devant le juge de l’exécution",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub adaptation méthodologique des fichiers transmis par le cabinet",
+  "license": "AGPL-3.0",
+  "description": "Complément court de méthode pour préparation devant le juge de l’exécution",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "assignation jex",
+    "juge de l exécution",
+    "juge de l execution"
+  ],
+  "enabled_default": false,
+  "activation_suggeree": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "source_note": "Archive outils prompts et skills.zip, 20 novembre 2026 ; méthode reformulée, aucun script tiers exécuté."
+}

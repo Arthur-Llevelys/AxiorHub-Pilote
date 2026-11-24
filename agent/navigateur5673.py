@@ -18,6 +18,7 @@ portail ») ; l'agent travaille pas à pas dans une fenêtre Edge / Chrome visib
 L'avocat peut « Prendre la main » (l'agent attend) puis « Rendre la main », ou « Arrêter » à tout moment.
 """
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -252,17 +253,29 @@ class Tab:
     def mhtml(self):
         return str(self.cdp.send('Page.captureSnapshot', {'format': 'mhtml'}, session=self.session, timeout=60).get('data') or '')
 
+    def pdf(self, controle, max_octets=32*1024*1024):
+        """Primitive pour le service autorisé ; ne change pas l'action MHTML historique."""
+        from .nav_pdf56109 import imprimer_pdf
+        return imprimer_pdf(self.cdp, self.session, controle, max_octets=max_octets)
+
 
 # ------------------------------------------------------------------------------------------------------- séance
+FINALS = ('termine', 'arrete', 'erreur', 'limite_atteinte', 'a_verifier')   # 5.6.109 (lot O) : limite atteinte et « à vérifier » ne sont pas « terminé »
+PREUVES = ('fichier', 'page')            # preuves de fin exigibles d'une mission (une fin annoncée par le modèle n'en est pas une)
+ACK_SECONDS = 25                         # attente bornée de l'acquittement d'une prise de main (fin des commandes déjà engagées)
+MAX_FILE_BYTES = 64 * 1024 * 1024
+
+
 class Session:
-    def __init__(self, manager, owner, task, matter):
+    def __init__(self, manager, owner, task, matter, role='', preuves=()):
         self.id = secrets.token_hex(8)
         self.manager = manager
         self.owner = str(owner)[:120]
+        self.role = str(role or '')[:40]
         self.task = task
         self.matter = matter
         self.state = 'demarrage'
-        self.pending = None          # {'kind': 'consequence'|'site'|'question', 'question', 'description', ...}
+        self.pending = None          # {'kind': 'consequence'|'site'|'question'|'blocage', 'question', 'description', ...}
         self.answer = None
         self.event = threading.Event()
         self.stop_flag = False
@@ -272,10 +285,32 @@ class Session:
         self.summary = ''
         self.error = ''
         self.url = ''
+        # 5.6.109 (lot O, G13) : génération de séance, barrière et acquittement de la prise de main
+        self.epoch = 0
+        self.verrou = threading.Condition()
+        self.en_vol = 0              # commandes de pilotage engagées (observation ou action)
+        self.main_acquittee = False
+        self.reprise = False
+        self.epoch_decision = 0
+        self.observation = None
+        # 5.6.109 (lot O, G24) : preuves exigées, reçus constatés, champs renseignés (repères seulement), modèle réellement actif
+        self.preuves = tuple(p for p in preuves if p in PREUVES)
+        self.recus = {'fichier': 0, 'page': 0}
+        self.saisies = set()
+        self.motif = ''
+        self.modele = {}
+        self.digest = ''
+        self.dialogue = ''
+        self.ecartees = 0
+
+    def main_etat(self):
+        return 'ia' if not self.hold else ('avocat' if self.main_acquittee else 'transfert')
 
     def public(self):
         return {'id': self.id, 'etat': self.state, 'tache': self.task, 'dossier': self.matter, 'attente': self.pending, 'pas': self.steps[-25:],
-                'fichiers': self.files, 'resume': self.summary, 'erreur': self.error, 'adresse': nav.history_url(self.url), 'main': self.hold}
+                'fichiers': self.files, 'resume': self.summary, 'erreur': self.error, 'adresse': nav.history_url(self.url), 'main': self.hold,
+                'main_acquittee': bool(self.hold and self.main_acquittee), 'main_etat': self.main_etat(), 'generation': self.epoch,
+                'motif': self.motif, 'modele': dict(self.modele), 'preuves': list(self.preuves), 'decisions_ecartees': self.ecartees}
 
     def note(self, action, detail='', url=''):
         self.steps.append({'n': len(self.steps) + 1, 'a': action, 'd': str(detail)[:200], 'u': nav.history_url(url or self.url), 't': _now()[11:19]})
@@ -286,12 +321,16 @@ class Session:
         self.pending = pending
         self.answer = None
         self.event.clear()
-        previous, self.state = self.state, {'consequence': 'validation', 'site': 'site_a_autoriser'}.get(pending['kind'], 'attente_avocat')
+        previous, self.state = self.state, {'consequence': 'validation', 'site': 'site_a_autoriser',
+                                            'blocage': 'besoin_utilisateur'}.get(pending['kind'], 'attente_avocat')
         self.manager.persist(self)
         deadline = time.monotonic() + WAIT_SECONDS
         while not self.stop_flag and time.monotonic() < deadline:
             if self.event.wait(1.0):
-                break
+                # 5.6.109 (lot O) : une prise ou reprise de main réveille aussi la séance ; seule une réponse (ou l'arrêt) clôt l'attente
+                if self.answer is not None or self.stop_flag:
+                    break
+                self.event.clear()
         self.pending = None
         self.state = previous if not self.stop_flag else 'arrete'
         if self.stop_flag:
@@ -343,16 +382,18 @@ class Manager:
                                    headless=os.environ.get('AXIORHUB_NAVIGATEUR_ESSAI') == '1').start()
         return self.browser
 
-    def start(self, owner, task, matter=''):
+    def start(self, owner, task, matter='', role='', preuves=()):
         task = re.sub(r'\s+', ' ', str(task or '')).strip()
         if len(task) < 5:
             raise Stop('tache_trop_courte')
         if len(task) > 2000:
             raise Stop('tache_trop_longue')
+        if any(p not in PREUVES for p in preuves):
+            raise Stop('preuve_inconnue')
         with self.lock:
-            if self.session is not None and self.session.state not in ('termine', 'arrete', 'erreur'):
+            if self.session is not None and self.session.state not in FINALS:
                 raise Stop('une_seance_est_deja_en_cours')
-            s = Session(self, owner, task, str(matter or ''))
+            s = Session(self, owner, task, str(matter or ''), role, preuves)
             self.session = s
             self.thread = threading.Thread(target=self._run, args=(s,), name='navigateur5673', daemon=True)
             self.thread.start()
@@ -376,18 +417,30 @@ class Manager:
         s.event.set()
         return s.public()
 
-    def take(self, session_id, on):
+    def take(self, session_id, on, acteur=None, desk=None, attente=None):
+        """5.6.109 (lot O, G13) : prise ou reprise de main sous une nouvelle génération ; toute décision en vol devient périmée. La main
+        n'est « à l'avocat » (``main_acquittee``) qu'une fois les commandes de pilotage déjà engagées terminées (attente bornée).
+        Reprise : seul le titulaire de la séance (ou un administrateur) la demande ; la boucle relit droits, pause et page avant tout geste."""
+        from . import navigateur56109 as N
         s = self.session
         if s is None or s.id != session_id:
             raise Stop('aucune_seance')
-        s.hold = bool(on)
-        if not on:
-            s.event.set()
+        if acteur is not None:
+            compte, role = acteur
+            if str(compte) != s.owner and role != 'administrateur':
+                raise Stop('aucune_seance')        # même réponse qu'une séance absente
+        N.changer_main(s, on)
+        if on:
+            N.attendre_acquittement(s, ACK_SECONDS if attente is None else attente)
+            if s.main_acquittee and s.pending is None and s.state not in FINALS:
+                s.state = 'main_a_l_avocat'
+            elif s.state not in FINALS and s.pending is None:
+                s.state = 'transfert_de_controle'
         s.manager.persist(s)
         return s.public()
 
     def close_browser(self):
-        if self.session is not None and self.session.state not in ('termine', 'arrete', 'erreur'):
+        if self.session is not None and self.session.state not in FINALS:
             raise Stop('une_seance_est_deja_en_cours')
         if self.browser is not None:
             self.browser.stop()
@@ -404,7 +457,7 @@ class Manager:
             self._loop(s, tab, browser)
         except Stop as ex:
             code = str(ex).split(':')[0]
-            if s.state not in ('termine',):
+            if s.state not in ('termine', 'limite_atteinte', 'a_verifier'):
                 s.state = 'arrete' if code == 'arrete_par_l_avocat' else 'erreur'
                 s.error = '' if s.state == 'arrete' else code
                 s.note('Fin', 'Arrêté par l’avocat' if s.state == 'arrete' else 'Interrompu : ' + code)
@@ -415,23 +468,29 @@ class Manager:
             self.persist(s)
 
     def _ask_model(self, desk, s, page, last_result):
-        from .model import Model, routed_config, validate
+        """5.6.109 (lot O, G24) : route propre au navigateur (``browser_navigation``), modèle verrouillé jusqu'au transport final, profil
+        du navigateur (température, ``presence_penalty``, contexte, sans « thinking »), schéma par action et parseur strict ; une seule
+        reprise JSON. Le digest des poids est relevé dans le catalogue local et le modèle réellement actif est affiché dans la séance."""
+        from .model import Model, routed_config
         from . import bouclier5659
+        from . import navigateur56109 as N
         payload = {'demande': s.task, 'dossier': s.matter or 'aucun', 'pas': len(s.steps), 'pas_maximum': MAX_STEPS,
                    'page': page, 'resultat_du_pas_precedent': last_result[:12000],
                    'historique': [{'action': x['a'], 'detail': x['d']} for x in s.steps[-10:]]}
-        cfg = routed_config(desk.c, 'assistant')
+        cfg = routed_config(desk.c, N.PURPOSE)
+        if cfg.get('browser_pin109'):
+            N.preparer_seance(s, cfg, desk)
         payload, findings = bouclier5659.protect_payload(cfg, 'navigateur', payload)
         if findings:
             s.note('Alerte', 'Instructions cachées neutralisées dans la page')
         model = Model(cfg)
         messages = [{'role': 'system', 'content': PROMPT}, {'role': 'user', 'content': json.dumps(payload, ensure_ascii=False)}]
+        schema = N.schema_action() if cfg.get('provider_type') == 'ollama' else SCHEMA   # schéma discriminé là où Ollama le prend
+        sortie = int(((cfg.get('navigateur109') or {}).get('options') or {}).get('num_predict') or 1200)
         for attempt in (1, 2):
-            raw = model.complete(messages, 0, 1200, SCHEMA)
+            raw = model.complete(messages, None, sortie, schema)
             try:
-                value = json.loads(raw)
-                validate(value, SCHEMA)
-                return value
+                return N.decision(raw)
             except Exception as ex:   # noqa: BLE001 — JSON illisible ou non conforme : une reprise, puis motif explicite
                 if attempt == 2:
                     raise Stop('reponse_ia_invalide') from ex
@@ -439,45 +498,133 @@ class Manager:
                 messages.append({'role': 'user', 'content': 'Réponse invalide : un seul objet JSON conforme, sans texte autour.'})
         raise Stop('reponse_ia_invalide')
 
+    def _suspendu(self, desk, s, tab):
+        """5.6.109 (lot O, G13) : main à l'avocat ou pause globale : aucune observation, aucun appel au modèle, aucune action. À la reprise :
+        nouvelle génération, repères de page invalidés, droits de l'avocat sur le dossier et pause relus (rien n'est rejoué)."""
+        from . import navigateur56109 as N
+        attendu, code = False, ''
+        while True:
+            if s.stop_flag:
+                raise Stop('arrete_par_l_avocat')
+            code = N.pause_globale(desk)
+            if not (s.hold or code):
+                break
+            if not attendu or s.state not in ('main_a_l_avocat', 'en_pause', 'transfert_de_controle'):
+                attendu = True
+                if s.hold:
+                    N.acquitter_si_libre(s)
+                s.state = ('main_a_l_avocat' if s.main_acquittee else 'transfert_de_controle') if s.hold else 'en_pause'
+                self.persist(s)
+            elif s.hold and s.state == 'transfert_de_controle' and N.acquitter_si_libre(s):
+                s.state = 'main_a_l_avocat'
+                self.persist(s)
+            s.event.wait(1.0)
+            s.event.clear()
+        if attendu or s.reprise:
+            if not s.reprise:
+                N.nouvelle_generation(s)      # fin d'une pause globale : les décisions d'avant sont périmées comme après une prise de main
+            s.reprise = False
+            if s.matter and s.role:
+                from .acces5697 import peut_lire_dossier
+                if not peut_lire_dossier(desk, (s.owner, s.role), s.matter):
+                    raise Stop('droits_retires_sur_le_dossier')
+            tab.refs.reset()
+            s.state = 'en_cours'
+            s.note('Reprise', 'Nouvelle observation ; droits et pause relus')
+
     def _loop(self, s, tab, browser):
+        from . import navigateur56109 as N
         desk = self._desk()
         try:
             last = ''
+            progression, precedent = N.Progression(), None
             for _ in range(MAX_STEPS):
-                if s.stop_flag:
-                    raise Stop('arrete_par_l_avocat')
-                while s.hold and not s.stop_flag:
-                    s.state = 'main_a_l_avocat'
-                    s.event.wait(1.0)
-                    s.event.clear()
-                if s.state == 'main_a_l_avocat':
-                    s.state = 'en_cours'
-                    tab.refs.reset()
-                self._collect_downloads(desk, s, browser)
-                url, title = tab.info()
-                s.url = url
-                plan, _count = tab.plan()
-                if challenge(title, plan):   # jamais soumis au modèle : la vérification revient à l'avocat
-                    s.wait({'kind': 'question', 'question': 'Vérification de sécurité du site : à faire par vous dans la fenêtre.',
-                            'description': 'Le site demande de prouver qu’un humain est présent. Faites-le dans la fenêtre du navigateur, puis « Reprendre ».'})
-                    tab.refs.reset()
-                    s.note('Vérification', 'Faite par l’avocat')
-                    last = 'L’avocat a fait la vérification de sécurité du site.'
+                self._suspendu(desk, s, tab)
+                epoch = s.epoch
+                try:
+                    with N.barriere(s, epoch, desk):
+                        self._collect_downloads(desk, s, browser)
+                    if s.dialogue:   # boîte de dialogue native : jamais acceptée ni fermée par l'agent
+                        s.wait({'kind': 'question', 'question': 'Boîte de dialogue du site : à traiter par vous dans la fenêtre.',
+                                'description': 'Le site affiche un message système. Lisez-le et répondez dans la fenêtre du navigateur, puis « Reprendre ».'})
+                        s.dialogue = ''
+                        tab.refs.reset()
+                        last = 'L’avocat a traité la boîte de dialogue du site.'
+                        continue
+                    with N.barriere(s, epoch, desk):
+                        url, title = tab.info()
+                        plan, _count = tab.plan()
+                        obs = N.observer(tab, url, title, epoch)
+                    s.url = url
+                    if challenge(title, plan):   # jamais soumis au modèle : la vérification revient à l'avocat
+                        s.wait({'kind': 'question', 'question': 'Vérification de sécurité du site : à faire par vous dans la fenêtre.',
+                                'description': 'Le site demande de prouver qu’un humain est présent. Faites-le dans la fenêtre du navigateur, puis « Reprendre ».'})
+                        tab.refs.reset()
+                        s.note('Vérification', 'Faite par l’avocat')
+                        last = 'L’avocat a fait la vérification de sécurité du site.'
+                        precedent = None
+                        continue
+                    etat = N.etat_utile(obs, plan, s)
+                    if precedent is not None and progression.constater(precedent, etat) == 'demander_la_main':
+                        self._blocage(s, tab)
+                        progression, precedent = N.Progression(), None
+                        last = 'L’avocat a demandé de réessayer cette étape (l’agent n’avançait plus).'
+                        continue
+                    precedent = etat
+                    decision = self._ask_model(desk, s, {'adresse': nav.history_url(url), 'titre': title[:200], 'plan': plan}, last)
+                    try:
+                        d = N.valider(decision)
+                    except N.DecisionPerimee:
+                        raise
+                    except N.ContratInvalide:
+                        raise Stop('reponse_ia_invalide') from None
+                    N.controler(s, epoch, desk)          # réponse arrivée après une prise de main, une pause ou un arrêt : jetée
+                    if d['action'] not in ('terminer', 'demander'):
+                        self._fraicheur(desk, s, tab, d, obs, epoch)
+                    s.epoch_decision, s.observation = epoch, obs
+                    last = self._act(desk, s, N.Pilote(tab, s, epoch, desk), d)
+                except N.DecisionPerimee as ex:
+                    code = str(ex).split(':')[0]
+                    s.ecartees += 1
+                    s.note('Décision écartée', N.message(code))
+                    last = 'Décision précédente écartée (%s) : nouvelle observation de la page.' % code
                     continue
-                decision = self._ask_model(desk, s, {'adresse': nav.history_url(url), 'titre': title[:200], 'plan': plan}, last)
-                last = self._act(desk, s, tab, decision)
-                if s.state == 'termine':
+                if s.state in ('termine', 'a_verifier'):
                     return
-            s.summary = s.summary or 'Nombre maximal de pas atteint (%d) : tâche interrompue.' % MAX_STEPS
-            s.state = 'termine'
-            s.note('Fin', 'Nombre maximal de pas atteint')
+            # 5.6.109 (lot O, G24) : le plafond n'est jamais une fin réussie
+            s.motif = 'plafond_de_pas'
+            s.summary = s.summary or 'Limite de %d pas atteinte : mission à reprendre (rien n’est présenté comme terminé).' % MAX_STEPS
+            s.state = 'limite_atteinte'
+            s.note('Fin', 'Limite de pas atteinte — à reprendre')
         finally:
             desk.db.close()
+
+    def _fraicheur(self, desk, s, tab, d, obs, epoch):
+        """Juste avant l'action : nouvelle observation sous la barrière ; même onglet, même page, même génération, même cible."""
+        from . import navigateur56109 as N
+        with N.barriere(s, epoch, desk):
+            url, title = tab.info()
+            tab.plan()
+            courante = N.observer(tab, url, title, epoch)
+        N.verifier_avant_action(d, obs, courante, epoch=s.epoch, main_humaine=s.hold, pause=False, stop=s.stop_flag)
+
+    def _blocage(self, s, tab):
+        """Trois observations sans progrès ou un cycle : la main est demandée (aucun nouveau calcul, aucun clic répété en boucle)."""
+        s.wait({'kind': 'blocage', 'question': 'L’agent n’avance plus : à vous de décider.',
+                'description': 'Plusieurs pas sans progrès sur la page. Reprenez la main dans la fenêtre si besoin, puis « Reprendre » pour '
+                               'réessayer cette étape, ou « Arrêter ».'})
+        tab.refs.reset()
+        s.note('Blocage', 'Main demandée à l’avocat')
 
     def _act(self, desk, s, tab, d):
         action, ref, why = d['action'], str(d.get('ref') or ''), str(d.get('raison') or '')
         if action == 'terminer':
             s.summary = str(d.get('resume') or why)[:4000]
+            manquantes = [p for p in s.preuves if not s.recus.get(p)]
+            if manquantes:   # 5.6.109 (lot O, G24) : une fin annoncée par le modèle n'est pas une preuve
+                s.state, s.motif = 'a_verifier', 'preuve_absente:' + ','.join(manquantes)
+                s.note('À vérifier', 'Fin annoncée sans la preuve attendue (%s)' % ', '.join(manquantes))
+                return ''
             s.state = 'termine'
             s.note('Terminé', s.summary[:200])
             return ''
@@ -534,12 +681,15 @@ class Manager:
                     s.note('Refusé', '%s : « %s »' % (consequence.question(), name[:80]))
                     return 'L’avocat a refusé « %s ». Ne réessayez pas ; continuez autrement ou terminez.' % name[:80]
                 s.note('Autorisé', consequence.question())
+                if s.observation is not None:   # 5.6.109 (lot O) : après la décision humaine, la page et la cible sont revérifiées
+                    self._fraicheur(desk, s, tab, d, s.observation, s.epoch_decision)
             known = tab.targets()
             if action == 'cliquer':
                 tab.click(ref)
                 detail = 'Clic : « %s »' % name[:80]
             elif action == 'saisir':
                 tab.type(ref, str(d.get('texte') or '')[:2000], bool(d.get('valider')))
+                s.saisies.add(ref)      # repère seulement (progression d'un formulaire), jamais la valeur saisie
                 detail = 'Saisie dans « %s »%s' % (name[:60], ' + Entrée' if d.get('valider') else '')   # jamais le texte saisi
             else:
                 tab.choose(ref, str(d.get('texte') or ''))
@@ -572,6 +722,7 @@ class Manager:
             mhtml = tab.mhtml()
             if mhtml:
                 self._store(desk, s, '%s - %s.mhtml' % (stamp, base), mhtml.encode('utf-8'), 'multipart/related')
+            s.recus['page'] += 1
             s.note('Enregistrement', 'Page enregistrée : ' + base[:80], url)
             return 'Page enregistrée.'
         return 'Action inconnue.'
@@ -585,14 +736,30 @@ class Manager:
                 self._names[params.get('guid')] = str(params.get('suggestedFilename') or 'fichier')
             elif method == 'Browser.downloadProgress' and params.get('state') == 'completed':
                 done[params.get('guid')] = True
+            elif method == 'Page.javascriptDialogOpening':   # 5.6.109 (lot O, G13) : dialogue natif : à l'avocat, jamais contourné
+                s.dialogue = str(params.get('type') or 'dialogue')[:40]
+            elif method == 'Page.javascriptDialogClosed':
+                s.dialogue = ''
         for guid in done:
             name = getattr(self, '_names', {}).pop(guid, 'fichier')
             path = browser.downloads / str(guid)
             if path.is_file():
+                # 5.6.109 (lot O, G24) : un clic sur « Télécharger » ne suffit pas : fichier réellement reçu, borné, empreinte, reçu de
+                # classement ; le même contenu reçu deux fois n'est rangé qu'une fois.
+                if path.stat().st_size > MAX_FILE_BYTES:
+                    s.note('Téléchargement', 'Fichier trop volumineux : non rangé')
+                    continue
                 raw = path.read_bytes()
+                empreinte = hashlib.sha256(raw).hexdigest()
                 stamp = datetime.now().strftime('%Y-%m-%d %Hh%M')
                 safe = re.sub(r'[^\w.\- ]+', '_', name)[:120] or 'fichier'
-                self._store(desk, s, '%s - %s' % (stamp, safe), raw, 'application/octet-stream')
+                if any(f.get('sha256') == empreinte for f in s.files):
+                    s.note('Téléchargement', 'Déjà reçu (même contenu) : ' + safe[:80])
+                else:
+                    self._store(desk, s, '%s - %s' % (stamp, safe), raw, 'application/octet-stream')
+                    if s.files:
+                        s.files[-1].update({'sha256': empreinte, 'taille': len(raw), 'type_constate': _type_constate(raw)})
+                        s.recus['fichier'] += 1
                 try:
                     path.unlink()
                 except OSError:
@@ -624,6 +791,12 @@ class Manager:
             n += 1
         path.write_bytes(raw)
         s.files.append({'nom': path.name, 'dossier': '', 'chemin': str(path)})
+
+
+def _type_constate(raw):
+    """Type lu dans les premiers octets (cohérence avec l'extension), sans prétendre valider le contenu."""
+    head = bytes(raw[:8])
+    return ('pdf' if head.startswith(b'%PDF-') else 'zip' if head.startswith(b'PK\x03\x04') else 'html' if head.lstrip()[:1] == b'<' else 'inconnu')
 
 
 def manager(cfg):

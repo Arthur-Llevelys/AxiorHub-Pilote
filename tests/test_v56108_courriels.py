@@ -717,7 +717,21 @@ class B07Export(Base):
         for marque in (b'ROUTINE_rout-reservee', b'VERSION_rout-reservee', b'el-rout-reservee', b'ITEM_rout-reservee', b'DECISION_rout-reservee'):
             self.assertNotIn(marque, tout)
         bilan = meta['perimetre']['domaines']['routines']
-        self.assertEqual((bilan['attendu'], bilan['exporte'], bilan['exclu']), (6, 3, 3))
+        # 5.6.109 (intégration I1) : décompte passé de (6, 3, 3) à (8, 5, 3), ligne par ligne :
+        #   routines56106            2 attendues, 1 exportée, 1 exclue (dossier réservé AUTRE)      (inchangé)
+        #   routines56106_versions   2 attendues, 1 exportée, 1 exclue                              (inchangé)
+        #   routines56106_elements   2 attendues, 1 exportée, 1 exclue                              (inchangé)
+        #   routines5652             1 attendue, 1 exportée : routine « r109-rappel-rdv » créée désactivée par la migration du lot B
+        #                            (bland56109.creer_rappel_par_defaut), sans dossier (matters_json '[]') : réglage du cabinet, exporté
+        #   routines5652_versions    1 attendue, 1 exportée : sa version de création (journal des versions de routines5652)
+        #   bland56109_*, collecte_profils56109, collecte_missions56109 : déclarées dans le domaine, 0 ligne dans ce test
+        # Les exclusions (3) sont inchangées : le dossier réservé reste exclu ; seules s'ajoutent les deux lignes du cabinet ci-dessous.
+        rappel = db.execute("SELECT matters_json, enabled FROM routines5652 WHERE id='r109-rappel-rdv'").fetchone()
+        self.assertEqual((rappel[0], rappel[1]), ('[]', 0))
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM routines5652').fetchone()[0], 1)
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM routines5652_versions WHERE routine_id='r109-rappel-rdv'").fetchone()[0], 1)
+        self.assertIn(b'r109-rappel-rdv', tout)
+        self.assertEqual((bilan['attendu'], bilan['exporte'], bilan['exclu']), (8, 5, 3))
         self.assertTrue(X.verifier_manifeste(dest)['ok'])
 
     def test_B07_03_table_non_couverte_interdit_l_etat_complet(self):

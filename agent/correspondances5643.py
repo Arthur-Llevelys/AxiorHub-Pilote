@@ -25,7 +25,7 @@ import secrets
 
 from .common import Stop, clean_path, load_matters, matter_display, under
 
-EXTRACTION_VERSION = 'mime5643-1'
+EXTRACTION_VERSION = 'mime5643-2'   # 5.6.109 (C01) : un texte brut vide ne masque plus la partie HTML du même message (``reprendre_lectures``)
 ACTIONS = ('archive_email', 'file_attachments')
 JOB_FOR = {'archive_email': 'archive_correspondence5643', 'file_attachments': 'file_mail_attachments5643'}
 DEFAULT_LIMITS = {'archive_max_message_bytes': 50 * 1024 * 1024, 'archive_max_part_bytes': 25 * 1024 * 1024,
@@ -139,14 +139,33 @@ def _html_text(raw):
 
 
 def body_text(msg, parts):
-    """Corps lisible : partie texte, sinon conversion de la partie HTML ; ``partial`` si aucune partie lisible."""
+    """Corps lisible : partie texte, sinon conversion de la partie HTML ; ``partial`` si aucune partie lisible. 5.6.109 (C01) : une
+    partie texte VIDE ne masque plus la partie HTML du même message (jamais un fichier HTML joint : ``body`` exclut toute partie nommée
+    ou marquée « attachment »)."""
+    vide = False
     for p in parts:
         if p.get('body') and p['type'] == 'text/plain' and p.get('data') is not None:
-            return _decode(p), False
+            texte = _decode(p)
+            if texte.strip():
+                return texte, False
+            vide = True
+            break
     for p in parts:
         if p.get('body') and p['type'] == 'text/html' and p.get('data') is not None:
             return _html_text(_decode(p)), False
-    return '', True
+    return '', not vide
+
+
+def _body_text_v1(parts):
+    """Corps tel que l'extraction ``mime5643-1`` le lisait (texte brut d'abord, même vide) : sert seulement à savoir si une lecture
+    déjà archivée doit être recalculée."""
+    for p in parts:
+        if p.get('body') and p['type'] == 'text/plain' and p.get('data') is not None:
+            return _decode(p)
+    for p in parts:
+        if p.get('body') and p['type'] == 'text/html' and p.get('data') is not None:
+            return _html_text(_decode(p))
+    return ''
 
 
 def _decode(part):
@@ -240,6 +259,37 @@ def nos_pieces_dir(desk, m):
         if item['usage'] == 'nos_pieces' and item['path']:
             return item['path']
     return clean_path(m['path'] + '/NOS PIECES')
+
+
+def destinations_pieces(desk, m):
+    """5.6.109 (F01) : emplacements du dossier où ranger les pièces jointes d'un courriel — NOS PIECES (défaut), Procédure, chaque
+    répertoire de pièces adverses résolu, autres dossiers de travail configurés (jamais Facturation ni les écrits appris pour le style).
+    Identifiants stables résolus ICI : le navigateur n'envoie jamais un chemin. Tous sous le répertoire du dossier."""
+    from .docrequest520 import folders
+    from .dossiers5632 import resolve
+    racine = clean_path(m['path'])
+    nos = nos_pieces_dir(desk, m)
+    out = [{'id': 'nos_pieces', 'label': 'Nos pièces', 'dossier': PurePosixPath(nos).name, 'path': nos, 'defaut': True},
+           {'id': 'procedure', 'label': 'Procédure', 'dossier': folders(desk)['procedure'], 'path': clean_path(racine + '/' + folders(desk)['procedure']), 'defaut': False}]
+    for item in resolve(desk, m):
+        if item['usage'] in ('pieces_adverses', 'travail') and item['path']:
+            out.append({'id': '%s:%s' % (item['usage'], _sha(item['path'].encode())[:12]), 'label': item['label'], 'dossier': item['name'],
+                        'path': item['path'], 'defaut': False})
+    vus, propres = set(), []
+    for x in out:
+        if under(x['path'], racine) and x['path'] != racine and x['path'] not in vus:
+            vus.add(x['path'])
+            propres.append(x)
+    return propres
+
+
+def destination_pieces(desk, m, ident=''):
+    """Destination choisie (identifiant de ``destinations_pieces``) ; vide : NOS PIECES. Inconnue : ``destination_inconnue``."""
+    ident = str(ident or 'nos_pieces')
+    trouve = next((x for x in destinations_pieces(desk, m) if x['id'] == ident), None)
+    if trouve is None:
+        raise Stop('destination_inconnue')
+    return trouve
 
 
 def message_dir(meta, archive_id):
@@ -346,7 +396,9 @@ def prepare(desk, owner, data, box=None, mode='assisted', origin='user'):
             actions = [a for a in actions if a != 'file_attachments']
             notices.append('Aucune pièce jointe à enregistrer pour ce courriel : seul le courriel est conservé.')
     title = re.sub(r'\s+', ' ', str(data.get('title') or meta['headers']['subject'] or 'Courriel')).strip()[:200]
-    corr, pieces = correspondances_dir(desk, m), nos_pieces_dir(desk, m)
+    # 5.6.109 (F01) : destination des pièces choisie par son identifiant (NOS PIECES par défaut, chemin d'origine inchangé)
+    cible = destination_pieces(desk, m, data.get('pieces_destination')) if data.get('pieces_destination') else None
+    corr, pieces = correspondances_dir(desk, m), (cible['path'] if cible else nos_pieces_dir(desk, m))
     mdir = message_dir(meta, archive_id)
     day = mdir.split('/')[1][:10]
     pdir = clean_path(pieces + '/PJ courriels/%s--%s' % (day, archive_id[:8]))
@@ -368,7 +420,8 @@ def prepare(desk, owner, data, box=None, mode='assisted', origin='user'):
                                          **({'file_attachments': '%s / %s / PJ courriels' % (matter_display(m), PurePosixPath(pieces).name)} if chosen else {})},
                 'files_expected': files,
                 'parts': [{'key': p['key'], 'name': p['name'], 'display_name': p.get('display_name') or p['name'], 'type': p['type'],
-                           'size': p['size'], 'sha256': p['sha256'], 'stored_name': piece_name(p)} for p in chosen],
+                           'size': p['size'], 'sha256': p['sha256'], 'stored_name': piece_name(p),
+                           **({'dir': pdir, 'destination': cible['id'], 'destination_label': cible['label']} if cible else {})} for p in chosen],
                 'warnings': ([] if meta['direction'] in ('received', 'sent') else ['Sens du message à vérifier (en-têtes)']), 'notices': notices}
     desk.db.execute('INSERT INTO mail_archive_proposals(id,owner,version,data_json,created_at) VALUES(?,?,?,?,?)',
                     (pid, owner, 1, json.dumps(proposal, ensure_ascii=False), _now()))
@@ -430,8 +483,9 @@ def confirm(desk, owner, data):
                             (json.dumps(res, ensure_ascii=False), stamp, link_id))
             if current in ACTIVE_LINK_STATES:
                 continue   # travail réellement actif (en file, en cours, suspendu ou arrêt en cours de confirmation) : on le rejoint
-            if action == 'archive_email' and current == 'verified' and link['extraction_state'] == 'complete':
-                continue   # original vérifié et lecture complète : rien à refaire (une lecture partielle est régénérée, audit F08)
+            if action == 'archive_email' and current == 'verified' and link['extraction_state'] == 'complete' and _extraction_a_jour(desk, p['archive_id']):
+                continue   # original vérifié et lecture complète : rien à refaire (une lecture partielle est régénérée, audit F08 ;
+                #            une lecture d'une ancienne extraction aussi, 5.6.109 C01)
             # 5.6.44 (audit F03) : le dossier confirmé est porté par le travail (pause du dossier, contrôles pendant l'exécution)
             job = desk.enqueue(JOB_FOR[action], {'link_id': link_id, 'proposal_id': pid, 'matter': p['matter_id']}, priority=0, transactional=True,
                                origin='automatic' if p['origin'] == 'automatic' else 'user')
@@ -451,6 +505,11 @@ def confirm(desk, owner, data):
     out = status(desk, link_id)
     out['jobs'] = jobs
     return out
+
+
+def _extraction_a_jour(desk, archive_id):
+    row = desk.db.execute('SELECT extraction_version FROM mail_archives WHERE id=?', (archive_id,)).fetchone()
+    return bool(row) and row['extraction_version'] == EXTRACTION_VERSION
 
 
 # ------------------------------------------------------------------------------------------------ dépôt vérifié (commun aux deux actions)
@@ -552,7 +611,7 @@ def _derived(desk, client, link, kind, base_path, data, mime, provenance, part_k
     return {**out, 'version': version}
 
 
-def _deposit(desk, client, link, kind, usage, path, data, mime, provenance, part_key='', source_name='', content_id='', boundary='', version=1):
+def _deposit(desk, client, link, kind, usage, path, data, mime, provenance, part_key='', source_name='', content_id='', boundary='', version=1, detail=None):
     """Réserve l'opération (transaction courte), contrôle l'arrêt, dépose exclusivement HORS transaction, relit et compare l'empreinte.
     Un fichier déjà présent n'est réutilisé que si ses octets sont identiques ; sinon conflit expliqué (jamais d'écrasement)."""
     from .pause5629 import checkpoint
@@ -563,8 +622,9 @@ def _deposit(desk, client, link, kind, usage, path, data, mime, provenance, part
     aid = _sha(('asset|%s|%s|%s' % (link['id'], kind, part_key) + ('|v%d' % version if version > 1 else '')).encode())[:32]
     stamp = _now()
     desk.db.execute('INSERT OR IGNORE INTO mail_archive_assets(id,link_id,kind,destination_usage,part_key,mime_type,source_name,content_id,path,sha256,'
-                    'size_bytes,version,state,provenance) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (aid, link['id'], kind, usage, part_key, mime, source_name[:300], content_id[:300], path, sha, len(data), version, 'staged', provenance))
+                    'size_bytes,version,state,provenance,detail_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (aid, link['id'], kind, usage, part_key, mime, source_name[:300], content_id[:300], path, sha, len(data), version, 'staged', provenance,
+                     json.dumps(detail or {}, ensure_ascii=False)))
     op = _sha(('op|%s|%s|%s|%s' % (link['id'], kind, path, sha)).encode())[:32]   # 5.6.44 : version (chemin) et empreinte dans l'identifiant
     desk.db.execute('INSERT OR IGNORE INTO mail_archive_operations(id,request_key,link_id,phase,destination,expected_sha256,state,created_at,updated_at) '
                     'VALUES(?,?,?,?,?,?,?,?,?)', (op, link['id'], link['id'], kind + ':' + part_key, path, sha, 'prepared', stamp, stamp))
@@ -732,13 +792,23 @@ def run_file_attachments(desk, args, box=None, client=None):
             files.append({'part_key': item['key'], 'name': item['stored_name'], 'state': 'error', 'error': 'piece_modifiee_ou_absente'})
             failed += 1
             continue
+        # 5.6.109 (F01) : une pièce classée depuis le lecteur porte son propre répertoire (Procédure, Pièces adverses…), toujours sous le
+        # dossier ; l'actif reste de la famille « nos_pieces » du schéma (pièce classée du dossier), la destination choisie est en détail
+        cible = item.get('dir') or paths['pieces_dir']
+        if not under(cible, paths['matter_root']):
+            files.append({'part_key': item['key'], 'name': item['stored_name'], 'state': 'error', 'error': 'destination_hors_dossier'})
+            failed += 1
+            continue
         try:
-            out = _deposit(desk, client, link, 'attachment', 'nos_pieces', paths['pieces_dir'] + '/' + item['stored_name'], p['data'],
-                           p['type'] or 'application/octet-stream', 'attachment', part_key=item['key'], source_name=item['name'], boundary=paths['matter_root'])
+            from .pieces56109 import garde_effet
+            garde_effet(desk, link, item)   # droits de la personne sur le message et le dossier relus au moment de l'effet ; refus : plus aucune copie
+            out = _deposit(desk, client, link, 'attachment', 'nos_pieces', cible + '/' + item['stored_name'], p['data'],
+                           p['type'] or 'application/octet-stream', 'attachment', part_key=item['key'], source_name=item['name'], boundary=paths['matter_root'],
+                           detail={'destination': item.get('destination') or 'nos_pieces', 'libelle': item.get('destination_label') or 'Nos pièces'})
             files.append({'part_key': item['key'], 'name': item['stored_name'], 'state': 'verified', 'sha256': out['sha256'], 'path': out['path']})
             ok += 1
         except Stop as ex:
-            if str(ex) in INTERRUPTIONS:   # arrêt, pause ou autorisation retirée : rien d'autre n'est déposé
+            if str(ex) in INTERRUPTIONS or str(ex) == 'controle_indisponible':   # arrêt, pause, autorisation retirée ou contrôle des droits en panne (5.6.109) : rien d'autre n'est déposé
                 _set(desk, link['id'], attachments_state=('partial' if ok and _failed_state(ex) != 'queued' else _failed_state(ex)))
                 raise
             files.append({'part_key': item['key'], 'name': item['stored_name'], 'state': 'error', 'error': str(ex)[:80]})
@@ -750,6 +820,72 @@ def run_file_attachments(desk, args, box=None, client=None):
     if not ok:
         raise Stop('aucune_piece_enregistree')
     return {'message': message, 'link_id': link['id'], 'attachments_state': state, 'files': files}
+
+
+REPRISE_CURSEUR = 'correspondances56109:reprise_curseur'
+
+
+def reprendre_lectures(desk, limite=3, client=None):
+    """5.6.109 (C01) : reprise des lectures déjà archivées avec l'ancienne extraction (``mime5643-1`` : un texte brut vide masquait la
+    partie HTML, la lecture disait « aucune partie texte lisible »). Pour chaque archive d'une autre version que la version courante, le
+    corps est recalculé depuis ``original.eml`` relu dans le dossier et comparé à son empreinte (jamais depuis la messagerie, jamais
+    reconstruit) : corps inchangé → la version est seulement notée, aucun fichier n'est écrit ; corps différent → nouvelle version de
+    ``lecture.md`` déposée et vérifiée, l'ancienne reste dans le dossier (``_derived``). Bornée (``limite`` archives par passage), reprise
+    au passage suivant en cas de panne ; rien pendant la pause de l'IA ni pour un dossier en pause ; aucune réponse relancée."""
+    out = {'examinees': 0, 'recalculees': 0, 'inchangees': 0, 'reportees': 0}
+    if desk.settings('missions567:pause', False):
+        return out
+    apres = str(desk.settings(REPRISE_CURSEUR, '') or '')   # tour de reprise : une archive reportée (panne, original absent) ne bloque pas les suivantes
+    rows = desk.db.execute("SELECT * FROM mail_archives a WHERE a.extraction_version<>? AND a.created_at>? AND EXISTS (SELECT 1 FROM mail_archive_links l "
+                           "JOIN mail_archive_assets s ON s.link_id=l.id WHERE l.archive_id=a.id AND s.kind='original' AND s.state='verified') "
+                           "ORDER BY a.created_at, a.id LIMIT ?", (EXTRACTION_VERSION, apres, max(1, int(limite)))).fetchall()
+    if not rows:
+        if apres:
+            desk.setting(REPRISE_CURSEUR, '')                # tour terminé : les archives reportées seront revues au tour suivant
+        return out
+    from .pause5629 import is_paused
+    client = client or _client(desk)
+    for archive in rows:
+        out['examinees'] += 1
+        fait, ecrit = True, False
+        for link in desk.db.execute('SELECT * FROM mail_archive_links WHERE archive_id=?', (archive['id'],)).fetchall():
+            original = desk.db.execute("SELECT path,sha256 FROM mail_archive_assets WHERE link_id=? AND kind='original' AND state='verified'", (link['id'],)).fetchone()
+            if not original:
+                continue
+            try:
+                if is_paused(desk, link['matter_id']):
+                    raise Stop('agent_en_pause_sur_ce_dossier')
+                brut = client.read_archive(original['path'], limits(desk.c)['archive_max_message_bytes'] + 1)
+                if _sha(brut) != archive['raw_sha256']:
+                    raise Stop('original_altere')
+                msg = parse(brut)
+                parts = mime_parts(msg, desk.c)
+                if body_text(msg, parts)[0] == _body_text_v1(parts):
+                    continue                                    # même corps qu'avant : rien à réécrire
+                paths = json.loads(link['resolution_json'])['paths']
+                src = desk.db.execute('SELECT folder,uidvalidity,uid FROM mail_archive_sources WHERE archive_id=? ORDER BY observed_at DESC', (archive['id'],)).fetchone()
+                meta = {'raw_sha256': archive['raw_sha256'], 'raw_size': archive['raw_size'], 'internaldate': archive['internaldate'], 'direction': archive['direction'],
+                        'headers': json.loads(archive['headers_json'] or '{}'), 'source': dict(src) if src else {}}
+                pieces = {a['part_key']: a['path'] for a in desk.db.execute(
+                    "SELECT part_key,path FROM mail_archive_assets WHERE link_id=? AND kind='attachment' AND state='verified'", (link['id'],))}
+                texte, partiel = reading_md(meta, msg, parts, pieces)
+                _derived(desk, client, link, 'reading', paths['message_dir'] + '/lecture.md', texte.encode('utf-8'), 'text/markdown; charset=utf-8',
+                         'mail_extraction', boundary=paths['matter_root'])
+                _set(desk, link['id'], extraction_state='partial' if partiel else 'complete')
+                desk.db.execute('INSERT INTO mail_archive_events(link_id,actor,action,from_version,to_version,detail_json,at) VALUES(?,?,?,?,?,?,?)',
+                                (link['id'], 'cabinet', 'reprise_lecture', None, None, json.dumps({'extraction': EXTRACTION_VERSION}), _now()))
+                desk.db.commit()
+                ecrit = True
+            except Stop:
+                fait = False                                    # panne, pause ou original illisible : repris au passage suivant
+                if desk.db.in_transaction:
+                    desk.db.rollback()
+        if fait:
+            desk.db.execute('UPDATE mail_archives SET extraction_version=? WHERE id=?', (EXTRACTION_VERSION, archive['id']))
+            desk.db.commit()
+        out['recalculees' if (fait and ecrit) else ('inchangees' if fait else 'reportees')] += 1
+    desk.setting(REPRISE_CURSEUR, rows[-1]['created_at'])
+    return out
 
 
 def perform(desk, kind, args):
@@ -1062,6 +1198,11 @@ def auto_tick(desk, box=None, limit=30):
     """Classement automatique sur rattachement confirmé : nouveaux messages seulement (depuis la prise d'effet), messages reçus d'un
     correspondant validé d'UN seul dossier ou dossier confirmé pour ce message ; listes, messages du cabinet et dossiers en pause exclus.
     Les travaux portent l'origine « automatic » : la pause de l'IA les bloque comme tout automatisme."""
+    try:   # 5.6.109 (C01) : lectures archivées avec une ancienne extraction, recalculées depuis l'original (borné, sans messagerie)
+        reprendre_lectures(desk)
+    except Exception:   # noqa: BLE001 — stockage non configuré ou injoignable : la reprise attend, le classement automatique continue
+        if desk.db.in_transaction:
+            desk.db.rollback()
     general = get_policy(desk, 'account')
     cabinet = get_policy(desk, 'cabinet')
     any_rule = desk.db.execute("SELECT 1 FROM mail_filing_message_rules WHERE email_override='allow' OR attachments_override='allow' LIMIT 1").fetchone()

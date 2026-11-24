@@ -1,0 +1,632 @@
+{
+  "version": "5.6.109",
+  "base": "5.6.108",
+  "date_utc": "2026-11-24T00:00:00+00:00",
+  "demande": "Cahier des charges et dossier technique 5.6.109 (60 tickets C, P, F, G) ; demandes du cabinet du 23/11/2026 : téléphonie Bland, « Mes routines | Mes agents IA », rappel de rendez-vous, attribution des anciens fils sur un serveur ; incident de production du 23/11/2026 (base du bureau endommagée après la sauvegarde) ; veille de sécurité du serveur.",
+  "regression": {
+    "command": "scripts/tests-paralleles.py -j 9, PYTHONUTF8=1",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 9475,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 175,
+    "passages": "Cinq passages complets. N°1 : 9 397 tests, 7 échecs, corrigés. N°2 : 9 475 tests, 6 échecs (fiche du guide à plus de 7 étapes, essai Craft instable, liste des parcours), corrigés. N°3 : 9 475 tests, 0 échec, 0 erreur. N°4 et n°5 (après la correction de l’en-tête du volet au format téléphone) : 9 475 tests, 0 échec, 1 erreur chacun, la même : connexion locale coupée (WinError 10053) dans un essai du mode Démo (test_v56107_hote, puis test_v56108_demo), au même appel du script de fumée. Fragilité du faux serveur d’essai sous Windows (corps de requête non lu avant la fermeture), présente aussi en 5.6.108 (4 erreurs sur 20 passages isolés, 1 sur 20 en 5.6.109) ; faux serveur corrigé dans les deux modules de test : 40 passages isolés sans erreur. Aucun sixième passage complet n’a été fait après cette correction, qui ne touche que deux fichiers de test."
+  },
+  "lots": [
+    "A fiabilité (C04-C08, F03)",
+    "P confidentialité avant une IA externe (P01-P06)",
+    "L courriels et fichiers (C01-C03, C09, F01, F02)",
+    "D fiche et honoraires (C10, C11, F04, F05)",
+    "M consommation et coûts (C12, F18)",
+    "S sources publiques et international (F11, G18, G19, G21)",
+    "H historique, discussions, apparence (F09, F10)",
+    "O poste et navigateur (F12, G13, G24)",
+    "K compétences et décision locale (F06, F07)",
+    "V livrables, modèles Word, Craft (F08, F16)",
+    "B téléphonie Bland et rappel de rendez-vous",
+    "R incident de base endommagée",
+    "N simulation de décision (F14)",
+    "Q qualité locale, fonds juridique, fichiers du poste (G22, G23, F13)",
+    "E Gemini (F15) et correctif Mistral",
+    "G1 préfacturation, assistance, finances (G01, G02, G09)",
+    "G2 partage client, appels, remplacements, kit audience (G03, G06-G08)",
+    "G3 closing, suites, formalités et portails (G04, G05, G14-G16, G20)",
+    "G4 offre, collecte e-Barreau, routine, Pappers (G10-G12, G17)",
+    "I1 sûreté et exploitation",
+    "I2 raccords fonctionnels",
+    "I3 traductions",
+    "I4 journal, validation, liste de livraison",
+    "T modèle et contexte par tâche"
+  ],
+  "lots_compte": "20 lots de développement (A, P, L, D, M, S, H, O, K, V, B, R, N, Q, E, G1, G2, G3, G4, T), 4 passes d’intégration (I1 à I4) et l’intégration finale (suites complètes, Linux, parcours navigateur)",
+  "linux": "Docker python:3.12 : 1 525 tests (45 modules de la 5.6.109, test_upgrade, test_installer, test_v5689_stabilite, test_v5696_mistral) ; 1 échec (fiche du guide à plus de 7 étapes) corrigé puis rejoué sans échec ; mises à jour directes vers la 5.6.109 et retours arrière réussis",
+  "navigateur": "Edge réel, 72 parcours : 68 réussis au premier passage ; P96a et P108a-assistant (en-tête du volet de l’assistant au format téléphone) : défaut corrigé, rejoués avec succès ; P96F1 : réussi seul (échec sous charge) ; P99a : critère adapté (bandeau des routines sur deux lignes au plus)",
+  "recette_dossier": "392 tests, 0 échec",
+  "essai_incident_linux": "Docker python:3.12, SQLite 3.46.1, deux passages : avec ouverture/fermeture du fichier vivant, verrou partagé perdu, WAL supprimé par l’autre processus, 5 lignes perdues sur 686 ; témoin sans ouverture : verrou gardé, 0 perte. Conclusion « démontré » pour le mécanisme ; état « base illisible » non reproduit.",
+  "exapp": {
+    "version": "0.1.68",
+    "moteur": "5.6.109",
+    "etat": "construite après cette validation"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "tickets_comptes": {
+    "partiel": 24,
+    "raccorde_et_teste": 29,
+    "non_qualifiable_ici": 7
+  },
+  "tickets": [
+    {
+      "id": "C01",
+      "titre": "Courriels HTML et repli MIME lisibles",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "texte en cache gmail5697_messages.texte non recalculé"
+    },
+    {
+      "id": "C02",
+      "titre": "Date HTTP convertie en français avant affichage",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services"
+    },
+    {
+      "id": "C03",
+      "titre": "Contraste de la navigation et des fichiers",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; bancs Chrome sans interface sur fragments",
+      "manque": "recette visuelle (survol, focus, clair et sombre) dans un vrai navigateur sur l’application servie"
+    },
+    {
+      "id": "C04",
+      "titre": "État de couverture de la réanalyse",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "couverture page par page"
+    },
+    {
+      "id": "C05",
+      "titre": "Propagation de pause, annulation, droits et budget",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services"
+    },
+    {
+      "id": "C06",
+      "titre": "Relevé de fichiers reprenable et progressif",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "Nextcloud réel et deux postes non essayés"
+    },
+    {
+      "id": "C07",
+      "titre": "Rapprochement des écritures à résultat incertain",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "fichiers56103.executer suit encore l’ancien schéma « exception = échec » (hors lot) ; état « à vérifier » de ouvrir_word56108 perdu après rechargement"
+    },
+    {
+      "id": "C08",
+      "titre": "Saisie WordCraft préservée pendant un enregistrement",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "vrai WordCraft dans un vrai navigateur non essayé"
+    },
+    {
+      "id": "C09",
+      "titre": "Date de création locale inconnue correctement affichée",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "instantanés document_runs568.metadata non requalifiés"
+    },
+    {
+      "id": "C10",
+      "titre": "Juridiction coupée sur deux lignes distincte des parties",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services"
+    },
+    {
+      "id": "C11",
+      "titre": "Rôle contractuel sans adverse imposé par défaut",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services"
+    },
+    {
+      "id": "C12",
+      "titre": "Mesures manquantes du cache et consommation partielle présentées correctement",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "majorant étiqueté quand le détail du cache manque ; tarif 0 = non renseigné ; appel sans montant calculable « incertain »"
+    },
+    {
+      "id": "P01",
+      "titre": "Identités du périmètre et détection locale avant envoi",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux transports",
+      "remarques": "nom absent des registres, prénom seul, surnom, initiales, fautes de frappe non détectés"
+    },
+    {
+      "id": "P02",
+      "titre": "Identité nouvellement ajoutée prise en compte immédiatement",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux transports"
+    },
+    {
+      "id": "P03",
+      "titre": "Marqueurs littéraux distincts des substitutions",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux transports"
+    },
+    {
+      "id": "P04",
+      "titre": "Restitution sans identité inconnue publiée silencieusement",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux transports",
+      "manque": "pas d’état « à vérifier » propre dans Courriels et Produire (message d’arrêt seulement)",
+      "remarques": "le dépôt automatique est bloqué"
+    },
+    {
+      "id": "P05",
+      "titre": "Enveloppe fournisseur et schémas contrôlés avant émission",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux transports",
+      "remarques": "voix externe (voice568) hors contrôle d’enveloppe"
+    },
+    {
+      "id": "P06",
+      "titre": "Politique explicite du connecteur Claude et des correspondances",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux transports",
+      "remarques": "colonne original de claude5675_masques non chiffrée"
+    },
+    {
+      "id": "F01",
+      "titre": "Barre des pièces jointes et classement unitaire ou en lot",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "après relecture : état du lot et mise en file dans une seule transaction, dépôt refusé sans lot confirmé, droits relus avec le rôle actuel, panne du contrôle = 503 ; vrai navigateur non essayé"
+    },
+    {
+      "id": "F02",
+      "titre": "Tri global du répertoire et aperçu commun",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "vrai navigateur non essayé"
+    },
+    {
+      "id": "F03",
+      "titre": "Réanalyse complète depuis la nouvelle fiche",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "résultat non retrouvable depuis Aujourd’hui et Produire ; pas de validation groupée ; les propositions de l’analyse ne sont pas versées dans la fiche (F04)",
+      "remarques": "bandeau « Analyser le dossier » monté dans l’en-tête de la fiche (intégration)"
+    },
+    {
+      "id": "F04",
+      "titre": "Fiche Conseil / Contentieux avec projection fiable",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "NON FAIT : verser les propositions de l’analyse dans la fiche (étape d’extraction dédiée à écrire) ; corriger ou écarter un fait renvoie à la vue existante ; projection non utilisée par les autres rédactions"
+    },
+    {
+      "id": "F05",
+      "titre": "Barèmes configurables et devis motivés",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "montants hors tarif non branchés sur la rédaction des courriels ; instantané non repris dans devis et lettre de mission ; import par collage ; simulation en texte",
+      "remarques": "éditeur de règles à quatre conditions, cinquième refusée ; règle importée conservée (intégration)"
+    },
+    {
+      "id": "F06",
+      "titre": "Compétences et questionnaire des informations manquantes",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "questions ciblées partielles",
+      "remarques": "défaut corrigé : « Analyser l’assignation reçue » chargeait une méthode de création"
+    },
+    {
+      "id": "F07",
+      "titre": "Décision locale et choix des actions du LLM",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux modèle, 24 cas synthétiques",
+      "manque": "questions visibles seulement dans Paramètres › IA ; pas de relance après réponse ; complexité non transmise au routage ; Skejja/AnyJev non développés ; gain non mesuré sur cas français réels",
+      "remarques": "réglage désactivé par défaut"
+    },
+    {
+      "id": "F08",
+      "titre": "Livrables canoniques et styles DOCX du cabinet",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; tests Node",
+      "manque": "correction IA non branchée pour les livrables structurés ; suivi des modifications, tableaux, groupes répétitifs non gérés ; défauts de document_projects._docx et word_legal non corrigés",
+      "remarques": "vrai navigateur non essayé"
+    },
+    {
+      "id": "F09",
+      "titre": "Historique des instructions et discussions partagées",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; Chromium réel (2 parcours, scripts/parcours_p109h.py)",
+      "manque": "recherche sans index plein texte ; conversations antérieures à la 1.6 et cockpit530_messages non lues ; rattachement livrable / fil d’équipe refusé ; corbeille sans purge physique ; pas de synchronisation entre postes",
+      "remarques": "attribution d’office des anciens fils quand une seule identité est possible ; relevé des membres seulement depuis la 5.6.50"
+    },
+    {
+      "id": "F10",
+      "titre": "Navigation lisible et assistant accessible sans défilement",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires ; Chromium réel",
+      "remarques": "zoom 125 % simulé"
+    },
+    {
+      "id": "F11",
+      "titre": "MCP publics sans clé préconfigurés et activés",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux transports",
+      "remarques": "sonde de fond jamais exercée sur les vrais services"
+    },
+    {
+      "id": "F12",
+      "titre": "Missions sur le poste et navigateur supervisé",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "aucune boucle d’outils IA n’appelle poste56109.executer ; pas de pilote graphique ni de bac à sable ; bloc « Accès à ce poste » sur la page du navigateur"
+    },
+    {
+      "id": "F13",
+      "titre": "Questions sur les fichiers locaux",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "pas d’entrée « Utiliser les fichiers de ce poste » dans l’assistant ni dans Dossier › Fichiers ; phrases composées non traduites"
+    },
+    {
+      "id": "F14",
+      "titre": "Simulation contradictoire et hypothèses séparées",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux modèle, faux connecteur",
+      "manque": "« Contrer » = projection déterministe ; « Créer une tâche » et « Mettre à jour le projet de conclusions » non raccordés ; pas d’estimation de coût ; force de l’anonymisation des recherches juridiques non vérifiée ; recette juridique humaine à faire",
+      "remarques": "résultat écrit masqué, brut dans simulation_bruts56109 exclue de l’export ; anciens projets d’avis bloqués : même règle (legal_opinion_bruts56109) (intégration)"
+    },
+    {
+      "id": "F15",
+      "titre": "Connexion Gemini et distinction API / abonnement",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux transport",
+      "manque": "jamais essayé sur le vrai service ; mode « Gemini uniquement », images, budget5668._external, Gemini CLI et Vertex non faits",
+      "remarques": "fournisseur désactivé par défaut"
+    },
+    {
+      "id": "F16",
+      "titre": "Éditeurs Craft facultatifs et qualification des formats",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires ; archive d’essai ; tests Node",
+      "manque": "binaires compilés non livrés ; formats réels non qualifiés",
+      "remarques": "option désactivée et non activable sans les ressources"
+    },
+    {
+      "id": "F17",
+      "titre": "Migration, export, restauration et paquets de livraison",
+      "etat": "partiel",
+      "verifie_avec": "contrat d’export (test_v56108_export) ; recette du dossier",
+      "manque": "restauration complète d’un export 5.6.109 non essayée de bout en bout ; archive de livraison et ExApp construites après cette validation",
+      "remarques": "chaque table nouvelle est exportée ou exclue avec motif"
+    },
+    {
+      "id": "F18",
+      "titre": "Section unique Consommation et coûts",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "alertes configurables, conversion de devise, écran collaborateur, coût déclaré OpenRouter non faits",
+      "remarques": "anciens compteurs renvoyés vers la section unique ; coûts Bland et registres étrangers inscrits (intégration)"
+    },
+    {
+      "id": "G01",
+      "titre": "Préfacturation assistée sans double saisie ni double facturation",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "durée des appels reprise (intégration) ; carte non montée dans Aujourd’hui ; unicité entre postes synchronisés non vérifiée"
+    },
+    {
+      "id": "G02",
+      "titre": "Assistance régulière dans la fiche client existante",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "délais de réponse de l’assistance non calculés"
+    },
+    {
+      "id": "G03",
+      "titre": "Demandes et partage client dans le dossier existant",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "partage non confirmé, expiré ou révoqué : tout fichier refusé (après relecture) ; vrai Nextcloud non essayé ; paquet de partage = ZIP non chiffré"
+    },
+    {
+      "id": "G04",
+      "titre": "Closing dans Corporate et Cession sans seconde opération",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services"
+    },
+    {
+      "id": "G05",
+      "titre": "Suites et exécution dans la fiche contentieux",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services"
+    },
+    {
+      "id": "G06",
+      "titre": "Appels, comptes rendus et rappels dans les fiches existantes",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "rattacher un appel : copie « à relire » dans le nouveau dossier, versions antérieures intactes, trace au registre (après relecture) ; dictée non qualifiée ; « Proposer un rendez-vous » sur horaire saisi"
+    },
+    {
+      "id": "G07",
+      "titre": "Remplacements et postulation liés à la même audience",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "accès du confrère borné au lendemain de l’audience courante, relu à chaque accès ; plus d’écriture pendant une lecture (après relecture)"
+    },
+    {
+      "id": "G08",
+      "titre": "Kit audience hors ligne depuis le dossier",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "compte rendu client du kit non fait ; pièces en téléchargement vérifié, pas dans le lecteur commun ; clé par phrase seulement",
+      "remarques": "plus d’écriture pendant une lecture (après relecture)"
+    },
+    {
+      "id": "G09",
+      "titre": "Fonds, frais et débours dans la vue financière existante",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "justificatifs en référence texte"
+    },
+    {
+      "id": "G10",
+      "titre": "Offre, CGV et PDF joint au brouillon depuis une instruction",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "LibreOffice réel non validé ; lettre de mission avec « [à compléter] »"
+    },
+    {
+      "id": "G11",
+      "titre": "Collecte e-Barreau supervisée, classement, dates et brouillons",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "aucun adaptateur d’écran réel (ADAPTATEURS vide) : en production rien n’est collecté ; étapes hors missions_v567 ; inscription à l’agenda laissée en propositions"
+    },
+    {
+      "id": "G12",
+      "titre": "Routine de collecte tous les trois jours avec rattrapage borné",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "sans objet tant que G11 ne collecte rien"
+    },
+    {
+      "id": "G13",
+      "titre": "Prise de main acquittée et délégation navigateur au poste pour serveur ExApp",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux navigateur",
+      "manque": "canal serveur-compagnon et interface ExApp non faits"
+    },
+    {
+      "id": "G14",
+      "titre": "Préparation et suivi INPI avec FranceConnect+",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "exécution dans le navigateur non branchée ; profil non qualifié : tout effet refusé"
+    },
+    {
+      "id": "G15",
+      "titre": "Obtention Kbis et état d’endettement Infogreffe",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "exécution dans le navigateur non branchée ; profil non qualifié : tout effet refusé"
+    },
+    {
+      "id": "G16",
+      "titre": "Demande et récupération documentaire de RIB CARPA",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "exécution dans le navigateur non branchée ; profil non qualifié : tout effet refusé"
+    },
+    {
+      "id": "G17",
+      "titre": "Documents publics Pappers client et adversaire classés dans le dossier",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux transport",
+      "remarques": "champs JSON de l’API Pappers à qualifier sur le vrai service"
+    },
+    {
+      "id": "G18",
+      "titre": "Profils internationaux communs et identités des registres",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux transports",
+      "manque": "pas de lien aux fiches de textes"
+    },
+    {
+      "id": "G19",
+      "titre": "Documents publics des sociétés étrangères classés sans doublon",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux transports",
+      "manque": "Companies House et SEC seulement ; autres registres « service non raccordé » ; Pappers International à qualifier"
+    },
+    {
+      "id": "G20",
+      "titre": "Formalités et portails judiciaires étrangers supervisés",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "exécution dans le navigateur non branchée ; profils déclaratifs non qualifiés : tout effet refusé"
+    },
+    {
+      "id": "G21",
+      "titre": "Clés API et accès étrangers dans Paramètres et installation",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "Contract Factory non préconfiguré"
+    },
+    {
+      "id": "G22",
+      "titre": "Chaîne de qualité locale et options sans moteurs en doublon",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "relire_citations non appelé par les chaînes de réponse existantes (courriels, assistant, connecteur Claude)"
+    },
+    {
+      "id": "G23",
+      "titre": "Fonds juridique local sélectionné, versionné et actualisable",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "mise à jour par pas déclenchés à la main ; pas d’embeddings"
+    },
+    {
+      "id": "G24",
+      "titre": "Navigateur réellement utilisable avec Ollama qwen3.5:9b",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires, faux Ollama, faux navigateur",
+      "manque": "recette des 30 parcours avec le vrai qwen3.5:9b sur Windows 11 et Ubuntu 24.04 à faire par le cabinet (script prêt, jamais lancé) ; choix du modèle absent de l’assistant d’installation"
+    }
+  ],
+  "ajouts": [
+    {
+      "id": "INCIDENT-SAUVEGARDE",
+      "titre": "Sauvegarde sans ouverture des bases vivantes ; copie dans un processus séparé ; échec lisible ; contrôle hors plafond",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires ; essai Linux (Docker python:3.12, SQLite 3.46.1) du mécanisme",
+      "remarques": "mécanisme démontré (verrou perdu, WAL retiré, 5 écritures perdues sur 686) ; état « base illisible » non reproduit ; cause des nuits manquées non établie"
+    },
+    {
+      "id": "GARDE-SQLITE",
+      "titre": "Gardes contre l’ouverture directe d’une base : analyse du code (agent/, racine, deploy/, scripts/) et garde à l’exécution",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; Linux (Docker)",
+      "manque": "ne voit pas : chemin calculé à l’exécution, chemin passé d’un module à l’autre ou par un conteneur, bibliothèque tierce ; publication d’un fichier par la synchronisation (sync56108_fichiers.publier) non couverte par la garde à l’exécution",
+      "remarques": "garde à l’exécution sur sauvegarde, export, santé, secours, mise à jour sous Linux, synchronisation ; sources locales du poste : bases jamais ouvertes"
+    },
+    {
+      "id": "INCIDENT-ARRET",
+      "titre": "Base illisible : page d’arrêt, sortie code 78, unités systemd sans boucle",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires ; test_upgrade et test_installer sous Linux (Docker)",
+      "remarques": "défaut trouvé : la mise à jour ne réécrivait jamais les unités ; upgrade.refresh_units les réécrit, sauvegarde les anciennes, daemon-reload ; un retour arrière ne remet pas les anciennes ; vrai systemd non essayé"
+    },
+    {
+      "id": "INCIDENT-SECOURS",
+      "titre": "Outil python3 -m agent.secours56109",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services"
+    },
+    {
+      "id": "INCIDENT-MEMOIRE",
+      "titre": "Limite mémoire de l’interface",
+      "etat": "partiel",
+      "verifie_avec": "lecture du code",
+      "manque": "cause des 512 Mo atteints non trouvée ; limites (450 Mo / 768 Mo / échange 256 Mo) à confirmer par mesure"
+    },
+    {
+      "id": "BLAND",
+      "titre": "Connecteur Bland, agent de prise de rendez-vous, « Mes routines | Mes agents IA », rappel de rendez-vous",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires, faux serveur MCP local",
+      "manque": "jamais essayé sur le vrai service ; OAuth non livré ; accord du client sur la fiche contact ; proposition -> événement d’agenda ; transcription rattachée au dossier ; choix explicite du lieu libre à la confirmation non codé",
+      "remarques": "connecteur et compétence désactivés ; routine créée désactivée, sans bouton « Lancer » ; mode « envoyer automatiquement » = choix de conception à confirmer par le cabinet ; après relecture : chaque tentative comptée dans le plafond (jour du cabinet), premier résultat incertain = automatique suspendu, lieu libre de l’agenda jamais repris (visioconférence, téléphone, adresse du cabinet réglée ou rien), aucune exception d’identité en automatique, droit « envoyer » exigé et relu à chaque passage, validation couvrant SMS, consigne d’appel et coordonnées du cabinet, jeton de service refusé ; guide en ligne, accueil, assistant, mention « Rappel envoyé » raccordés (intégration)"
+    },
+    {
+      "id": "SAUVEGARDE-APRES-RESTAURATION",
+      "titre": "Aucune sauvegarde relancée après une remise en place ; archive d’origine protégée 72 h",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "cause établie : planification normale et rétention d’une seule archive par jour ; le délai de garde ne joue qu’avec l’outil de secours"
+    },
+    {
+      "id": "MISTRAL",
+      "titre": "Connexion Mistral : top_p 1 à température 0, motif lisible d’un refus, marge de sortie d’un modèle qui raisonne, modèle pris au catalogue",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux transport reproduisant les réponses relevées par le cabinet",
+      "manque": "jamais essayé sur le vrai service ; aucun paramètre officiel de limitation du raisonnement établi ; raisonnement non affiché dans le tableau de consommation (CSV seulement)",
+      "remarques": "cause du refus 400 établie par une requête directe du cabinet ; test de la carte désormais sur le modèle en service ; test_v5696_mistral A02 et test_v5689_stabilite chap. 20 adaptés"
+    },
+    {
+      "id": "CHOIX-MODELE",
+      "titre": "Modèle exact par fonction (« Choisi par vous »), à l’intersection de la politique, sans substitution",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux transports ; module essayé sous Linux (Docker)",
+      "manque": "jamais essayé avec un vrai Ollama, une vraie clé ni un vrai navigateur ; pas de retour automatique au mode général en cas de panne ; écran en JavaScript seulement ; dossier exclu détecté seulement au moment de l’appel",
+      "remarques": "mise à jour sans choix : résolution identique dans les modes routes, local, mixte, automatique et Mistral ; exception minimale dans politique5682.gate pour un modèle local fixé, relu en base"
+    },
+    {
+      "id": "CONTEXTE-TRANSMIS",
+      "titre": "Niveau de contexte par fonction (Réduit / Normal), taille transmise affichée par appel, consommation par fonction",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; mesure sur base fictive",
+      "manque": "bornes du niveau réduit à valider par le cabinet ; niveau « étendu » non proposé ; taille par catégorie mesurée à l’assemblage (le total par appel est exact) ; le second appel du contrôle de rédaction renvoie encore tout le contexte",
+      "remarques": "rédaction d’un courriel : 50 946 caractères au niveau normal, 20 272 au niveau réduit ; contexte normal identique octet pour octet à avant"
+    },
+    {
+      "id": "VEILLE-SECURITE",
+      "titre": "Veille de sécurité du serveur : account.conf d’acme.sh, fichiers sans réglage sensible, alias globaux d’Apache, copies non servies",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux services",
+      "remarques": "exposition lue dans sites-enabled et conf-enabled ; copie non servie signalée à part ; la veille n’exécute rien ; vrai Apache non essayé"
+    },
+    {
+      "id": "RELATIONS-LECTURE",
+      "titre": "Modules de relations (partage client, appels, remplacements, kit audience) : aucune écriture pendant une lecture",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires, faux services",
+      "manque": "audiences5688.view déclenche encore la création de la table de l’annuaire (membres5650.directory) pendant une lecture sur d’autres écrans (antérieur à la version)"
+    },
+    {
+      "id": "TRADUCTIONS",
+      "titre": "Traductions anglais, allemand, espagnol",
+      "etat": "partiel",
+      "verifie_avec": "test_v56107_langues, test_v56108_sync_langues",
+      "manque": "aucune relecture humaine ; termes juridiques incertains listés ; pluriels « élément%s » et libellés collés à du HTML restants ; dernier passage pour les textes des corrections finales",
+      "remarques": "1 510 phrases ajoutées par langue, plus le dernier passage"
+    }
+  ],
+  "changements_de_comportement": [
+    "Ligne de facture au temps calculée en heures à 6 décimales (50 min à 200 €/h = 166,67 € au lieu de 166,00 €).",
+    "Fichiers de base de données (.sqlite3, .sqlite, .db et journaux) d’un dossier ou d’un emplacement du poste jamais ouverts : « fichier de base non lu ».",
+    "Compétences parcours109-* actives par défaut sur une installation neuve ; metier109-* et telephonie109-bland désactivées ; Assistant juridique par défaut.",
+    "Contrôle quotidien de sauvegarde hors plafond de la file des travaux automatiques.",
+    "Sources publiques sans clé préconfigurées et activées après vérification automatique par le serveur.",
+    "Historique de l’assistant filtré par personne ; anciens fils attribués d’office (une seule identité possible) ou à attribuer par l’administrateur.",
+    "Base illisible : arrêt par sécurité (page 503, code de sortie 78) au lieu d’erreurs 500 et d’une boucle de redémarrage.",
+    "Unités systemd réécrites par la mise à jour (ancien contenu gardé dans backups/, daemon-reload) : avant, elles ne l’étaient jamais.",
+    "Export : aucun pourcentage inventé par un modèle ne sort (simulation, anciens projets d’avis bloqués) ; le brut reste dans une table exclue.",
+    "Rappel de rendez-vous Bland : le lieu libre de l’agenda n’entre jamais dans un rappel ; premier résultat incertain = envoi automatique suspendu.",
+    "Mistral : top_p 1 envoyé d’office à température 0 ; refus 400, 404, 422 d’un fournisseur traduits en motif lisible (le code « http_400 » ne sort plus du modèle).",
+    "Modèle qui raisonne : marge de sortie ajoutée, réservation de budget plus haute d’autant ; une seule reprise sur réponse coupée.",
+    "Test de génération de la carte Mistral : sur le modèle en service.",
+    "Sauvegarde interrompue jamais relancée ; délai de garde et archive protégée 72 h après une remise en place par l’outil de secours.",
+    "Modèle et niveau de contexte par fonction : sans choix de l’administrateur, aucun changement.",
+    "Page Aujourd’hui : bandeau des routines sur deux lignes au plus à 1920 px (intitulé « Mes routines | Mes agents IA », routine de rappel désactivée affichée).",
+    "Volet de l’assistant au format téléphone : barre Historique / Nouvelle discussion / Ouvrir en grand sous le titre, sur une ligne."
+  ],
+  "consigne_installations_5_6_108": "Ne lancer ni sauvegarde automatique (décocher « Sauvegarder automatiquement chaque jour », Paramètres › Poste) ni sauvegarde manuelle depuis l’interface avant la mise à jour en 5.6.109 ; réactiver la sauvegarde automatique ensuite.",
+  "limites": [
+    "Aucun vrai modèle : qwen3.5:9b n’a jamais été essayé ; la recette des 30 parcours du navigateur (scripts/recette-navigateur-qwen56109.py, Windows 11 et Ubuntu 24.04) est à faire par le cabinet. Décision locale et simulation essayées avec un faux modèle seulement.",
+    "Aucun portail réel : e-Barreau sans adaptateur d’écran (rien n’est collecté en production) ; INPI, Infogreffe, CARPA et portails étrangers : profils non qualifiés, tout effet refusé, exécution dans le navigateur non branchée.",
+    "Bland et Gemini jamais essayés sur le vrai service (faux serveur MCP, faux transport) ; tous deux désactivés par défaut.",
+    "Pappers, Companies House, SEC et autres registres étrangers : faux transports seulement ; champs de l’API Pappers à qualifier.",
+    "Sources publiques sans clé : vérification automatique jamais exercée sur les vrais services.",
+    "Éditeurs Craft : binaires compilés non livrés, option non activable ; formats réels non qualifiés.",
+    "Traductions non relues par un humain (1 510 phrases par langue) ; termes juridiques incertains à faire relire.",
+    "Navigateur réel : les 72 parcours du banc (Edge), dont 2 seulement portent sur des écrans nouveaux (historique de l’assistant, apparence) ; les autres écrans nouveaux (modèle et contexte par tâche, cartes Mistral et Gemini, gestion du cabinet, Bland, fiche, honoraires) et les sections accrochées à des repères de page restent à voir dans un vrai navigateur.",
+    "Confidentialité : nom absent des registres, prénom seul, surnom, initiales, fautes de frappe, visages, signatures et tampons sur image et voix externe non couverts ; faux transports seulement.",
+    "Incident : mécanisme démontré sous Linux par un petit essai ; état « malformed » non reproduit ; cause des nuits manquées et de la limite de mémoire de l’interface non établies ; limites systemd à confirmer par mesure.",
+    "Aucune vraie messagerie, aucun vrai Nextcloud, aucun second poste réel, aucune dictée réelle ; LibreOffice réel non validé.",
+    "Simulation de décision : recette juridique par un avocat nécessaire avant usage.",
+    "Rappel de rendez-vous : le mode « envoyer automatiquement » est un choix de conception à confirmer par le cabinet.",
+    "Gardes contre l’ouverture directe d’une base : aveugles à un chemin calculé à l’exécution, à un chemin passé d’un module à l’autre et aux bibliothèques tierces ; publication d’un fichier par la synchronisation non couverte par la garde à l’exécution.",
+    "audiences5688.view crée encore une table de l’annuaire pendant une lecture sur d’autres écrans (antérieur à la version).",
+    "Force de l’anonymisation des recherches juridiques lancées par la simulation non vérifiée.",
+    "La routine de rappel Bland n’a volontairement pas de bouton « Lancer » ; le choix explicite du lieu libre à la confirmation n’est pas codé.",
+    "Fiche Conseil / Contentieux : les propositions de l’analyse n’y sont pas versées (F04 partiel).",
+    "Vrai systemd et vrai Apache non essayés (unités et veille testées sous Linux dans Docker).",
+    "Mistral : correction jamais essayée sur le vrai service (faux transport d’après les réponses relevées par le cabinet) ; aucun réglage officiel pour limiter le raisonnement n’est envoyé ; la première vérification réelle est le bouton « Essayer une requête réelle » après la mise à jour.",
+    "Modèle fixé par fonction : aucun retour automatique au mode général en cas de panne ; jamais essayé avec un vrai Ollama ni une vraie clé.",
+    "Contexte réduit : bornes à valider par le cabinet ; le second appel du contrôle de rédaction renvoie encore tout le contexte.",
+    "Délai de garde après restauration : seulement quand la remise en place passe par l’outil de secours.",
+    "Suite complète : dernier passage entièrement propre = n°3 ; les passages n°4 et n°5 ont chacun une erreur de connexion locale dans un essai du mode Démo (faux serveur d’essai sous Windows, défaut présent en 5.6.108), corrigée ensuite dans les tests et vérifiée sur 40 passages isolés.",
+    "Deux échecs non reproduits pendant les passages des lots (test_v56109_craft, test_v5688_reversibilite page de paramètres) : à surveiller."
+  ]
+}

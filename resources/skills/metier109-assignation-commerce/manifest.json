@@ -1,0 +1,38 @@
+{
+  "id": "builtin.metier109.assignation_commerce",
+  "name": "Préparation du contentieux commercial",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub adaptation méthodologique des fichiers transmis par le cabinet",
+  "license": "AGPL-3.0",
+  "description": "Complément court de méthode pour préparation du contentieux commercial",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "assignation tribunal de commerce",
+    "assignation tae",
+    "tribunal des activités économiques",
+    "tribunal des activites economiques"
+  ],
+  "enabled_default": false,
+  "activation_suggeree": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "source_note": "Archive outils prompts et skills.zip, 20 novembre 2026 ; méthode reformulée, aucun script tiers exécuté."
+}

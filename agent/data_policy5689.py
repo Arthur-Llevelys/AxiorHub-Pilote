@@ -567,6 +567,7 @@ def synthese_mission(desk, mission):
         limites.append('Aucun envoi enregistré pour cette mission à ce jour.')
     if externe:
         limites.append('La pseudonymisation n’est pas une anonymisation certaine, notamment pour les images et les pièces jointes.')
+        from .pseudo540 import LIMITES as _limites56109; limites.append(_limites56109[0])   # 5.6.109 (lot P) : ce que le masquage ne reconnaît pas part tel quel
         limites.append('Le lieu de stockage annoncé ne prouve pas le lieu d’inférence ni celui des sauvegardes.')
     if any(d['lieu_traitement'] == INCONNU or d['conservation'] == INCONNU for d in destinataires):
         limites.append('Certaines valeurs ne sont pas renseignées : elles ne valent ni promesse de localisation ni absence de conservation.')

@@ -64,6 +64,12 @@ class Economy(t530.Base):
         self.assertEqual((row['requests'], row['input_tokens'], row['output_tokens'], row['minutes'], row['external']), (2, 2000, 100, 2.0, False))
         self.assertEqual(row['label'], 'Tri des courriels')
         html = eco.section_html(self.desk, '/p')
+        # 5.6.109 (intégration I2) : nouvelle interface : le tableau des 7 jours renvoie à la section unique « Consommation et coûts » (même
+        # mesure, un seul chiffre) ; l'ancien tableau reste servi derrière l'interrupteur, et ses chiffres y sont vérifiés comme avant.
+        self.assertIn('Régime économe et consommation', html);self.assertIn('m540/economie', html);self.assertIn('Voir Consommation et coûts', html)
+        from agent import interface56100
+        interface56100.regler_cabinet(self.desk, False)
+        html = eco.section_html(self.desk, '/p')
         self.assertIn('Régime économe et consommation', html);self.assertIn('2 000', html);self.assertIn('m540/economie', html)
 
     def test_model_profile_routes_fast_purposes_to_the_smallest_local_model(self):

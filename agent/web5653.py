@@ -613,10 +613,13 @@ def settings_html(desk, prefix, owner, role):
     return ('<section class="b53-section" id="b55-cabinet"><h2>Cabinet émetteur et fiscalité</h2><p class="b53-note">%s</p><p class="b53-note">Un taux de 0 %% ne vaut jamais franchise : le régime est choisi ici et '
             'justifié. Ces réglages relèvent du droit « Réglages ».</p>%s</section><section class="b53-section"><h2>Honoraires (moteur Honorium)</h2><p class="b53-note">'
             'Coût de revient : %s €/h ; taux cible : %s €/h (majoration sur le coût, pas une marge sur le chiffre d’affaires).</p>%s'
+            # 5.6.109 (lot D, F05) : le catalogue de prestations et ses barèmes se règlent à un seul endroit (Paramètres › Cabinet)
+            '<p class="b53-note"><a href="%s">Prestations et honoraires du cabinet : catalogue, conditions et barèmes</a> (Paramètres › Cabinet).</p>'
             '<details><summary>Importer une bibliothèque Honorium (JSON)</summary>%s</details></section><section class="b53-section"><h2>Modèles et présentation</h2>'
             '<ul class="b53-list">%s</ul><details><summary>Importer un modèle Word</summary>%s</details><details><summary>Logo</summary>%s</details></section></div>') % (
         e(fact.emission_obligation(ent)), _form('cabinet/enregistrer', cab, 'Enregistrer la fiche du cabinet'), e(econ['cout_horaire'].replace('.', ',')), e(econ['taux_cible'].replace('.', ',')),
-        _form('honoraires/reglages', fee_form, 'Enregistrer'), _form('bibliotheque/importer', '<label>Fichier JSON<input type="file" accept=".json" data-b53-file required></label>',
+        _form('honoraires/reglages', fee_form, 'Enregistrer'), e(prefix + '/parametres?rubrique=cabinet#catalogue56109', quote=True),
+        _form('bibliotheque/importer', '<label>Fichier JSON<input type="file" accept=".json" data-b53-file required></label>',
                                                                      'Importer'),
         tpl_rows, _form('modele/importer', upload, 'Importer le modèle'), _form('logo/importer', logo, 'Enregistrer le logo'))
 

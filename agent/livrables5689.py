@@ -493,6 +493,18 @@ def nouvelle_version_constatee(desk, row, path, raw, info, service='synchronisat
     return item
 
 
+def publier_contenu(desk, document_id, version_id, champs):
+    """5.6.109 (lot V, F08) : version d'un livrable structuré (``artefacts56109``), DANS la transaction de l'appelant (aucun commit ici) :
+    même identité de document, version suivante, l'ancienne passe « remplacée » ; aucun fichier, aucun chemin (le contenu est rangé par
+    l'appelant, lié à l'identifiant de cette ligne). Rend l'identifiant de la nouvelle ligne."""
+    current = desk.db.execute("SELECT * FROM prepared_items5689 WHERE document_id=? AND lifecycle='current' ORDER BY version_number DESC LIMIT 1", (document_id,)).fetchone()
+    x = {'service': 'artefacts56109', 'object': document_id, 'version': 'rev:%d' % int(champs['revision']), 'matter': champs.get('matter') or '',
+         'kind': champs.get('kind') or 'note', 'label': champs.get('label') or '', 'title': champs.get('title') or 'Livrable', 'path': '', 'state': 'verified',
+         'when': _now(), 'provenance': champs.get('provenance') or {}, 'owner': champs.get('owner') or '', 'right': champs.get('right') or '',
+         'sources': champs.get('sources') or ()}
+    return _nouvelle_version(desk, x, document_id, version_id, dict(current) if current else None)
+
+
 def _deplace(desk, client, row):
     """Fichier absent de son emplacement : renommé dans le même dossier ? Une seule lecture de dossier, au travail d'arrière-plan.
 
@@ -865,8 +877,10 @@ def _emplacement(desk, row, matters):
 def carte(row, labels, matters, reps=(), desk=None, prefix=''):
     """Forme publique : aucun chemin complet, une référence opaque ; ``verified`` ne dit que la preuve de stockage."""
     state = etat_contrat(row)
+    structure = row['source_service'] == 'artefacts56109'      # 5.6.109 (lot V) : livrable structuré : son type (trame) et « Contenu enregistré », pas « Fichier vérifié »
     return {'id': row['id'], 'document_id': row['document_id'], 'version_id': row['version_id'], 'version': row['version_number'], 'matter_id': row['matter_id'], 'matter_label': labels.get(row['matter_id'], '') or ('Sans dossier' if not row['matter_id'] else row['matter_id']),
-            'kind': row['kind'], 'nature': NATURES.get(row['kind'], 'Document'), 'title': row['title'], 'state': state, 'state_label': STATE[state], 'production_label': PRODUCTION.get(row['production_state'], ''), 'state_reason': row['state_reason'],
+            'kind': row['kind'], 'nature': (row['label'] or NATURES.get(row['kind'], 'Document')) if structure else NATURES.get(row['kind'], 'Document'), 'title': row['title'], 'state': state, 'state_label': STATE[state],
+            'production_label': 'Contenu enregistré' if structure and row['production_state'] == 'verified' else PRODUCTION.get(row['production_state'], ''), 'state_reason': row['state_reason'],
             'review': row['review_state'], 'review_label': REVIEW[row['review_state']], 'verified': row['production_state'] == 'verified', 'reserve': bool(row['reserve']), 'reserve_note': row['reserve_note'], 'protected': row['protected'],
             'location_ref': 'loc-' + row['id'], 'location': _emplacement(desk, row, matters), 'updated_at': row['source_at'] or row['updated'], 'href': prefix + '/livrables/' + row['document_id'],
             'formats': sorted({r['format'] for r in reps}), 'exports': sum(1 for r in reps if r['role'] == 'export'), 'source': row['source_service'], 'deposit_state': row['deposit_state'], 'response_id': row['response_id'],

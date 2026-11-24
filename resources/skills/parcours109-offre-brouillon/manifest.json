@@ -1,0 +1,20 @@
+{
+  "id": "builtin.parcours109.offre_brouillon",
+  "name": "Proposition d honoraires et PDF joint au brouillon",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub proposition de développement",
+  "license": "AGPL-3.0",
+  "description": "Préparer depuis un courriel un devis ou une lettre de mission, son PDF et la réponse en brouillon, avec prix et périmètre cohérents.",
+  "instructions": ["SKILL.md"],
+  "jurisdictions": ["FR"],
+  "role": "specialisation",
+  "allowed_phases": ["analyse", "redaction_document", "redaction_courriel", "controle"],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": ["proposition de devis", "devis", "lettre de mission", "forfait de", "proposition d honoraires"],
+  "enabled_default": true,
+  "requires": {"analysis": ["ai.generate"]},
+  "activation_note": "Méthode seulement ; les capacités de génération PDF et dépôt de brouillon doivent être prouvées séparément. Aucune autorisation d'envoi."
+}

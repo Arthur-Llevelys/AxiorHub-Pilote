@@ -652,13 +652,19 @@ def read_stream(lines, deadline=None):
     return text.strip(), usage
 
 
-def respond(state_dir, model, messages, json_schema=None, strict=True, transport=None, timeout=240, effort=None, info=None):
+def respond(state_dir, model, messages, json_schema=None, strict=True, transport=None, timeout=240, effort=None, info=None, controle=None):
     """Une requête Responses. Rend (texte, usage). Reprises bornées : une après renouvellement si le jeton est refusé, une sans le réglage
-    d'effort s'il n'est pas admis (noté dans ``info`` pour ne plus l'envoyer à ce modèle)."""
+    d'effort s'il n'est pas admis (noté dans ``info`` pour ne plus l'envoyer à ce modèle).
+
+    5.6.109 (P05) : ``controle`` (``transmission56109.figer_octets``, posé par ``Model._chatgpt``) reçoit les octets du corps de CHAQUE essai,
+    après ``build_request`` et avant le transport, et rend les octets à émettre ; son refus (``Stop``) empêche tout appel du transport. Une
+    reprise dont le corps change (sans le réglage d'effort) repasse donc le même contrôle."""
     info = info if info is not None else {}
     renewed = retried = False
     while True:
         body = json.dumps(build_request(model, messages, json_schema, strict, effort), ensure_ascii=False).encode()
+        if controle is not None:
+            body = controle(body)
         token = access_token(state_dir, transport, force=renewed)
         try:
             resp = (transport or http)('POST', API + '/responses', body, {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json',

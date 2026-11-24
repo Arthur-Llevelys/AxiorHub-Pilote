@@ -44,8 +44,9 @@ GROUPES = (('parties', 'Parties'), ('pouvoirs', 'Pouvoirs'), ('operation', 'Opé
 LIBELLES_GROUPES = dict(GROUPES)
 STATUTS = {'confirme': 'Répondu', 'inconnu': 'Je ne sais pas', 'plus_tard': 'Répondre plus tard'}
 NATURES = {'trouve': 'Trouvé dans une source', 'fait_confirme': 'Confirmé par l’avocat', 'choix_avocat': 'Choix de l’avocat',
-           'saisie_assistant': 'Saisi par un assistant, à confirmer par l’avocat', 'option_modele': 'Option de rédaction déclarée par le modèle'}
-NATURES_SIGNATURE = ('fait_confirme', 'choix_avocat', 'option_modele')   # valeurs admises pour une donnée bloquante pour la signature
+           'saisie_assistant': 'Saisi par un assistant, à confirmer par l’avocat', 'option_modele': 'Option de rédaction déclarée par le modèle',
+           'reprise_confirmee': 'Confirmé par l’avocat dans un autre questionnaire du dossier'}   # 5.6.109 (lot K, F06)
+NATURES_SIGNATURE = ('fait_confirme', 'choix_avocat', 'option_modele', 'reprise_confirmee')   # valeurs admises pour une donnée bloquante pour la signature
 MOTIFS = {'information_absente': 'Information absente', 'contradiction': 'Deux valeurs différentes : laquelle retenir ?',
           'a_confirmer': 'Trouvé dans une source : à confirmer', 'sources_modifiees': 'Source modifiée : à réexaminer',
           'choix': 'Choix qui vous revient', 'condition': 'Dépend d’une réponse précédente'}
@@ -203,6 +204,64 @@ def _q(code, precision):
     return Qualified(code, precision=str(precision)[:400])
 
 
+MAX_CONJONCTION = 4
+
+
+def _valider_simple(condition, vus, ident):
+    """Une condition simple : ``{"champ", "egal"}``, ``{"champ", "dans": [...]}`` (appartenance, valeurs possibles du champ) ou
+    ``{"champ", "present": true}`` (le champ a une réponse). Le champ qui commande précède, ce qui exclut toute boucle. Jamais de code."""
+    if not isinstance(condition, dict) or 'champ' not in condition or len(condition) != 2 or not ({'egal', 'dans', 'present'} & set(condition)):
+        raise _q('questionnaire_invalide', 'Condition de %s : {"champ", "egal"}, {"champ", "dans"}, {"champ", "present"} ou {"tous"} seulement.' % ident)
+    controle = condition['champ']
+    if not isinstance(controle, str) or controle not in vus:   # ordre imposé : le champ qui commande précède
+        raise _q('questionnaire_invalide', 'La condition de %s vise un champ absent ou placé après lui.' % ident)
+    if 'present' in condition:
+        if condition['present'] is not True:
+            raise _q('questionnaire_invalide', 'Condition de %s : « present » vaut vrai.' % ident)
+        return {'champ': controle, 'present': True}
+    valeurs = [condition['egal']] if 'egal' in condition else condition['dans']
+    if 'dans' in condition and (not isinstance(valeurs, list) or not 1 <= len(valeurs) <= MAX_OPTIONS):
+        raise _q('questionnaire_invalide', 'Condition de %s : « dans » est une liste de 1 à %d valeurs.' % (ident, MAX_OPTIONS))
+    propres = []
+    for v in valeurs:
+        try:
+            propres.append(valider_valeur(vus[controle], v))
+        except ValueError:
+            raise _q('questionnaire_invalide', 'La condition de %s compare %s à une valeur impossible.' % (ident, controle)) from None
+    return {'champ': controle, 'egal': propres[0]} if 'egal' in condition else {'champ': controle, 'dans': propres}
+
+
+def _valider_condition(condition, vus, ident):
+    if isinstance(condition, dict) and set(condition) == {'tous'}:
+        liste = condition['tous']
+        if not isinstance(liste, list) or not 2 <= len(liste) <= MAX_CONJONCTION:
+            raise _q('questionnaire_invalide', 'Condition de %s : « tous » réunit de 2 à %d conditions simples.' % (ident, MAX_CONJONCTION))
+        return {'tous': [_valider_simple(c, vus, ident) for c in liste]}   # une condition « tous » imbriquée est refusée par _valider_simple
+    return _valider_simple(condition, vus, ident)
+
+
+def _champs_condition(condition):
+    return [c['champ'] for c in condition['tous']] if 'tous' in condition else [condition['champ']]
+
+
+def _evaluer_condition(condition, valeurs, reponses):
+    """Vrai, faux ou ``None`` (pas encore tranché : demander d'abord le champ qui commande). « Je ne sais pas » ou « plus tard » sur le
+    champ qui commande : une égalité reste en attente (la question qui commande reste posée) ; une présence est fausse pour « Je ne sais pas »
+    (l'information n'existe pas : la question dépendante ne s'ouvre pas), en attente pour « plus tard »."""
+    if 'tous' in condition:
+        resultats = [_evaluer_condition(c, valeurs, reponses) for c in condition['tous']]
+        return False if False in resultats else (None if None in resultats else True)
+    champ = condition['champ']
+    if champ not in valeurs:
+        statut = (reponses.get(champ) or {}).get('statut') if isinstance(reponses.get(champ), dict) else None
+        return False if condition.get('present') and statut == 'inconnu' else None
+    if condition.get('present'):
+        return True
+    if 'dans' in condition:
+        return any(_meme(valeurs[champ], v) for v in condition['dans'])
+    return _meme(valeurs[champ], condition['egal'])
+
+
 def valider_schema(brut):
     """Schéma importé ou publié : clés fermées, identifiants uniques, conditions qui ne visent qu'un champ déjà déclaré (donc sans boucle),
     profondeur et tailles bornées, aucune expression exécutable. Rend une copie normalisée ; refuse avec une explication lisible."""
@@ -285,19 +344,13 @@ def valider_schema(brut):
         condition = brut_champ.get('actif_si')
         niveau = 0
         if condition is not None:
-            if not isinstance(condition, dict) or set(condition) != {'champ', 'egal'}:
-                raise _q('questionnaire_invalide', 'Condition de %s : {"champ", "egal"} seulement.' % ident)
-            controle = condition['champ']
-            if controle not in vus:   # ordre imposé : le champ qui commande précède, ce qui exclut toute boucle
-                raise _q('questionnaire_invalide', 'La condition de %s vise un champ absent ou placé après lui.' % ident)
-            try:
-                valider_valeur(vus[controle], condition['egal'])
-            except ValueError:
-                raise _q('questionnaire_invalide', 'La condition de %s compare %s à une valeur impossible.' % (ident, controle)) from None
-            niveau = profondeur[controle] + 1
+            # 5.6.109 (lot K, F06) : égalité, appartenance (« dans »), présence d'une réponse, conjonction bornée (« tous », sans imbrication)
+            propre = _valider_condition(condition, vus, ident)
+            controles = _champs_condition(propre)
+            niveau = max(profondeur[c] for c in controles) + 1
             if niveau > MAX_PROFONDEUR:
                 raise _q('questionnaire_invalide', 'Conditions imbriquées trop profondément (%s).' % ident)
-            champ['actif_si'] = {'champ': controle, 'egal': condition['egal']}
+            champ['actif_si'] = propre
         vus[ident], profondeur[ident] = champ, niveau
         out.append(champ)
     dependances = brut.get('dependances') or {}
@@ -459,7 +512,7 @@ def _lisibles(champ, candidats):
             valeur = valider_valeur(champ, c.get('valeur'))
         except (ValueError, KeyError, TypeError):
             continue
-        out.append({k: c.get(k) for k in ('source_id', 'source_version', 'titre', 'emplacement', 'lien', 'origine', 'extrait', 'fait_valide')} | {'valeur': valeur})
+        out.append({k: c.get(k) for k in ('source_id', 'source_version', 'titre', 'emplacement', 'lien', 'origine', 'extrait', 'fait_valide', 'reprise_confirmee')} | {'valeur': valeur})
     return out
 
 
@@ -478,12 +531,13 @@ def planifier(schema, candidats=None, reponses=None):
         ident = champ['id']
         condition = champ.get('actif_si')
         if condition:
-            if condition['champ'] not in ids[:index]:
+            if any(c not in ids[:index] for c in _champs_condition(condition)):
                 raise ValueError('ordre_conditions_invalide')
-            if condition['champ'] not in valeurs:
+            actif = _evaluer_condition(condition, valeurs, reponses)
+            if actif is None:
                 attente.add(ident)          # demander d'abord le choix dont dépend cette question
                 continue
-            if not _meme(valeurs[condition['champ']], condition['egal']):
+            if not actif:
                 inactifs.add(ident)
                 continue
         lisibles = _lisibles(champ, candidats.get(ident))
@@ -511,6 +565,10 @@ def planifier(schema, candidats=None, reponses=None):
                 distinctes.append(c['valeur'])
         if len(distinctes) == 1:
             propositions[ident] = distinctes[0]
+            if not motif and reponse is None and all(c.get('reprise_confirmee') for c in lisibles):
+                # 5.6.109 (lot K, F06) : déjà confirmé par l'avocat dans un autre questionnaire du dossier : pas redemandé
+                valeurs[ident], natures[ident] = distinctes[0], 'reprise_confirmee'
+                continue
             if not motif and not champ.get('confirmation_requise') and all(c.get('fait_valide') for c in lisibles) and (reponse is None):
                 valeurs[ident], natures[ident] = distinctes[0], 'trouve'
                 continue
@@ -845,6 +903,42 @@ def _candidats_courants(desk, q, masques=None):
             out.setdefault(champ, []).append({'valeur': str(valeur), 'source_id': 'societe:' + societe['id'], 'source_version': version, 'accessible': True,
                                               'source_verifiee': True, 'fait_valide': False, 'titre': 'Fiche de la société « %s »' % societe.get('denomination', ''),
                                               'emplacement': 'Fiche société', 'lien': '/corporate?societe=' + societe['id'], 'origine': 'societe'})
+    for champ, liste in _reprises(desk, q).items():   # 5.6.109 (lot K, F06) : réponses déjà confirmées dans le dossier
+        out.setdefault(champ, []).extend(liste)
+    return out
+
+
+MAX_REPRISES = 20
+
+
+def _reprises(desk, q):
+    """5.6.109 (lot K, F06) : un fait déjà confirmé par l'avocat dans un autre questionnaire du MÊME dossier et du MÊME compte (champ de même
+    identifiant, même type et même libellé) est repris comme source, avec sa version : il n'est pas redemandé. Jamais un choix de rédaction,
+    une option, une saisie d'assistant ni « Je ne sais pas ». Si l'avocat corrige la réponse d'origine, la version change : une réponse
+    explicite donnée ici est remise en examen (``sources_modifiees``), jamais écrasée. Lecture seule."""
+    try:
+        schema = json.loads(q['schema'])
+        champs = {c['id']: c for c in schema['champs'] if c['groupe'] != 'redaction' and c['type'] not in ('choix', 'booleen')}
+        lignes = desk.db.execute('SELECT id, schema, reponses, revision FROM questionnaires56108 WHERE matter=? AND owner=? AND id<>? ORDER BY updated DESC LIMIT ?',
+                                 (q['matter'], q['owner'], q['id'], MAX_REPRISES)).fetchall()
+    except (sqlite3.Error, ValueError, KeyError, TypeError):
+        return {}
+    out = {}
+    for r in lignes:
+        try:
+            definitions = {c['id']: c for c in json.loads(r['schema'])['champs']}
+            reponses = json.loads(r['reponses'] or '{}')
+        except (ValueError, KeyError, TypeError):
+            continue
+        for fid, rep in reponses.items():
+            c, d = champs.get(fid), definitions.get(fid)
+            if (not c or not d or not isinstance(rep, dict) or rep.get('statut') != 'confirme' or rep.get('nature') != 'fait_confirme'
+                    or d['type'] != c['type'] or fold(d['libelle']) != fold(c['libelle'])):
+                continue
+            out.setdefault(fid, []).append({'valeur': rep.get('valeur'), 'source_id': 'questionnaire:' + r['id'], 'source_version': _sha([rep.get('valeur'), rep.get('quand') or ''])[:16],
+                                            'accessible': True, 'source_verifiee': True, 'fait_valide': True, 'reprise_confirmee': True,
+                                            'titre': 'Réponse confirmée dans un autre questionnaire du dossier', 'emplacement': 'Questionnaire, révision %d' % int(r['revision']),
+                                            'lien': '/corporate?vue=bibliotheque&questionnaire=' + r['id'], 'origine': 'questionnaire'})
     return out
 
 

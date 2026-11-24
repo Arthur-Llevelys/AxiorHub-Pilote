@@ -726,7 +726,50 @@ def _detail(desk, prefix, oid, role):
             e(o['notes']), win, e(o['id'], quote=True), _opts(LOST, 'sans_suite'))
     journal = ''.join('<li>%s · %s · %s%s</li>' % (e(j['at'][:16].replace('T', ' ')), e(j['author']), e(j['event']), (' — ' + e(j['detail'])) if j['detail'] else '')
                       for j in o['journal'])
-    return head + body + '<details class="ax-card"><summary>Historique</summary><ul>%s</ul></details>' % journal
+    return head + body + _appels_de_la_demande(desk, o['id']) + '<details class="ax-card"><summary>Historique</summary><ul>%s</ul></details>' % journal
+
+
+def _appels_de_la_demande(desk, oid):
+    """5.6.109 (lot G2, G06) : appels rattachés à cette demande (prospect, avant tout dossier) ; lecture seule, un incident ne ferme jamais la fiche."""
+    try:
+        from . import appels56109
+        from .membres5650 import current_author, viewer_role
+        a = (current_author() or 'cabinet', viewer_role())
+        ids = [r['id'] for r in desk.db.execute('SELECT id FROM appels56109 WHERE demande_crm_id=? ORDER BY instant_utc DESC LIMIT 20', (oid,))]
+        items = []
+        for i in ids:
+            try:
+                x = appels56109.vue(desk, a, i)
+            except Stop:
+                continue
+            items.append('<li>%s — %s · %s · durée : %s</li>' % (e(x['sens_libelle']), e(x['instant_utc'][:16].replace('T', ' ')), e(x['interlocuteur'] or '—'),
+                                                                 e(x['duree']['libelle'])))
+    except Exception:   # noqa: BLE001
+        return ''
+    return '<section class="ax-card"><h2>Appels</h2><ul>%s</ul></section>' % (''.join(items) or '<li class="ax-muted">Aucun appel rattaché à cette demande.</li>')
+
+
+def bloc_contact(desk, prefix, contact):
+    """5.6.109 (lot G2, G06) : bloc de la fiche contact (monté par ``crm5636``) — appels consignés avec leurs comptes rendus et actions, et
+    accord du client pour les rappels de rendez-vous, LU par les fonctions publiques de ``bland56109`` (la donnée reste dans sa table et se
+    règle depuis la carte de la routine). Un incident ne ferme jamais la fiche."""
+    out = ''
+    try:
+        from . import appels56109
+        out += appels56109.bloc_contact(desk, prefix, contact)
+    except Exception:   # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).exception('fiche contact : appels')
+        out += '<p class="notice">Le bloc des appels n’a pas pu être affiché.</p>'
+    try:
+        from . import bland56109
+        acc = bland56109.accord(desk, str(contact.get('id') or ''))
+        out += ('<section class="rl109-section" aria-labelledby="rl109-acc-t"><h2 id="rl109-acc-t">Rappels de rendez-vous</h2><p>Accepte les rappels par SMS : %s · '
+                'par appel : %s</p><p class="ax-muted">Accord recueilli par l’avocat ; il se modifie depuis la carte de la routine de rappel.</p></section>') % (
+            'oui' if acc['sms'] else 'non', 'oui' if acc['appel'] else 'non')
+    except Exception:   # noqa: BLE001
+        pass
+    return out
 
 
 def page_html(desk, prefix, args, role='administrateur'):

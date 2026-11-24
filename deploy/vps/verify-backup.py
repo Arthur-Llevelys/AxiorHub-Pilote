@@ -26,7 +26,7 @@ def verify(filename, require_desk=True):
                 side=members.get(name+suffix)
                 if side:
                     if not side.isfile():raise ValueError('journal_sqlite_invalide')
-                    with (Path(str(dest)+suffix)).open('wb') as stream:shutil.copyfileobj(tar.extractfile(side),stream)
+                    with (Path(str(dest)+suffix)).open('wb') as stream:shutil.copyfileobj(tar.extractfile(side),stream)   # lot R : hors service (journal extrait d'une archive vers un dossier temporaire)
             db=sqlite3.connect('file:'+str(dest)+'?mode=ro',uri=True,timeout=5)
             try:
                 check=[r[0] for r in db.execute('PRAGMA integrity_check')]

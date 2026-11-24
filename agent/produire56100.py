@@ -291,6 +291,14 @@ def _texte_version(desk, row, client=None):
     """Paragraphes d'une version précise : texte conservé à son enregistrement, sinon le fichier s'il porte exactement l'empreinte de cette version.
     Une version qui n'est plus lisible lève ``version_plus_disponible`` : jamais le contenu d'une autre version à sa place."""
     from . import livrables_apercu5689 as apercu
+    if row.get('source_service') == 'artefacts56109':   # 5.6.109 (lot V, F08) : livrable structuré, lignes de CETTE version (droits des sources relus)
+        from .artefacts56109 import contenu_de_version, texte_lignes
+        from .livrables5689 import droits_requete
+        hidden, droits = droits_requete()
+        c = contenu_de_version(desk, row, hidden, droits)
+        if not c:
+            raise Stop('version_plus_disponible')
+        return texte_lignes(c['payload'])
     if _table(desk, 'documents5697_textes'):
         r = desk.db.execute('SELECT texte FROM documents5697_textes WHERE document_id=? AND version_number=?', (row['document_id'], int(row['version_number']))).fetchone()
         if r:

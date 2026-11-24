@@ -73,7 +73,7 @@ class Registre(unittest.TestCase):
         self.assertEqual(reg.audit(), [])
         self.assertEqual(len(fam.FAMILLES), 33)
         self.assertEqual(set(reg.FAMILLE), {r[0] for r in reg.FUNCTIONS})
-        self.assertEqual(len(reg.FUNCTIONS), 92)                                # 89 historiques + securite_serveur + a_relire (5.6.102, lot N) + fichiers (5.6.103, lot F)
+        self.assertEqual(len(reg.FUNCTIONS), 93)                                # 89 historiques + securite_serveur + a_relire (5.6.102, lot N) + fichiers (5.6.103, lot F) + telephonie_bland (5.6.109, I2)
         self.assertEqual(fam.membres('produire'), ['production', 'projets', 'livrables', 'agents_documents', 'studio', 'preparation'])
         self.assertEqual(fam.membres('rediger'), ['documents', 'missions_complexes', 'playbooks', 'formulaires'])
         self.assertEqual(fam.membres('securite'), ['securite_serveur', 'journal_audit'])

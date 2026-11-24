@@ -330,6 +330,17 @@ def _registres5688(desk, prefix, c, args):
         return '<p class="notice">Le bloc des registres publics n’a pas pu être affiché.</p>'
 
 
+def _registre_etranger56109(desk, prefix, c):
+    """5.6.109 (lot S, G18-G19) : registre étranger de la société et documents publics classés ; un incident ne ferme jamais la fiche."""
+    try:
+        from .international56109 import section_contact
+        return section_contact(desk, prefix, c)
+    except Exception:   # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).exception('fiche : registre étranger')
+        return '<p class="notice">Le bloc du registre étranger n’a pas pu être affiché.</p>'
+
+
 def page_html(desk, prefix, args):
     schema(desk)
     labels = _labels(desk)
@@ -352,7 +363,9 @@ def page_html(desk, prefix, args):
                 '<input type="hidden" name="contact" value="%s"><input type="hidden" name="archived" value="%s"><button class="ax-btn ghost" type="submit">%s</button></form>') % (
             e(prefix + '/contacts-crm', quote=True), e(c['label']), e(CATEGORIES.get(c['category'], c['category'])), e(KINDS.get(c['kind'], '')),
             (' · ' + e(c['email'])) if c['email'] else '', links or '<li class="ax-muted">Relié à aucun dossier.</li>', e(c['id'], quote=True),
-            matter_opts, _options(ROLES, c['category'] if c['category'] in ROLES else 'autre'), _contact_form(c), _registres5688(desk, prefix, c, args), e(c['id'], quote=True),
+            matter_opts, _options(ROLES, c['category'] if c['category'] in ROLES else 'autre'), _contact_form(c),
+            _registres5688(desk, prefix, c, args) + _registre_etranger56109(desk, prefix, c)
+            + __import__('importlib').import_module('.crm5676', __package__).bloc_contact(desk, prefix, c), e(c['id'], quote=True),   # 5.6.109 (lot G2, G06) : appels du contact, accord de rappel (lu chez bland56109)
             '0' if c['archived'] else '1', 'Rétablir' if c['archived'] else 'Archiver')
     q, cat, mid = str(args.get('q') or ''), str(args.get('categorie') or ''), str(args.get('dossier') or '')
     rows = search(desk, q, cat, mid)

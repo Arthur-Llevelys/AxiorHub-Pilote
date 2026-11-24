@@ -297,6 +297,9 @@ class JeuxEssai(Base):
         self.r.f('/var/www/html/roundcube/program/include/iniset.php', "<?php\ndefine('RCMAIL_VERSION', '1.6.7');\n")
         self.r.f('/var/www/html/webmail/snappymail/v/2.18.4/index.php', '<?php\n')
         self.r.f('/var/www/html/ancien/rainloop/v/1.17.0/index.php', '<?php\n')
+        # 5.6.109 (intégration I1) : la veille distingue une application servie d'une copie qui dort sur le disque (« à surveiller ») ; ce
+        # test vise des applications SERVIES : le site par défaut sert /var/www/html (ajout du site, assertions inchangées)
+        self.r.f('/etc/apache2/sites-enabled/000-default.conf', '<VirtualHost *:80>\n  DocumentRoot /var/www/html\n</VirtualHost>\n')
         rapport = self.passer('complet', sonde=False)
         s09 = {c['titre']: c for c in rapport['constats'] if c['id'] == 'S09'}
         self.assertTrue(any(t.startswith('Roundcube 1.6.7 obsolète (minimum sûr : 1.7.6)') for t in s09), s09)

@@ -1329,7 +1329,8 @@
 "Cliquez sur « Enregistrer les changements ».",
 "Testez avec « Tester IMAP », « Tester Nextcloud / agendas » ou « Tester Ollama ».",
 "Pour une IA externe : enregistrez sa clé, cliquez sur « Charger les modèles », choisissez le modèle ; le tarif connu et les plafonds sont préremplis.",
-"Pour choisir comment l’IA travaille : ouvrez « Mode de l’IA », retenez l’abonnement ChatGPT, l’API Mistral, l’API Claude, le local ou le choix automatique. AxiorHub prend ensuite pour chaque travail le modèle le plus économe qui convient."
+"Pour choisir comment l’IA travaille : ouvrez « Mode de l’IA », retenez l’abonnement ChatGPT, l’API Mistral, l’API Claude, le local ou le choix automatique. AxiorHub prend ensuite pour chaque travail le modèle le plus économe qui convient.",
+"API ou abonnement : un abonnement grand public (Google AI Pro ou Ultra, Mistral Le Chat Pro, ChatGPT Plus ou Pro) n’est pas une clé d’API. Pour Google Gemini, créez une clé dans Google AI Studio (facturée à l’usage, séparément de tout abonnement), puis dans la carte « Google Gemini · clé API » : « Tester la connexion », « Enregistrer la clé », tarif et autorisation d’envoi, puis activation. Une connexion non testée n’est jamais utilisée. La connexion par Gemini CLI n’est pas livrée dans cette version. Mistral : la clé Studio existante sert à l’API. Selon l’offre de votre organisation, l’usage mensuel peut être partagé entre Studio, l’API et Vibe Code, puis facturé selon vos réglages Mistral (Gérer l’usage Mistral). AxiorHub n’utilise pas Vibe : seule la clé Studio est appelée, et le quota restant n’est pas fourni par Mistral."
 ],
 "result": "Les réglages enregistrés, sans recharger la page.",
 "verify": "Le message de test indique ce qui a réellement été vérifié.",
@@ -1498,7 +1499,10 @@
 "Ouvrez Routage hybride.",
 "Estimez avec « Calculer le routage et le coût ».",
 "Voyez les données transmises avec « Afficher les données et le coût ».",
-"Cliquez sur « Enregistrer la politique »."
+"Cliquez sur « Enregistrer la politique ».",
+"Fixer un modèle pour une tâche : Paramètres › Modèles d’IA, tableau « Modèles locaux et routage ». Sur la ligne de la fonction, choisissez la connexion (IA locale ou connexion externe activée) et le modèle exact, puis « Enregistrer ». Ce modèle est alors appelé seul pour cette fonction : ni routeur automatique, ni bascule, ni secours ; en cas d’échec, le message nomme la fonction et le modèle.",
+"Ce que le choix ne permet pas : il n’élargit jamais les autorisations. En mode « IA locale uniquement », pour une connexion désactivée ou sans autorisation d’envoi, le choix d’un modèle externe est refusé avec son motif ; une demande qui exige le local (dossier exclu des envois externes) reste locale. Pour revenir en arrière : « Selon le mode général » sur la ligne, ou « Tout remettre selon le mode général ».",
+"Réduire le contexte d’une tâche : sur la même ligne, « Contexte transmis » : « Réduit » envoie moins de passages, de courriels, de faits et de noms de fichiers (les plus pertinents ou les plus récents, prochaines dates d’abord) ; les pièces que vous avez choisies ou jointes sont toujours transmises. Le détail de la mission indique la taille transmise à chaque appel et ce qui n’a pas été transmis. « Normal » garde les bornes habituelles."
 ],
 "result": "Une politique de routage appliquée avant tout envoi.",
 "verify": "Les dernières décisions de routage sont listées.",
@@ -2311,6 +2315,45 @@
 "example": "Fermer les factures à l’IA tout en gardant les documents du dossier DOS-001.",
 "buttons": [
 "Enregistrer"
+],
+"version": "5.6.36"
+},
+"telephonie_bland": {
+"objective": "Relier AxiorHub au service Bland (agents vocaux, appels, SMS) avec la clé API du cabinet ; chaque action est confirmée par vous.",
+"when": "Pour faire prendre des rendez-vous par un agent vocal, rappeler un rendez-vous à un client ou passer un appel préparé.",
+"prerequisites": "Un compte Bland et une clé API d’organisation à accès complet ; être administrateur pour la saisir.",
+"steps": [
+"Créez le compte et la clé avec les deux liens de la carte « Bland — téléphonie par IA » (Paramètres › Connexions API).",
+"Collez la clé, puis « Enregistrer la clé » : elle part au coffre et n’est plus jamais affichée.",
+"Cliquez « Tester la connexion », puis « Activer le connecteur » si l’état est « Prêt ».",
+"Demandez une action : elle devient une demande qui montre le numéro, le texte et le montant ; confirmez-la.",
+"Pour le rappel de rendez-vous, réglez la routine dans « Mes routines | Mes agents IA » et enregistrez l’accord du client."
+],
+"result": "Les appels, SMS et agents partent seulement après votre confirmation ; les coûts apparaissent dans « Consommation et coûts ».",
+"verify": "La carte affiche « Prêt » et le nombre d’outils découverts ; une demande non confirmée reste « À confirmer ».",
+"errors": [
+[
+"Clé refusée",
+"Utilisez une clé d’organisation à accès complet : les clés restreintes ne se connectent pas."
+],
+[
+"Mode local strict",
+"La connexion à Bland est refusée tant que le mode des données reste local strict."
+],
+[
+"Envoi automatique suspendu",
+"Une réponse de Bland s’est perdue (« à vérifier ») ou le droit « envoyer » a été retiré : vérifiez, puis validez de nouveau le modèle."
+],
+[
+"Lieu absent du rappel",
+"Le lieu libre de l’agenda n’est jamais recopié : réglez l’adresse du cabinet dans la routine."
+]
+],
+"example": "Rappeler par SMS au 01 00 00 00 05 le rendez-vous de M. DURAND, deux jours avant.",
+"buttons": [
+"Enregistrer la clé",
+"Tester la connexion",
+"Activer le connecteur"
 ],
 "version": "5.6.36"
 }

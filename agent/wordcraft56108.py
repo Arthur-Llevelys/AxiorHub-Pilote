@@ -37,6 +37,7 @@ from pathlib import Path, PurePosixPath
 import re
 import secrets
 import shutil
+import sqlite3
 import time
 import zipfile
 import xml.etree.ElementTree as ET
@@ -83,6 +84,30 @@ CREATE INDEX IF NOT EXISTS editeur56108_seances_acteur ON editeur56108_seances(a
 CREATE TABLE IF NOT EXISTS editeur56108_ops(acteur TEXT NOT NULL, cle TEXT NOT NULL, nature TEXT NOT NULL, empreinte TEXT NOT NULL,
   etat TEXT NOT NULL, resultat TEXT NOT NULL DEFAULT '{}', cree_le TEXT NOT NULL, maj_le TEXT NOT NULL, PRIMARY KEY(acteur, cle));
 '''
+# 5.6.109 (C07) : écritures à résultat incertain, dans la table existante (aucune table parallèle). Une décision « Garder » a une IDENTITÉ
+# (séance + révision du candidat), unique dans la base : deux clés de transport ne créent jamais deux versions de la même décision. La cible
+# (nom du fichier voisin) est choisie et enregistrée AVANT l'effet, avec l'empreinte du candidat ; ``rapprochement`` suit l'écriture :
+# ``reservee`` (cible figée, rien d'écrit), ``engagee`` (création lancée), ``verifiee`` (cible relue, conforme : reçu), ``a_verifier`` (réponse
+# ou relecture perdue, cible absente ou différente : jamais une nouvelle cible automatique), ``abandonnee``, ``expiree``. ``maj_le`` sert de
+# bail court entre deux requêtes de la même décision.
+COLONNES_OPS_56109 = (('decision', "TEXT NOT NULL DEFAULT ''"), ('seance', "TEXT NOT NULL DEFAULT ''"), ('revision', 'INTEGER NOT NULL DEFAULT 0'),
+                      ('cible', "TEXT NOT NULL DEFAULT ''"), ('candidat_sha', "TEXT NOT NULL DEFAULT ''"),
+                      ('rapprochement', "TEXT NOT NULL DEFAULT ''"), ('motif', "TEXT NOT NULL DEFAULT ''"))
+INDEX_DECISION_56109 = "CREATE UNIQUE INDEX IF NOT EXISTS editeur56108_ops_decision ON editeur56108_ops(decision) WHERE decision<>''"
+INCERTAINS = ('reservee', 'engagee', 'a_verifier')
+BAIL_ECRITURE = 90                  # secondes pendant lesquelles une décision réservée ou engagée appartient à la requête qui l'a prise
+# Refus du stockage AVANT tout effet (rien n'a pu être écrit) : échec franc, la décision est libérée. Toute autre erreur est incertaine.
+REFUS_CERTAINS = frozenset(('contenu_fichier_invalide', 'fichier_trop_volumineux', 'introuvable', 'non_pris_en_charge',
+                            'nextcloud_ou_dossier_local_a_configurer', 'chemin_est_un_dossier'))
+MOTIFS_INCERTAINS = {
+    'relecture_impossible': 'À vérifier : « %s » a été écrit, mais sa relecture de contrôle n’a pas abouti. Rien d’autre ne sera écrit : '
+                            '« Vérifier » relit ce même fichier.',
+    'cible_absente': 'À vérifier : l’écriture de « %s » n’a pas pu être confirmée et le fichier n’est pas dans le dossier pour le moment. '
+                     '« Vérifier » le relit ; « Réessayer l’écriture » l’écrit de nouveau sous le même nom.',
+    'cible_differente': 'À vérifier : un fichier nommé « %s » existe avec un autre contenu que votre version. Rien n’est remplacé ni écrit '
+                        'ailleurs : contrôlez ce fichier dans le dossier ; votre version reste conservée ici.',
+    'resultat_inconnu': 'À vérifier : le résultat de l’écriture de « %s » n’est pas connu. « Vérifier » relit ce même fichier.',
+}
 
 
 # ------------------------------------------------------------------------------------------------------------------- schéma et réglage
@@ -94,6 +119,15 @@ def ensure_schema(desk):
         if desk.db.in_transaction:
             desk.db.commit()
         desk.db.executescript(SCHEMA)
+        desk.db.commit()
+    # 5.6.109 (C07) : colonnes de rapprochement et unicité de la décision, ajoutées une fois ; les reçus existants sont gardés tels quels (une
+    # ancienne opération restée « en cours » ne devient pas un échec qui autoriserait un nouvel effet).
+    colonnes = {r[1] for r in desk.db.execute('PRAGMA table_info(editeur56108_ops)')}
+    manquantes = [(n, d) for n, d in COLONNES_OPS_56109 if n not in colonnes]
+    if manquantes or 'editeur56108_ops_decision' not in existants:
+        for nom, definition in manquantes:
+            desk.db.execute('ALTER TABLE editeur56108_ops ADD COLUMN %s %s' % (nom, definition))
+        desk.db.execute(INDEX_DECISION_56109)
         desk.db.commit()
 
 
@@ -538,26 +572,40 @@ def executer(desk, acteur, cle, nature, parametres, fn):
             return {**json.loads(row[2]), 'rejoue': True}
         if row[1] == 'echec':
             raise Stop(json.loads(row[2]).get('error') or 'operation_echouee')
-        raise Stop('operation_en_cours')
-    quand = _maintenant()
-    desk.db.execute('INSERT INTO editeur56108_ops VALUES(?,?,?,?,?,?,?,?)', (compte, cle, nature, empreinte, 'en_cours', '{}', quand, quand))
-    desk.db.commit()
+        if row[1] != 'a_verifier':
+            raise Stop('operation_en_cours')
+        # 5.6.109 (C07) : « à vérifier » n'est ni un reçu ni un échec : la même clé rapproche de nouveau (lecture de la cible figée)
+    else:
+        quand = _maintenant()
+        desk.db.execute('INSERT INTO editeur56108_ops(acteur,cle,nature,empreinte,etat,resultat,cree_le,maj_le) VALUES(?,?,?,?,?,?,?,?)',
+                        (compte, cle, nature, empreinte, 'en_cours', '{}', quand, quand))
+        desk.db.commit()
+
+    def clore(erreur):
+        """Fin sur exception : si la décision portée par cette clé a pu produire un effet, la clé reste « à vérifier » (jamais « échec »)."""
+        desk.db.rollback()
+        porte = desk.db.execute('SELECT rapprochement FROM editeur56108_ops WHERE acteur=? AND cle=?', (compte, cle)).fetchone()
+        if porte and porte[0] in ('engagee', 'a_verifier'):
+            desk.db.execute("UPDATE editeur56108_ops SET etat='a_verifier' WHERE acteur=? AND cle=?", (compte, cle))
+        elif porte and porte[0] == 'reservee':   # cible réservée, effet jamais lancé : la clé reste reprenable (aucun échec enregistré)
+            desk.db.execute("UPDATE editeur56108_ops SET etat='a_verifier', resultat=? WHERE acteur=? AND cle=?", (json.dumps({'error': erreur}), compte, cle))
+        else:
+            desk.db.execute("UPDATE editeur56108_ops SET etat='echec', resultat=?, maj_le=? WHERE acteur=? AND cle=?",
+                            (json.dumps({'error': erreur}), _maintenant(), compte, cle))
+        desk.db.commit()
     try:
         out = fn()
     except Stop as ex:
-        desk.db.rollback()
-        desk.db.execute("UPDATE editeur56108_ops SET etat='echec', resultat=?, maj_le=? WHERE acteur=? AND cle=?",
-                        (json.dumps({'error': str(ex).split(':')[0]}), _maintenant(), compte, cle))
-        desk.db.commit()
+        clore(str(ex).split(':')[0])
         raise
     except Exception:
-        desk.db.rollback()
-        desk.db.execute("UPDATE editeur56108_ops SET etat='echec', resultat=?, maj_le=? WHERE acteur=? AND cle=?",
-                        (json.dumps({'error': 'erreur_interne'}), _maintenant(), compte, cle))
-        desk.db.commit()
+        clore('erreur_interne')
         raise
-    desk.db.execute("UPDATE editeur56108_ops SET etat='fait', resultat=?, maj_le=? WHERE acteur=? AND cle=?",
-                    (json.dumps(out, ensure_ascii=False, default=str), _maintenant(), compte, cle))
+    recu = json.dumps(out, ensure_ascii=False, default=str)
+    if isinstance(out, dict) and out.get('etat') == 'a_verifier':   # le bail de la décision (``maj_le``) n'est pas touché
+        desk.db.execute("UPDATE editeur56108_ops SET etat='a_verifier', resultat=? WHERE acteur=? AND cle=?", (recu, compte, cle))
+    else:
+        desk.db.execute("UPDATE editeur56108_ops SET etat='fait', resultat=?, maj_le=? WHERE acteur=? AND cle=?", (recu, _maintenant(), compte, cle))
     desk.db.commit()
     return out
 
@@ -658,11 +706,23 @@ def controler_pdf(avant, apres):
     return {'pertes': pertes, 'texte': texte, 'resume': resume, 'identique': identique}
 
 
+def _capacite(chemin):
+    """5.6.109 (lot V, F16) : capacité de format déclarée par ``craft56109`` (XLSX, PPTX) ; le DOCX et le PDF gardent leurs fonctions ici."""
+    from .craft56109 import capacite
+    return capacite(chemin)
+
+
 def _analyser_selon(chemin, data):
+    cap = _capacite(chemin)
+    if cap:
+        return cap['analyser'](data)
     return analyser_pdf(data) if nature(chemin) == 'pdf' else analyser(data)
 
 
 def _controler_selon(chemin, avant, apres):
+    cap = _capacite(chemin)
+    if cap:
+        return cap['controler'](avant, apres)
     return controler_pdf(avant, apres) if nature(chemin) == 'pdf' else controler(avant, apres)
 
 
@@ -716,6 +776,8 @@ def proposer(desk, auth, acteur, ident, revision, data, sources_=None):
     _source(desk, auth, acteur, s['source'], s['chemin'], sources_)
     if s['etat'] != 'ouverte':
         raise Stop('introuvable')
+    if ecritures_incertaines(desk, ident):   # 5.6.109 (C07) : un nouveau candidat effacerait celui d'une écriture non résolue et mènerait à une autre cible
+        raise Stop('ecriture_a_verifier')
     try:
         revision = int(revision)
     except (TypeError, ValueError):
@@ -752,34 +814,129 @@ def nom_version(desk, chemin, outil, n=1):
     """« Contrat (modifié dans WordCraft 18-11-2026 14h05).docx », puis « … 2 », « … 3 »."""
     from . import fichiers56103 as F
     p = PurePosixPath(chemin)
-    libelle = 'modifié dans WordCraft' if outil == 'wordcraft' else 'modifié sur le poste'
+    from .craft56109 import RELEASES as _craft109
+    libelle = 'modifié dans WordCraft' if outil == 'wordcraft' else ('modifié dans ' + _craft109[outil]['libelle']) if outil in _craft109 else 'modifié sur le poste'
     return str(p.with_name('%s (%s %s%s)%s' % (p.stem, libelle, F.horodatage(desk), '' if n <= 1 else ' %d' % n, p.suffix)))
 
 
-def decider(desk, auth, acteur, ident, revision, decision, malgre_changement=False, sources_=None):
+# ------------------------------------------------------------------------------------------------------------------- 5.6.109 (C07) : décision
+# Protocole (inspiré de ``reference/ecriture_verifiee.py`` du dossier technique, raccordé aux séances, aux droits et au stockage) :
+#   intention acceptée → cible et empreinte réservées (durables, uniques par décision) → création exclusive engagée → cible relue.
+#   Réponse ou relecture perdue : « à vérifier » ; seule la cible figée est relue ensuite ; conforme = reçu vérifié ; absente : nouvel essai
+#   explicite sur le MÊME nom ; différente : jamais remplacée, jamais contournée par un autre nom. Droits et compte relus avant l'effet et
+#   avant chaque lecture de rapprochement ; un arrêt central (pause, annulation, droits) n'est jamais absorbé par le traitement des pannes.
+def _id_decision(ident, revision):
+    """Identité métier d'un « Garder » : la séance et la révision du candidat montré (une révision ne désigne qu'un candidat)."""
+    return hashlib.sha256(('garder|%s|%d' % (ident, int(revision))).encode()).hexdigest()
+
+
+def _op_decision(desk, compte, did):
+    row = desk.db.execute('SELECT * FROM editeur56108_ops WHERE decision=? AND acteur=?', (did, compte)).fetchone()
+    return dict(row) if row else None
+
+
+def _maj_decision(desk, did, **champs):
+    desk.db.execute('UPDATE editeur56108_ops SET %s WHERE decision=?' % ', '.join(k + '=?' for k in champs), tuple(champs.values()) + (did,))
+    desk.db.commit()
+
+
+def _liberer(desk, did):
+    """Refus certain AVANT tout effet : la décision est rendue (aucune cible réservée ne reste), un nouvel essai repartira proprement."""
+    desk.db.execute("DELETE FROM editeur56108_ops WHERE decision=? AND cle LIKE 'decision-%'", (did,))
+    desk.db.execute("UPDATE editeur56108_ops SET decision='', seance='', revision=0, cible='', candidat_sha='', rapprochement='', motif='' WHERE decision=?", (did,))
+    desk.db.commit()
+
+
+def _age(horodatage):
+    try:
+        return time.time() - datetime.fromisoformat(str(horodatage)).timestamp()
+    except (ValueError, TypeError):
+        return float('inf')     # bail rendu ('') ou illisible : libre
+
+
+def ecritures_incertaines(desk, ident):
+    """Décisions de la séance dont l'écriture n'est pas résolue (lecture seule) : cible réservée, création engagée ou résultat à vérifier."""
+    return [dict(r) for r in desk.db.execute("SELECT * FROM editeur56108_ops WHERE seance=? AND rapprochement IN ('reservee','engagee','a_verifier')",
+                                             (str(ident or ''),))]
+
+
+def _cible_libre(desk, source, chemin, outil):
+    """Premier nom de version libre (lecture seule). Stockage en panne : l'erreur remonte, rien n'est encore réservé ni écrit."""
+    for n in range(1, 21):
+        cible = nom_version(desk, chemin, outil, n)
+        try:
+            source.proprietes(cible)
+        except Stop as ex:
+            if str(ex) == 'introuvable':
+                return cible
+            raise
+    raise Stop('deja_existant')
+
+
+def _reserver(desk, compte, cle, did, ident, revision, cible, sha):
+    """Cible et empreinte durables AVANT tout effet, sur la ligne de la clé de transport (ou une ligne propre à la décision) ; l'unicité de la
+    décision refuse dans la base une requête concurrente de la même décision."""
+    quand = _maintenant()
+    try:
+        portee = False
+        if cle:
+            cur = desk.db.execute("UPDATE editeur56108_ops SET decision=?, seance=?, revision=?, cible=?, candidat_sha=?, rapprochement='reservee', motif='', maj_le=? "
+                                  "WHERE acteur=? AND cle=? AND decision=''", (did, ident, revision, cible, sha, quand, compte, str(cle)))
+            portee = cur.rowcount == 1
+        if not portee:
+            desk.db.execute("INSERT INTO editeur56108_ops(acteur,cle,nature,empreinte,etat,resultat,cree_le,maj_le,decision,seance,revision,cible,candidat_sha,rapprochement) "
+                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'reservee')",
+                            (compte, 'decision-' + did[:48], 'decider', did, 'en_cours', '{}', quand, quand, did, ident, revision, cible, sha))
+        desk.db.commit()
+    except sqlite3.IntegrityError:
+        desk.db.rollback()
+        raise Stop('operation_en_cours') from None
+    return _op_decision(desk, compte, did)
+
+
+def decider(desk, auth, acteur, ident, revision, decision, malgre_changement=False, sources_=None, cle=None, reessayer=False):
     """« Garder » : le candidat devient un fichier voisin (création exclusive, relu, empreinte comparée) ; l'original reste intact.
-    « Abandonner » : le candidat est effacé. ``revision`` : candidat montré à l'avocat (un autre plus récent : 409)."""
-    from .pause5629 import checkpoint
+    « Abandonner » : le candidat est effacé. ``revision`` : candidat montré à l'avocat (un autre plus récent : 409).
+
+    5.6.109 (C07) : la cible est réservée avant l'effet ; une réponse ou une relecture perdue donne ``etat='a_verifier'`` (ni reçu, ni échec),
+    le candidat est conservé ; la même décision redemandée — même avec une autre clé de transport ``cle`` — relit la MÊME cible et rend le
+    reçu vérifié, sans jamais créer un second fichier. ``reessayer`` : nouvel essai explicite, seulement si cette cible est constatée absente."""
     s = seance(desk, acteur, ident)
-    source, chemin = _source(desk, auth, acteur, s['source'], s['chemin'], sources_)
+    source, chemin = _source(desk, auth, acteur, s['source'], s['chemin'], sources_)     # droits et compte relus à chaque appel, avant tout
     try:
         revision = int(revision)
     except (TypeError, ValueError):
         raise Stop('version_perimee') from None
     if decision not in ('garder', 'abandonner'):
         raise Stop('decision_invalide')
+    compte = str(acteur[0])
+    did = _id_decision(ident, revision)
+    op = _op_decision(desk, compte, did)
+    if decision == 'garder' and op:
+        return _rapprocher(desk, auth, acteur, s, op, sources_, reessayer)
     if not s['candidat_rev'] or revision != int(s['candidat_rev']):
         raise Stop('version_perimee')
     candidat = dossier_seance(desk, ident) / ('candidat-%d.docx' % revision)
     if decision == 'abandonner':
+        incertaine = op if op and op['rapprochement'] in INCERTAINS else None
+        if incertaine and incertaine['rapprochement'] != 'a_verifier' and _age(incertaine['maj_le']) < BAIL_ECRITURE:
+            raise Stop('operation_en_cours')
         try:
             candidat.unlink()
         except OSError:
             pass
+        message = 'Version abandonnée : rien n’a été écrit dans le dossier ; l’original est intact.'
+        if incertaine and incertaine['rapprochement'] != 'reservee':
+            message = ('Version abandonnée ; l’original est intact. L’écriture de « %s » n’avait pas pu être vérifiée : si ce fichier existe dans '
+                       'le dossier, il n’a pas été retiré — contrôlez-le.') % PurePosixPath(incertaine['cible']).name
         desk.db.execute("UPDATE editeur56108_seances SET candidat_rev=0, candidat_sha='', rapport='{}', maj_le=? WHERE id=?", (_maintenant(), ident))
+        if incertaine:
+            desk.db.execute("UPDATE editeur56108_ops SET rapprochement='abandonnee', etat='fait', resultat=?, maj_le=? WHERE decision=?",
+                            (json.dumps({'decision': 'abandonner', 'message': message}, ensure_ascii=False), _maintenant(), did))
         desk.db.commit()
-        desk.audit('editeur56108_version_abandonnee', {'par': acteur[0], 'outil': s['outil'], 'chemin': chemin, 'revision': revision})
-        return {'decision': 'abandonner', 'message': 'Version abandonnée : rien n’a été écrit dans le dossier ; l’original est intact.'}
+        desk.audit('editeur56108_version_abandonnee', {'par': acteur[0], 'outil': s['outil'], 'chemin': chemin, 'revision': revision,
+                                                       **({'ecriture_non_verifiee': incertaine['cible']} if incertaine else {})})
+        return {'decision': 'abandonner', 'message': message}
     data = candidat.read_bytes()
     if hashlib.sha256(data).hexdigest() != s['candidat_sha']:
         raise Stop('copie_privee_alteree')
@@ -791,36 +948,201 @@ def decider(desk, auth, acteur, ident, revision, decision, malgre_changement=Fal
         actuel = None
     if s['etag'] and (actuel is None or str(actuel.get('etag') or '') != s['etag']) and not malgre_changement:
         raise Stop('original_modifie')
-    checkpoint(desk)
-    ecrit = ''
-    for n in range(1, 21):
-        cible = nom_version(desk, chemin, s['outil'], n)
-        try:
-            source.ecrire(cible, data, None)          # création exclusive : jamais d'écrasement
-            ecrit = cible
-            break
-        except Stop as ex:
-            if str(ex) != 'deja_existant' or n == 20:
-                raise
-    relu = source.lire(ecrit, MAX_DOCX)
-    if hashlib.sha256(bytes(relu)).hexdigest() != s['candidat_sha']:
-        raise Stop('relecture_non_conforme')
+    cible = _cible_libre(desk, source, chemin, s['outil'])
+    op = _reserver(desk, compte, cle, did, ident, revision, cible, s['candidat_sha'])
+    op['malgre'] = bool(malgre_changement)
+    return _engager(desk, auth, acteur, s, op, data, sources_, premiere=True)
+
+
+def _rapprocher(desk, auth, acteur, s, op, sources_, reessayer=False):
+    """Décision déjà connue (second clic, autre clé de transport, rechargement, reprise après coupure) : jamais une seconde cible."""
+    etat = op['rapprochement']
+    if etat == 'verifiee':
+        return {**json.loads(op['resultat'] or '{}'), 'rejoue': True}
+    if etat not in INCERTAINS:                       # abandonnée ou expirée : cette version n'existe plus
+        raise Stop('version_perimee')
+    if etat != 'a_verifier' and _age(op['maj_le']) < BAIL_ECRITURE:
+        raise Stop('operation_en_cours')             # une autre requête tient cette décision (bail court)
+    quand = _maintenant()
+    cur = desk.db.execute('UPDATE editeur56108_ops SET maj_le=? WHERE decision=? AND maj_le=? AND rapprochement=?', (quand, op['decision'], op['maj_le'], etat))
+    desk.db.commit()
+    if cur.rowcount != 1:
+        raise Stop('operation_en_cours')
+    op['maj_le'] = quand
+    if etat != 'reservee':   # création peut-être engagée, ou résultat déjà incertain : SEULE la cible figée est relue
+        verdict = _lire_cible(desk, auth, acteur, s, op, sources_)
+        if verdict == 'conforme':
+            return _verifier(desk, acteur, s, op)
+        if not (verdict == 'cible_absente' and reessayer and etat == 'a_verifier' and op['motif'] == 'cible_absente'):
+            return _incertain(desk, acteur, s, op, verdict)
+        # « Réessayer l'écriture » : demandé explicitement, cible constatée absente deux fois : même nom, création exclusive
+    candidat = dossier_seance(desk, s['id']) / ('candidat-%d.docx' % int(op['revision']))
     try:
-        candidat.unlink()
+        data = candidat.read_bytes()
+    except OSError:
+        data = b''
+    if hashlib.sha256(data).hexdigest() != op['candidat_sha']:
+        _maj_decision(desk, op['decision'], maj_le='')
+        raise Stop('copie_privee_alteree')
+    return _engager(desk, auth, acteur, s, op, data, sources_)
+
+
+def _lire_cible(desk, auth, acteur, s, op, sources_):
+    """Lecture de rapprochement : SEULE la cible figée est relue, droits et compte relus juste avant. Rend ``conforme``, ``cible_absente``,
+    ``cible_differente`` ou ``relecture_impossible`` ; un refus de droits ou un arrêt central remonte (l'état incertain est gardé)."""
+    from .reprise56109 import arret_central, code_de
+    try:
+        cible_source, cible = _source(desk, auth, acteur, s['source'], op['cible'], sources_)
+    except BaseException:
+        _maj_decision(desk, op['decision'], maj_le='')
+        raise
+    try:
+        relu = cible_source.lire(cible, MAX_DOCX)
+    except Stop as ex:
+        if arret_central(ex):
+            _maj_decision(desk, op['decision'], maj_le='')
+            raise
+        return 'cible_absente' if code_de(ex) == 'introuvable' else 'relecture_impossible'
+    except Exception:   # noqa: BLE001 — transport en panne pendant la relecture : incertain, jamais « échec »
+        return 'relecture_impossible'
+    return 'conforme' if hashlib.sha256(bytes(relu)).hexdigest() == op['candidat_sha'] else 'cible_differente'
+
+
+def _constater(desk, auth, acteur, s, op, sources_):
+    verdict = _lire_cible(desk, auth, acteur, s, op, sources_)
+    return _verifier(desk, acteur, s, op) if verdict == 'conforme' else _incertain(desk, acteur, s, op, verdict)
+
+
+def _engager(desk, auth, acteur, s, op, data, sources_, premiere=False):
+    """Effet : création exclusive sur la cible réservée. ``premiere`` : aucun effet de cette décision n'a encore pu avoir lieu (un nom pris
+    entre-temps par un AUTRE fichier fait alors réserver le nom suivant, avant le nouvel essai)."""
+    from .pause5629 import checkpoint
+    from .reprise56109 import arret_central, code_de
+    did = op['decision']
+    for _ in range(20):
+        try:
+            checkpoint(desk)                                                      # dernier contrôle avant l'effet
+            cible_source, cible = _source(desk, auth, acteur, s['source'], op['cible'], sources_)   # droits et compte relus sur la cible
+            if 'ecriture' not in cible_source.capacites():
+                raise Stop('non_pris_en_charge')
+        except BaseException:
+            _maj_decision(desk, did, maj_le='')     # effet non engagé : bail rendu ; la cible reste réservée, la décision reprendra dessus
+            raise
+        _maj_decision(desk, did, rapprochement='engagee', maj_le=_maintenant())   # durable AVANT l'effet
+        try:
+            cible_source.ecrire(cible, data, None)                                # création exclusive : jamais d'écrasement
+        except Stop as ex:
+            code = code_de(ex)
+            if arret_central(ex):   # jamais absorbé comme une panne de transport ; l'écriture a pu être acceptée : l'état garde ce fait
+                _maj_decision(desk, did, rapprochement='a_verifier', motif='resultat_inconnu', maj_le='')
+                raise
+            if code == 'deja_existant':
+                verdict = _lire_cible(desk, auth, acteur, s, op, sources_)
+                if verdict == 'conforme':                # c'est cette version : une écriture précédente dont la réponse s'était perdue
+                    return _verifier(desk, acteur, s, op)
+                if premiere and verdict == 'cible_differente':
+                    source, chemin = _source(desk, auth, acteur, s['source'], s['chemin'], sources_)
+                    op['cible'] = _cible_libre(desk, source, chemin, s['outil'])
+                    _maj_decision(desk, did, cible=op['cible'], rapprochement='reservee', maj_le=_maintenant())
+                    continue
+                return _incertain(desk, acteur, s, op, verdict)
+            if code in REFUS_CERTAINS:                   # refus avant tout effet : échec franc, rien n'a été écrit
+                _liberer(desk, did)
+                raise
+            _maj_decision(desk, did, rapprochement='a_verifier', motif='resultat_inconnu', maj_le=_maintenant())
+        except Exception:   # noqa: BLE001 — panne hors protocole pendant l'écriture : le résultat est inconnu, pas « échoué »
+            _maj_decision(desk, did, rapprochement='a_verifier', motif='resultat_inconnu', maj_le=_maintenant())
+        return _constater(desk, auth, acteur, s, op, sources_)
+    _liberer(desk, did)
+    raise Stop('deja_existant')
+
+
+def _verifier(desk, acteur, s, op):
+    """Cible relue, conforme : reçu vérifié ; le candidat peut être retiré, la séance note la version gardée."""
+    ident, cible = s['id'], op['cible']
+    try:
+        (dossier_seance(desk, ident) / ('candidat-%d.docx' % int(op['revision']))).unlink()
     except OSError:
         pass
-    desk.db.execute("UPDATE editeur56108_seances SET candidat_rev=0, candidat_sha='', version_chemin=?, maj_le=? WHERE id=?",
-                    (ecrit, _maintenant(), ident))
+    nom = PurePosixPath(cible).name
+    out = {'decision': 'garder', 'etat': 'verifie', 'chemin': cible, 'nom': nom, 'sha256': op['candidat_sha'],
+           'message': 'Nouvelle version enregistrée à côté de l’original : « %s ». L’original est intact.' % nom}
+    desk.db.execute("UPDATE editeur56108_seances SET candidat_rev=0, candidat_sha='', version_chemin=?, maj_le=? WHERE id=? AND candidat_rev IN (0, ?)",
+                    (cible, _maintenant(), ident, int(op['revision'])))
+    desk.db.execute("UPDATE editeur56108_ops SET rapprochement='verifiee', motif='', etat='fait', resultat=?, maj_le=? WHERE decision=?",
+                    (json.dumps(out, ensure_ascii=False), _maintenant(), op['decision']))
     desk.db.commit()
-    desk.audit('editeur56108_version_gardee', {'par': acteur[0], 'outil': s['outil'], 'source': source.ident, 'chemin': chemin, 'version': ecrit,
-                                               'sha256': s['candidat_sha'], 'revision': revision, 'malgre_changement': bool(malgre_changement)})
-    return {'decision': 'garder', 'chemin': ecrit, 'nom': PurePosixPath(ecrit).name, 'sha256': s['candidat_sha'],
-            'message': 'Nouvelle version enregistrée à côté de l’original : « %s ». L’original est intact.' % PurePosixPath(ecrit).name}
+    desk.audit('editeur56108_version_gardee', {'par': acteur[0], 'outil': s['outil'], 'source': s['source'], 'chemin': s['chemin'], 'version': cible,
+                                               'sha256': op['candidat_sha'], 'revision': int(op['revision']),
+                                               'malgre_changement': bool(op.get('malgre')), 'rapprochee': op['rapprochement'] == 'a_verifier'})
+    return out
+
+
+def _incertain(desk, acteur, s, op, motif):
+    """Résultat à vérifier : ni reçu ni échec ; candidat conservé, cible figée, bail rendu ; l'état est durable et dit pourquoi."""
+    nom = PurePosixPath(op['cible']).name
+    out = {'decision': 'garder', 'etat': 'a_verifier', 'chemin': op['cible'], 'nom': nom, 'motif': motif, 'reessayable': motif == 'cible_absente',
+           'seance': s['id'], 'revision': int(op['revision']),
+           'message': MOTIFS_INCERTAINS.get(motif, MOTIFS_INCERTAINS['resultat_inconnu']) % nom}
+    nouveau = op['rapprochement'] != 'a_verifier' or op.get('motif') != motif
+    desk.db.execute("UPDATE editeur56108_ops SET rapprochement='a_verifier', motif=?, etat='a_verifier', resultat=?, maj_le='' WHERE decision=?",
+                    (motif, json.dumps(out, ensure_ascii=False), op['decision']))
+    desk.db.commit()
+    if nouveau:
+        desk.audit('editeur56108_ecriture_a_verifier', {'par': acteur[0], 'outil': s['outil'], 'chemin': s['chemin'], 'cible': op['cible'], 'motif': motif,
+                                                        'revision': int(op['revision'])})
+    return out
+
+
+def _expirer(desk, ident):
+    """Séance effacée par la maintenance alors qu'une écriture restait incertaine : expiration EXPLIQUÉE (jamais un échec silencieux qui
+    autoriserait un nouvel effet, jamais un succès) ; le fichier éventuel du dossier n'est ni retiré ni remplacé."""
+    for r in ecritures_incertaines(desk, ident):
+        nom = PurePosixPath(r['cible']).name
+        message = ('Séance expirée après %d jours : la copie de travail a été effacée. L’écriture de « %s » n’a jamais pu être vérifiée : contrôlez ce '
+                   'fichier dans le dossier (il n’a été ni retiré ni remplacé).') % (SEANCE_JOURS, nom)
+        desk.db.execute("UPDATE editeur56108_ops SET rapprochement='expiree', resultat=?, maj_le=? WHERE decision=?",
+                        (json.dumps({'error': 'ecriture_expiree', 'message': message, 'chemin': r['cible']}, ensure_ascii=False), _maintenant(), r['decision']))
+        desk.db.commit()
+        desk.audit('editeur56108_ecriture_expiree', {'par': r['acteur'], 'cible': r['cible'], 'etat': r['rapprochement'], 'motif': r['motif']})
+
+
+LIBELLES_INCERTAINS = {'relecture_impossible': 'fichier écrit, relecture de contrôle non aboutie',
+                       'cible_absente': 'écriture non confirmée ; le fichier n’est pas dans le dossier pour le moment',
+                       'cible_differente': 'un fichier de ce nom existe avec un autre contenu',
+                       'resultat_inconnu': 'résultat de l’écriture inconnu'}
+
+
+def incertaines_html(desk, acteur, source_ident, chemin):
+    """Écritures de CE compte, pour CE document, restées à vérifier (lecture seule) : retrouvées après un rechargement de la page."""
+    try:
+        rows = desk.db.execute(
+            "SELECT o.seance, o.revision, o.cible, o.motif FROM editeur56108_ops o JOIN editeur56108_seances s ON s.id=o.seance WHERE o.acteur=? AND s.acteur=? "
+            "AND s.source=? AND s.chemin=? AND s.etat='ouverte' AND o.rapprochement IN ('reservee','engagee','a_verifier') ORDER BY o.cree_le LIMIT 10",
+            (str(acteur[0]), str(acteur[0]), str(source_ident), str(chemin))).fetchall()
+    except sqlite3.Error:
+        return ''
+    if not rows:
+        return ''
+    lignes = []
+    for r in rows:
+        attributs = 'data-w108-seance="%s" data-w108-revision="%d"' % (e(r['seance'], quote=True), int(r['revision']))
+        lignes.append('<li><strong>%s</strong> <span class="w108-badge">À vérifier</span> <span>%s</span><span class="w108-actions">'
+                      '<button type="button" class="ax-btn" data-w108="verifier" %s>Vérifier</button>%s'
+                      '<button type="button" class="ax-btn ghost" data-w108="abandonner" %s>Abandonner cette version</button></span></li>' % (
+                          e(PurePosixPath(r['cible']).name), e(LIBELLES_INCERTAINS.get(r['motif'], LIBELLES_INCERTAINS['resultat_inconnu'])), attributs,
+                          ('<button type="button" class="ax-btn ghost" data-w108="reessayer" %s>Réessayer l’écriture</button>' % attributs)
+                          if r['motif'] == 'cible_absente' else '', attributs))
+    return ('<section class="w108-incertaines" aria-labelledby="w108-t-incertaines"><h2 id="w108-t-incertaines">Écriture à vérifier</h2>'
+            '<p>Une version gardée précédemment n’a pas pu être confirmée dans le dossier. « Vérifier » relit ce même fichier ; rien d’autre ne sera '
+            'écrit. Votre version est conservée tant que vous n’avez pas décidé.</p><ul class="w108-constats">%s</ul></section>') % ''.join(lignes)
 
 
 def fermer(desk, acteur, ident):
     """Clôt la séance et efface ses copies privées (un fichier encore ouvert par un traitement de texte est repris par la maintenance)."""
     s = seance(desk, acteur, ident)
+    if ecritures_incertaines(desk, ident):   # 5.6.109 (C07) : le candidat d'une écriture non résolue est conservé jusqu'à « Vérifier » ou « Abandonner »
+        raise Stop('ecriture_a_verifier')
     reste = _effacer(desk, ident)
     desk.db.execute("UPDATE editeur56108_seances SET etat='fermee', candidat_rev=0, candidat_sha='', maj_le=? WHERE id=?", (_maintenant(), ident))
     desk.db.commit()
@@ -856,6 +1178,7 @@ def maintenance(desk, jours=SEANCE_JOURS, maintenant=None):
             n += not d.exists()
             if vieux and d.name in ouvertes:
                 desk.db.execute("UPDATE editeur56108_seances SET etat='fermee', maj_le=? WHERE id=?", (_maintenant(), d.name))
+            _expirer(desk, d.name)   # 5.6.109 (C07) : écriture restée incertaine : expiration expliquée, jamais un échec silencieux
     desk.db.commit()
     return n
 
@@ -871,7 +1194,7 @@ STATUTS = {'introuvable': '404 Not Found', 'version_perimee': '409 Conflict', 'o
            'controle_acces_indisponible': '503 Service Unavailable', 'stockage_injoignable': '503 Service Unavailable',
            'requete_trop_longue': '413 Payload Too Large', 'document_word_trop_volumineux': '413 Payload Too Large',
            'indisponible_sur_serveur': '409 Conflict', 'aucun_traitement_de_texte': '409 Conflict', 'aucune_modification': '409 Conflict',
-           'aucune_application_pdf': '409 Conflict'}
+           'aucune_application_pdf': '409 Conflict', 'ecriture_a_verifier': '409 Conflict'}
 MESSAGES = {
     'introuvable': 'Document introuvable, ou action non permise sur ce document.',
     'version_perimee': 'Une version plus récente a été enregistrée entre-temps (autre onglet ?) : rechargez la page. Rien n’a été écrit.',
@@ -905,6 +1228,11 @@ MESSAGES = {
     'lancement_impossible': 'Le traitement de texte n’a pas pu être lancé : ouvrez la copie de travail vous-même ou réessayez.',
     'json_requis': 'Format de demande refusé.', 'json_invalide': 'Format de demande refusé.', 'objet_json_requis': 'Format de demande refusé.',
     'type_document_invalide': 'Format de demande refusé.', 'acteur_requis': 'Demande refusée.',
+    # 5.6.109 (C07, C05)
+    'ecriture_a_verifier': 'Une écriture précédente reste à vérifier : utilisez « Vérifier » (ou « Abandonner cette version ») avant de poursuivre. '
+                           'Votre version est conservée.',
+    'operation_annulee': 'Opération annulée : rien de plus n’a été écrit.',
+    'ia_en_pause': 'IA en pause : cette opération reprendra à la reprise. Rien n’a été écrit.',
 }
 
 
@@ -974,13 +1302,22 @@ def api(env, desk, auth, prefix, name, args, method, sources_=None):
             corps = _corps_binaire(env, auth)
             ident, revision = str(args.get('seance') or ''), args.get('revision')
             empreinte = hashlib.sha256(corps).hexdigest()
-            return _json(executer(desk, acteur, args.get('cle'), 'enregistrer', {'seance': ident, 'revision': str(revision), 'sha256': empreinte},
-                                  lambda: proposer(desk, auth, acteur, ident, revision, corps, sources_)))
+            # 5.6.109 (C08) : l'hôte numérote chaque instantané reçu de l'éditeur ; le reçu lui rend ce numéro avec la révision du candidat :
+            # un reçu n'acquitte que SON instantané (une saisie postérieure n'est jamais déclarée enregistrée par le reçu d'une version antérieure).
+            instantane = str(args.get('instantane') or '')
+            if instantane and not re.fullmatch(r'\d{1,9}', instantane):
+                raise Stop('instantane_invalide')
+            out = executer(desk, acteur, args.get('cle'), 'enregistrer',
+                           {'seance': ident, 'revision': str(revision), 'sha256': empreinte, **({'instantane': instantane} if instantane else {})},
+                           lambda: proposer(desk, auth, acteur, ident, revision, corps, sources_))
+            return _json({**out, **({'instantane': int(instantane)} if instantane else {})})
         if int(env.get('CONTENT_LENGTH') or 0) > MAX_POST:
             raise Stop('requete_trop_longue')
         from .web440 import check_post
         d = check_post(env, auth)
-        return _json(_ecrire(desk, auth, acteur, reste, d, sources_))
+        out = _ecrire(desk, auth, acteur, reste, d, sources_)
+        # 5.6.109 (C07) : résultat incertain : accepté, pas encore constaté (ni un succès ni un échec)
+        return _json(out, '202 Accepted' if isinstance(out, dict) and out.get('etat') == 'a_verifier' else '200 OK')
     except Stop as ex:
         code = str(ex).split(':')[0]
         if code in ('dossier_reserve', 'chemin_est_un_dossier', 'fichier_nextcloud_introuvable', 'http_404'):
@@ -1011,15 +1348,18 @@ def _ecrire(desk, auth, acteur, reste, d, sources_=None):
                         lambda: OW.reprendre(desk, auth, acteur, ident, vu, sources_))
     if reste == 'decider':
         decision, revision, malgre = str(d.get('decision') or ''), d.get('revision'), bool(d.get('malgre_changement'))
+        reessayer = d.get('reessayer') is True   # 5.6.109 (C07) : « Réessayer l'écriture », seulement sur la cible figée constatée absente
 
         def faire():
             outil = seance(desk, acteur, ident)['outil']
-            out = decider(desk, auth, acteur, ident, revision, decision, malgre, sources_)
-            if outil == 'traitement' and decision == 'garder':   # copie de travail du poste nettoyée après reprise (cahier, point 8)
+            out = decider(desk, auth, acteur, ident, revision, decision, malgre, sources_, cle=cle, reessayer=reessayer)
+            if outil == 'traitement' and decision == 'garder' and out.get('etat') != 'a_verifier' and not out.get('rejoue'):
+                # copie de travail du poste nettoyée après reprise (cahier, point 8) ; jamais tant que l'écriture reste à vérifier
                 out['ferme'] = fermer(desk, acteur, ident)
                 out['message'] += ' La copie de travail du poste a été retirée : fermez le document dans l’application.'
             return out
-        return executer(desk, acteur, cle, 'decider', {'seance': ident, 'revision': str(revision), 'decision': decision, 'malgre': malgre}, faire)
+        parametres = {'seance': ident, 'revision': str(revision), 'decision': decision, 'malgre': malgre, **({'reessayer': True} if reessayer else {})}
+        return executer(desk, acteur, cle, 'decider', parametres, faire)
     return executer(desk, acteur, cle, 'fermer', {'seance': ident}, lambda: fermer(desk, acteur, ident))
 
 
@@ -1065,6 +1405,11 @@ def boutons_html(desk, auth, prefix, ident_source, chemin, role='administrateur'
         out += '<a class="ax-btn ghost" href="%s">Modifier dans l’éditeur intégré (WordCraft, version d’essai)%s</a>' % (e(l['wordcraft_url'], quote=True), sr)
     if l.get('traitement_url'):
         out += '<a class="ax-btn ghost" href="%s">%s%s</a>' % (e(l['traitement_url'], quote=True), e(l['traitement_libelle']), sr)
+    try:   # 5.6.109 (lot V, F16) : éditeur Craft facultatif (XLSX, PDF, PPTX), seulement s'il est activé et installé (désactivé par défaut)
+        from .craft56109 import bouton_html as _craft109
+        out += _craft109(desk, prefix, ident_source, chemin, role, titre)
+    except Exception:   # noqa: BLE001 — l'option facultative ne bloque jamais les boutons existants
+        pass
     return out
 
 
@@ -1188,7 +1533,7 @@ def page_wordcraft(desk, auth, prefix, acteur, args, shell, sources_=None):
              'contrôlé puis gardé, si vous le décidez, comme nouvelle version à côté de l’original ; l’original n’est jamais remplacé.</p>'
              '<section class="w108-garde" aria-labelledby="w108-t-garde"><h2 id="w108-t-garde">Avant d’ouvrir</h2>%s%s'
              '<p class="w108-actions"><button type="button" class="ax-btn" data-w108="ouvrir"%s>Ouvrir dans WordCraft</button></p></section>'
-             '<p class="w108-etat" role="status" aria-live="polite" data-w108-etat></p>'
+             '%s<p class="w108-etat" role="status" aria-live="polite" data-w108-etat></p>'
              '<div class="w108-zone" data-w108-zone hidden><iframe class="w108-iframe" title="Éditeur WordCraft : %s" data-w108-iframe></iframe></div>'
              '<section class="w108-controle" data-w108-controle hidden aria-labelledby="w108-t-controle"><h2 id="w108-t-controle" tabindex="-1">'
              'Contrôle de la version enregistrée</h2><div data-w108-rapport></div><p class="w108-actions">'
@@ -1200,8 +1545,8 @@ def page_wordcraft(desk, auth, prefix, acteur, args, shell, sources_=None):
              'vous montre les pertes éventuelles avant toute écriture dans le dossier. <button type="button" class="ax-btn ghost" data-w108="fermer" hidden>'
              'Fermer l’éditeur</button></p>'
              '<div hidden data-w108-config="%s"></div>') % (
-        e(titre), e(nom), VERSION, avertissement, _constats_html(g), ' disabled' if g['niveau'] == 'risque' else '', e(nom),
-        e(json.dumps(config, ensure_ascii=False), quote=True))
+        e(titre), e(nom), VERSION, avertissement, _constats_html(g), ' disabled' if g['niveau'] == 'risque' else '',
+        incertaines_html(desk, acteur, source.ident, chemin), e(nom), e(json.dumps(config, ensure_ascii=False), quote=True))
     return _page_simple(shell, prefix, auth, titre, corps)
 
 

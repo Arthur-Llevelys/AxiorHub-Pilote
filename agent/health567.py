@@ -16,6 +16,9 @@ def check(config_path, service=None, readiness=False):
         file=state/'desk.sqlite3'
         if not file.is_file():
             return {'ok':not (readiness or service),'reason':'base_non_initialisee'}
+        from .secours56109 import alerte
+        if alerte(state):   # 5.6.109 (lot R) : base reconnue illisible (alerte hors base, même fichier) : la sonde ne la rouvre pas
+            return {'ok':False,'reason':'base_illisible'}
         db=sqlite3.connect('file:'+str(file)+'?mode=ro',uri=True,timeout=2)
         try:
             if db.execute('PRAGMA quick_check(1)').fetchone()[0]!='ok':
@@ -31,5 +34,8 @@ def check(config_path, service=None, readiness=False):
                     return {'ok':False,'reason':'aucun_worker_recent'}
             return {'ok':True,'reason':'interface_locale_disponible','remote_deliverables_verified':False}
         finally:db.close()
+    except sqlite3.DatabaseError as error:
+        from .secours56109 import illisible
+        return {'ok':False,'reason':'base_illisible' if illisible(error) else 'configuration_ou_base_indisponible'}
     except (OSError,ValueError,KeyError,sqlite3.Error):
         return {'ok':False,'reason':'configuration_ou_base_indisponible'}

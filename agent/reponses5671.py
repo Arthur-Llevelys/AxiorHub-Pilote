@@ -265,8 +265,16 @@ TYPES = {'ollama': 'Ollama (local)', 'mistral': 'Mistral', 'anthropic': 'Anthrop
 def first_contact(desk):
     """5.6.87 : ce que le modèle peut dire du cabinet à un nouveau contact : le texte de Paramètres, et rien d'autre."""
     text = str(desk.settings(PRESENTATION, '') or '').strip()
-    return {'cabinet': text or ('Présentation du cabinet non renseignée : ne rien affirmer sur la compétence, les modalités ou les honoraires ; '
-                                'proposer de les préciser lors d’un premier échange.')}   # 5.6.95 : pas de marqueur pour une présentation absente
+    text = text or ('Présentation du cabinet non renseignée : ne rien affirmer sur la compétence, les modalités ou les honoraires ; '
+                    'proposer de les préciser lors d’un premier échange.')   # 5.6.95 : pas de marqueur pour une présentation absente
+    try:   # 5.6.109 (lot D, F05) : prestations PUBLIÉES et marquées « utilisable par l'IA » (aucune par défaut) : seuls montants que le modèle peut citer
+        from .catalogue56109 import presentation_pour_ia
+        tarifs = presentation_pour_ia(desk)
+        if tarifs:
+            text += '\n\n' + tarifs
+    except Exception:   # noqa: BLE001 — catalogue illisible : la présentation seule, donc aucun montant
+        pass
+    return {'cabinet': text}
 
 
 def connections(desk):

@@ -29,7 +29,17 @@ from .common import Stop, fold
 ROOT = Path(__file__).resolve().parents[1] / 'resources' / 'skills'
 BUILTIN = ('assistant-juridique', 'approbation-comptes', 'politique-rgpd',
            # 5.6.43 (cahier v9, § 3) : méthodes de phase, installées désactivées (à relire, adapter puis activer)
-           'methode-decider', 'methode-analyser', 'methode-courriel', 'methode-document', 'methode-controler')
+           'methode-decider', 'methode-analyser', 'methode-courriel', 'methode-document', 'methode-controler',
+           # 5.6.109 : compléments courts, aucune exécution des scripts d'exports.
+           'metier109-analyse-dossier', 'metier109-conclusions-adverses', 'metier109-strategie-contentieuse',
+           'metier109-simulation-decision', 'metier109-assignation-generale', 'metier109-assignation-jex',
+           'metier109-assignation-refere', 'metier109-assignation-commerce', 'metier109-requete-speciale',
+           'metier109-comptes-annuels', 'metier109-politique-rgpd', 'metier109-relecture-francaise', 'metier109-rentabilite',
+           # Méthodes de parcours ; aucune permission ne découle de leur activation.
+           'parcours109-offre-brouillon', 'parcours109-portail-procedural',
+           'parcours109-inpi', 'parcours109-infogreffe', 'parcours109-carpa-rib',
+           'parcours109-pappers-documents', 'parcours109-international')
+BUILTIN += ('telephonie109-bland',)   # 5.6.109 (lot B) : téléphonie par IA (Bland), installée désactivée, activée avec le connecteur ; méthode et confirmations, aucun droit
 MAX_SELECTED = 2
 BUDGET = 60_000
 _ctx = threading.local()
@@ -241,6 +251,9 @@ def listing(desk, owner='cabinet', caps=None):
                     # 5.6.108 : version courte dérivée (adaptation courte, à relire par l'avocat) et plan de chargement déclarés par le paquet
                     'version_courte': (manifest.get('axiorhub') or {}).get('version_courte') or '' if isinstance(manifest.get('axiorhub'), dict) else '',
                     'plan': bool((manifest.get('axiorhub') or {}).get('plan')) if isinstance(manifest.get('axiorhub'), dict) else False,
+                    # 5.6.109 (lot K, F06) : méthode complémentaire, étapes permises et proposition d'activation (jamais une activation)
+                    'role': str(manifest.get('role') or ''), 'phases_permises': list(manifest.get('allowed_phases') or []),
+                    'activation_suggeree': manifest.get('activation_suggeree') is True,
                     # 5.6.83 : ancien import dont les références n'ont pas été conservées : à réimporter, rien n'est fabriqué
                     'a_reimporter': row['origin'] == 'import' and not kept and len(manifest.get('files') or []) > 1})
     return out
@@ -477,6 +490,19 @@ def _construire(desk, selection, budget=BUDGET, query='', phase='', contexte=Non
     ctx = {**(contexte if isinstance(contexte, dict) else {}), 'query': query, 'phase': phase}
     for sel in selection:
         row = _row(desk, sel['id'], sel['version'])
+        manifest = json.loads(row['manifest'])
+        if manifest.get('role') == 'specialisation' and 'FR' in (manifest.get('jurisdictions') or []):
+            from .competences5683 import droit_etranger
+            autre = droit_etranger(ctx.get('droit'), {'droit_etranger': {
+                'francais':['FR','France','français','francais','droit français','droit francais']}})
+            if autre:
+                details.append({'competence':row['id'],'nom':row['name'],'version':row['version'],
+                    'sha256':row['sha256'],'mode':sel.get('mode',''),'raison_selection':sel.get('reason',''),
+                    'phase':phase,'forme':'aucune','raison':'droit_non_qualifie','sections':[],'fiches':[],
+                    'complements':[],'omissions':[{'nom':row['name'],'motif':'droit_non_qualifie'}],
+                    'sans_objet':[],'budget':max(0,budget-used),'droit':autre,'texte':'','caracteres':0})
+                loaded_map[sel['id']]=([],[])
+                continue
         head = 'COMPÉTENCE « %s » version %s (%s)\n' % (row['name'], row['version'], sel['reason'])
         detail = charger_plan(desk, sel, row, budget - used - len(head) - RESERVE_ENTETE, ctx) if budget - used - len(head) - RESERVE_ENTETE > 0 else None
         if detail is not None:
@@ -566,14 +592,16 @@ def carte56108(s):
     """Page Compétences : version courte et plan de chargement déclarés par un paquet fourni (texte échappé). La version courte est présentée
     comme une adaptation courte à relire par l'avocat, jamais comme le texte d'origine."""
     from html import escape
+    from .competences56109 import carte   # 5.6.109 (lot K, F06) : ce que fait une méthode complémentaire et son état d'activation
+    complement = carte(s)
     if not (s.get('version_courte') or s.get('plan')):
-        return ''
+        return complement
     morceaux = []
     if s.get('plan'):
         morceaux.append('Chargement réservé : adaptation AxiorHub, sections de méthode de l’étape, fiche de la tâche, puis compléments ; %d ressource(s) enregistrée(s).' % int(s.get('resources') or 0))
     if s.get('version_courte'):
         morceaux.append('Version courte « %s » : adaptation courte, à relire par l’avocat, transmise à la place du texte complet quand la place du modèle est courte.' % escape(str(s['version_courte'])))
-    return '<p class="f5632-hint">%s</p>' % ' '.join(morceaux)
+    return complement + '<p class="f5632-hint">%s</p>' % ' '.join(morceaux)
 
 
 def apercu_instructions(desk, kind, args=None, cfg=None):
@@ -621,6 +649,18 @@ def apercu_instructions(desk, kind, args=None, cfg=None):
 
 def current_selection():
     return list(getattr(_ctx, 'selection', []) or [])
+
+
+@contextmanager
+def sans_methode():
+    """5.6.109 (lot K, F07) : appel court de classement (``decision56109``) fait pendant un travail : aucune méthode du travail ne lui est
+    jointe (elle reste celle du travail, rétablie à la sortie) ; ni sélection, ni trace d'envoi de compétence pour cet appel."""
+    avant = (getattr(_ctx, 'selection', []), getattr(_ctx, 'text', ''), getattr(_ctx, 'plan', None))
+    _ctx.selection, _ctx.text, _ctx.plan = [], '', None
+    try:
+        yield
+    finally:
+        _ctx.selection, _ctx.text, _ctx.plan = avant
 
 
 @contextmanager

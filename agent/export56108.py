@@ -57,6 +57,9 @@ def _e(domaine, *lignes):
 EXPORT = (
     # desk : discussions de l'assistant, courriels suivis, brouillons conservés, propositions d'échéances, retours
     _e('conversations', ('discussions_de_l_assistant', 'assistant_threads', 'matter'), ('messages_de_l_assistant', 'assistant_messages', 'thread_id'),
+       # historique56109 (5.6.109, lot H) : propriétaire, participants, liens et contextes successifs de chaque discussion (aucun message recopié)
+       ('proprietaires_des_discussions', 'assistant_thread_owners109', 'thread_id'), ('participants_des_discussions', 'assistant_thread_members109', 'thread_id'),
+       ('elements_rattaches_aux_discussions', 'assistant_thread_links109', 'thread_id'), ('contextes_des_discussions', 'assistant_thread_contexts109', 'thread_id'),
        ('questions_au_dossier', 'conversations', 'scope'),
        ('pieces_televersees_dans_l_assistant', 'assistant_attachments_v360', 'scope'),                        # improvements36
        ('textes_des_pieces_televersees', 'assistant_attachment_parts_v363', 'attachment_id'),
@@ -81,6 +84,12 @@ EXPORT = (
        ('demandes_au_pilote', 'pilote56102_demandes', ('thread', 'fils5650', 'id', 'matter')),
        ('propositions_d_echeance', 'deadline_proposals', 'matter')) +
     _e('dossiers', ('instances_et_juridictions', 'dossier_instances5698', 'dossier_id'),                         # fiche5698
+       # projection56109 (5.6.109, lot D) : fiche Conseil / Contentieux — décisions de l'avocat sur les mentions, qualités par instance, champs, propositions
+       ('liens_des_mentions_lues', 'fiche_liens56109', 'dossier_id'), ('mentions_ecartees', 'fiche_decisions56109', 'dossier_id'),
+       ('qualites_par_instance', 'fiche_participations56109', 'dossier_id'), ('champs_de_la_fiche', 'fiche_valeurs56109', 'dossier_id'),
+       ('historique_des_champs_de_la_fiche', 'fiche_valeurs_historique56109', 'dossier_id'),
+       ('propositions_pour_la_fiche', 'fiche_propositions56109', 'dossier_id'), ('profils_de_fiche', 'fiche_profils56109', 'dossier_id'),
+       ('modeles_de_fiche_du_cabinet', 'fiche_modeles56109', None),
        ('types_de_dossier', 'dossier_types56100', 'cle'),                                                       # rangement56100
        ('corrections_de_la_fiche', 'fiche_corrections5634', 'matter'), ('liens_entre_parties', 'party_links5634', 'matter'),   # dossier5627
        ('corrections_de_la_fiche_5644', 'corrections5644', 'matter'),                                           # dossier5644
@@ -94,6 +103,7 @@ EXPORT = (
        ('chronologie', 'timeline_events', 'matter'), ('memoire_juridique', 'legal_memory_records', 'matter'),  # legal_memory
        ('historique_de_la_memoire_juridique', 'legal_memory_history', ('record_id', 'legal_memory_records', 'id', 'matter')),
        ('conflits_de_la_memoire_juridique', 'legal_memory_conflicts', 'matter'),
+       ('propositions_de_l_analyse_et_decisions', 'reanalyse56109_propositions', 'matter'),                     # reanalyse56109 (5.6.109, lot A) : comparaison avant remplacement, décisions de l'avocat
        ('controles_de_conflits', 'conflicts500_checks', 'matter'),                                              # metier500
        ('journal_des_prescriptions', 'limitation500_journal', ('limitation_id', 'limitation500', 'id', 'matter')),
        ('fiches_de_rendez_vous', 'meeting500_fiches', 'matter'), ('comptes_rendus_de_rendez_vous', 'meeting500_reports', 'matter'),
@@ -134,7 +144,12 @@ EXPORT = (
        ('initiatives', 'initiatives5636', 'matter'),                                                           # initiatives5636
        ('propositions_de_regles', 'rule_proposals5613', 'matter'),                                             # pilote5613
        ('propositions_d_opportunite', 'opp5676_propositions', ('opp', 'opp5676', 'id', 'matter')),            # crm5676
-       ('journal_des_opportunites', 'opp5676_journal', ('opp', 'opp5676', 'id', 'matter'))) +
+       ('journal_des_opportunites', 'opp5676_journal', ('opp', 'opp5676', 'id', 'matter')),
+       # decision56109 (5.6.109, lot K) : décisions locales (versions, actions proposées et retenues, sans contenu) et questions ciblées avec leur réponse
+       ('decisions_locales', 'decisions56109', 'dossier'), ('questions_ciblees', 'decision_questions56109', 'dossier'),
+       # simulation56109 (5.6.109, lot N) : simulations de décision (instantané, modifications d'hypothèse, résultat, sources figées), cadrage confirmé, corrections de l'avocat
+       ('simulations_de_decision', 'simulation_runs56109', 'matter_id'), ('cadrages_de_simulation', 'simulation_cadrages56109', 'matter_id'),
+       ('corrections_des_simulations', 'simulation_corrections56109', 'matter_id')) +
     _e('missions', ('missions', 'missions5614', 'matter'), ('taches_de_mission', 'tasks5614', ('mission', 'missions5614', 'id', 'matter')),   # taches5614
        ('productions_de_mission', 'artifacts5614', ('mission', 'missions5614', 'id', 'matter')),
        ('questions_de_mission', 'decisions5614', ('mission', 'missions5614', 'id', 'matter')),
@@ -183,6 +198,9 @@ EXPORT = (
        ('veille_retenue', 'veille_items5632', 'matter')) +                                                     # veille5632
     _e('factures', ('journal_des_documents', 'b53_events', ('document', 'b53_documents', 'id', 'matter')),     # facturation5653
        ('numerotation', 'b53_sequences', None), ('suggestions', 'b53_suggestions', 'matter'),
+       # catalogue56109 (5.6.109, lot D) : prestations du cabinet, versions publiées, simulations et lien vers les estimations
+       ('prestations_du_cabinet', 'catalogue_offres56109', None), ('versions_publiees_des_prestations', 'catalogue_versions56109', None),
+       ('simulations_d_honoraires', 'catalogue_simulations56109', 'dossier_id'), ('estimations_issues_du_catalogue', 'catalogue_estimations56109', 'dossier_id'),
        ('fichiers_emis', 'b56_issued_files', ('document', 'b53_documents', 'id', 'matter')),
        ('provisions', 'cabinet_provisions_v290', 'matter'),                                                    # cabinet_pilot
        ('relances', 'relances5636', 'matter'),                                                                 # relances5636
@@ -212,7 +230,80 @@ EXPORT = (
        ('cas_d_evaluation_d51', 'd51_eval_cases', 'id'), ('evaluations_d51', 'd51_eval_runs', None),          # apprentissage5651
        ('cas_d_evaluation', 'evaluation_cases_v380', None), ('evaluations', 'evaluation_runs_v380', None),     # operating380
        ('cas_de_reference_juridique', 'legal_benchmark_cases_v410', None), ('essais_de_reference_juridique', 'legal_benchmark_runs_v410', None),   # evaluation410
-       ('resultats_de_reference_juridique', 'legal_benchmark_results_v410', None))
+       ('resultats_de_reference_juridique', 'legal_benchmark_results_v410', None)) +
+    # consommation56109 (5.6.109, lot M) : quantités de service du registre du budget (fournisseur, unité, quantité, état), liées aux
+    # réservations déjà exportées (``budget_reservations5689``) par leur identifiant d'appel ; ni clé, ni texte, ni réservation réactivable
+    _e('gouvernance', ('quantites_de_services', 'budget_quantites56109', None)) +
+    # artefacts56109, modele_docx56109 (5.6.109, lot V) : contenu de chaque version des livrables structurés (lié au registre commun), plans des
+    # sous-agents, modèles Word du cabinet (métadonnées et zones ; l'original reste dans le dossier privé de l'application) et productions contrôlées
+    _e('dossiers', ('contenus_des_livrables_structures', 'livrables_contenus56109', 'matter_id'), ('plans_des_sous_agents', 'livrables_plans56109', 'matter_id'),
+       ('actes_produits_depuis_un_modele', 'modeles_productions56109', 'matter_id')) +
+    _e('modeles', ('modeles_word_du_cabinet', 'modeles_actes56109', None)) +
+    # bland56109 (5.6.109, lot B) : téléphonie par IA — aperçu exact de chaque demande (numéro, texte, montant), agents IA enregistrés comme
+    # routines, propositions relevées, rappels de rendez-vous et accords des clients ; jamais la clé (coffre), jamais de jeton
+    _e('routines', ('demandes_de_telephonie_ia', 'bland56109_demandes', None), ('agents_ia_bland', 'bland56109_agents', None),
+       ('propositions_des_agents_ia', 'bland56109_propositions', None), ('rappels_de_rendez_vous', 'bland56109_rappels', None),
+       ('accords_des_clients_pour_les_rappels', 'bland56109_accords', None)) +
+    # fonds_juridique56109 (5.6.109, lot Q, G23) : fonds juridique local — lots (manifeste, droits, couverture, corpus arrêté au, état),
+    # textes publics versionnés (texte officiel, intervalles, empreintes) et désignations actives ; l'index (fichiers) est recalculé
+    _e('recherche_juridique', ('lots_du_fonds_juridique_local', 'fonds56109_lots', None), ('documents_du_fonds_juridique_local', 'fonds56109_documents', None),
+       ('lots_actifs_du_fonds_juridique_local', 'fonds56109_actifs', None)) +
+    # gestion56109 (5.6.109, lot G1) : diligences de préfacturation et leurs traces (durée inconnue gardée inconnue), contrats d'assistance
+    # régulière (versions immuables, périodes, consommations), mouvements complémentaires (fonds de tiers, débours) et changements de
+    # coordonnées bancaires (IBAN masqué et empreinte seulement : jamais l'IBAN complet)
+    _e('temps', ('diligences_de_prefacturation', 'prefact_diligences56109', 'matter'),
+       ('traces_des_diligences', 'prefact_traces56109', ('diligence', 'prefact_diligences56109', 'id', 'matter'))) +
+    _e('factures', ('contrats_d_assistance_reguliere', 'assistance_contrats56109', None), ('versions_des_contrats_d_assistance', 'assistance_versions56109', None),
+       ('periodes_d_assistance', 'assistance_periodes56109', None), ('consommations_d_assistance', 'assistance_consommations56109', 'matter'),
+       ('mouvements_fonds_frais_debours', 'mouvements56109', 'matter'), ('changements_de_coordonnees_bancaires', 'coordonnees56109', 'matter')) +
+    # partage_client56109, appels56109, remplacements56109, kit_audience56109 (5.6.109, lot G2) : partages avec le client (versions exactes
+    # du registre, demandes, réponses et reçus, fichiers reçus en quarantaine ; le jeton de retour n'existe qu'haché, colonne retirée), appels
+    # (texte original, comptes rendus successifs, actions décidées), remplacements (instructions versionnées, preuves), kits d'audience
+    # (manifeste et éléments, notes hors ligne) ; le contenant chiffré et les fichiers en quarantaine restent des fichiers du poste
+    _e('dossiers', ('partages_avec_le_client', 'partages_client56109', 'matter_id'),
+       ('ressources_des_partages_client', 'partages_client_ressources56109', ('partage_id', 'partages_client56109', 'id', 'matter_id')),
+       ('demandes_au_client', 'partages_client_demandes56109', ('partage_id', 'partages_client56109', 'id', 'matter_id')),
+       ('reponses_du_client', 'partages_client_reponses56109', ('partage_id', 'partages_client56109', 'id', 'matter_id')),
+       ('fichiers_recus_en_quarantaine', 'partages_client_quarantaine56109', 'matter_id'),
+       ('appels_consignes', 'appels56109', 'matter_id'),
+       ('comptes_rendus_d_appel', 'appels_comptes_rendus56109', ('appel_id', 'appels56109', 'id', 'matter_id')),
+       ('actions_decidees_apres_appel', 'appels_actions56109', ('appel_id', 'appels56109', 'id', 'matter_id')),
+       ('remplacements_et_postulation', 'remplacements56109', 'matter_id'),
+       ('instructions_aux_confreres', 'remplacements_instructions56109', ('remplacement_id', 'remplacements56109', 'id', 'matter_id')),
+       ('preuves_des_remplacements', 'remplacements_preuves56109', ('remplacement_id', 'remplacements56109', 'id', 'matter_id')),
+       ('kits_d_audience', 'kits_audience56109', 'matter_id'),
+       ('elements_des_kits_d_audience', 'kits_audience_elements56109', ('kit_id', 'kits_audience56109', 'id', 'matter_id')),
+       ('notes_hors_ligne_des_kits', 'kits_audience_notes56109', ('kit_id', 'kits_audience56109', 'id', 'matter_id'))) +
+    # closing56109, suites56109, formalites56109 (5.6.109, lot G3) : « À finaliser » des opérations (conditions, dépendances, révisions des actes,
+    # journal immuable des preuves, décisions qualifiées), suites et exécution (obligations sourcées, actions, échéancier, journal), formalités
+    # supervisées (données sourcées, pièces exactes, effets et leurs états, documents reçus avec IBAN masqué seulement, réservations de budget,
+    # journal) ; aucune session, aucun cookie, aucun PIN, aucune autorisation réactivable (le permis expire et se reconstruit sur l'opération)
+    _e('dossiers', ('conditions_a_finaliser', 'closing_conditions56109', 'matter'),
+       ('dependances_des_conditions', 'closing_dependances56109', ('condition', 'closing_conditions56109', 'id', 'matter')),
+       ('revisions_des_actes_d_operation', 'closing_actes56109', 'matter'),
+       ('journal_des_conditions', 'closing_journal56109', ('condition', 'closing_conditions56109', 'id', 'matter')),
+       ('decisions_qualifiees_de_closing', 'closing_decisions56109', 'matter'),
+       ('suites_et_execution', 'suites56109', 'matter'),
+       ('obligations_des_suites', 'suites_obligations56109', ('suite', 'suites56109', 'id', 'matter')),
+       ('actions_des_suites', 'suites_actions56109', ('suite', 'suites56109', 'id', 'matter')),
+       ('echeanciers_des_suites', 'suites_echeancier56109', ('suite', 'suites56109', 'id', 'matter')),
+       ('journal_des_suites', 'suites_journal56109', ('suite', 'suites56109', 'id', 'matter')),
+       ('formalites_supervisees', 'formalites56109', 'matter'),
+       ('pieces_des_formalites', 'formalites_pieces56109', ('formalite', 'formalites56109', 'id', 'matter')),
+       ('effets_des_formalites', 'formalites_effets56109', ('formalite', 'formalites56109', 'id', 'matter')),
+       ('documents_des_formalites', 'formalites_documents56109', ('formalite', 'formalites56109', 'id', 'matter')),
+       ('budgets_reserves_des_formalites', 'formalites_reservations56109', ('formalite', 'formalites56109', 'id', 'matter')),
+       ('journal_des_formalites', 'formalites_journal56109', ('formalite', 'formalites56109', 'id', 'matter'))) +
+    # offre56109, collecte_portail56109, pappers_documents56109 (5.6.109, lot G4) : commandes d'offre et PDF joint (source, prix, version, empreinte
+    # du PDF, reçu du brouillon), profils de portail déclaratifs (aucun secret, aucun cookie, aucun certificat), missions de collecte et leurs
+    # messages, pièces, dates proposées, brouillons préparés et correspondances confirmées, règles Pappers du dossier, autorisations bornées et
+    # appels en crédits (sans clé ni jeton documentaire)
+    _e('dossiers', ('offres_et_pdf_joints', 'offres56109', 'dossier'), ('messages_de_portail_collectes', 'collecte_messages56109', 'dossier'),
+       ('pieces_de_portail_classees', 'collecte_pieces56109', 'dossier'), ('dates_proposees_par_la_collecte', 'collecte_dates56109', 'dossier'),
+       ('brouillons_d_information_prepares', 'collecte_brouillons56109', 'dossier'), ('correspondances_portail_dossier', 'collecte_correspondances56109', 'dossier'),
+       ('regles_pappers_du_dossier', 'pappers_dossiers56109', 'dossier'), ('autorisations_de_collecte_pappers', 'pappers_autorisations56109', 'dossier')) +
+    _e('routines', ('profils_de_portail', 'collecte_profils56109', None), ('missions_de_collecte_de_portail', 'collecte_missions56109', None)) +
+    _e('gouvernance', ('appels_pappers_en_credits', 'pappers_appels56109', 'dossier'))
 )
 
 # ------------------------------------------------------------------------------------------------ résolution du dossier quand il ne se lit pas dans une colonne
@@ -228,6 +319,10 @@ EXPORT = (
 RESOLVEURS = {
     'assistant_threads': ('courriel', 'matter', 'mail_key'),
     'assistant_messages': ('parent', 'thread_id', 'assistant_threads', 'id', False),
+    'assistant_thread_owners109': ('parent', 'thread_id', 'assistant_threads', 'id', False),     # 5.6.109 (lot H) : même dossier que la discussion
+    'assistant_thread_members109': ('parent', 'thread_id', 'assistant_threads', 'id', False),
+    'assistant_thread_links109': ('parent', 'thread_id', 'assistant_threads', 'id', False),
+    'assistant_thread_contexts109': ('parent', 'thread_id', 'assistant_threads', 'id', False),
     'conversations': ('conversation', 'scope'),
     'assistant_attachments_v360': ('conversation', 'scope'),
     'assistant_attachment_parts_v363': ('parent', 'attachment_id', 'assistant_attachments_v360', 'id', True),
@@ -283,6 +378,13 @@ EXPORT_EXCLUES = (
        'production_rule_influence_v420', 'production_triggers_v390', 'relances_exclues5636', 'relances_runs5636', 'reply_drafts5687',
        'signal_versions5634', 'tool_bindings5683', 'trace_events480', 'traces5694_spans', 'veille_runs5632', 'boite56106_operations',
        'messages', 'action_reviews_v380') +
+    _x(_T, 'pseudo56109_revision') +   # 5.6.109 (lot P) : compteur de révision du registre des identités (aucun nom), recréé au démarrage
+    _x(_T, 'pieces56109_lots') +   # 5.6.109 (lot L) : intentions de classement des pièces jointes (clé d'idempotence, états de reprise) ; les pièces classées sont des fichiers du dossier
+    _x(_T, 'analyses5624_campagnes', 'reanalyse56109_ops') +   # 5.6.109 (lot A) : campagnes d'analyse d'un dossier (état d'exécution, reprise), reçus d'idempotence du bloc « Analyse du dossier »
+    _x(_C, 'bland56109_outils') +   # 5.6.109 (lot B) : liste des outils Bland découverte au test de la connexion (révisions), relue chez Bland à chaque test
+    _x(_T, 'bland56109_ops') +      # 5.6.109 (lot B) : reçus d'idempotence des actions de téléphonie (aucun contenu, aucune clé)
+    _x(_C, 'analyses5624_couverture') +   # 5.6.109 (lot A) : couverture de l'analyse (état de chaque pièce et courriel), recalculée depuis l'index à chaque analyse
+    _x(_T, 'sources_publiques56109_sondes', 'sources_publiques56109_ops', 'international56109_ops') +   # 5.6.109 (lot S) : bail et délai des sondes des sources publiques, reçus d'idempotence ; les documents publics étrangers classés sont exportés avec ``registre_docs5688``, les identités de registre avec ``contacts5636``
     _x(_C, 'assistant_attachment_analysis_v363', 'assistant_attachment_meta_v363', 'association_groups', 'autonomy_mail_observations_v230',
        'crm57_seen', 'd51_party_candidates', 'daily_dashboards', 'deadline_obs450', 'docs5667', 'dossier56100_resultats', 'events_v568',
        'gmail5697_messages', 'grilles56108', 'hearing_writing_analysis_v363', 'invoice_ninja_map5614', 'invoice_ninja_sync5614',
@@ -303,6 +405,29 @@ EXPORT_EXCLUES = (
        'editeur56108_seances', 'editeur56108_ops',   # wordcraft56108 (5.6.108, lot W) : séances d'édition ; les versions gardées sont des fichiers du dossier
        'pdf_formulaire56108_ops') +   # pdf_formulaire56108 (5.6.108, lot F) : reçus d'idempotence ; les copies produites sont des fichiers du dossier
     _x(_PERSO, 'boite56106_epingles', 'cockpit530_reviewed', 'd51_reads', 'lecteur56106_preferences', 'missions_hidden5636') +
+    _x(_T, 'catalogue_recus56109') +         # 5.6.109 (lot D) : reçus d'idempotence du catalogue de prestations
+    _x(_T, 'partages_client_ops56109', 'appels_ops56109', 'remplacements_ops56109', 'kits_audience_ops56109') +   # 5.6.109 (lot G2) : reçus d'idempotence (aucun contenu, aucun jeton)
+    _x(_T, 'operations_recus56109') +        # 5.6.109 (lot G3) : reçus d'idempotence des routes « À finaliser », suites et formalités (aucun contenu métier, aucun secret)
+    _x(_T, 'pappers_ops56109') +             # 5.6.109 (lot G4) : reçus d'idempotence des collectes Pappers (les documents classés sont exportés avec ``registre_docs5688``)
+    _x(_T, 'gestion_recus56109') +           # 5.6.109 (lot G1) : reçus d'idempotence de la préfacturation, de l'assistance régulière et des mouvements (aucun contenu métier)
+    _x(_T, 'livrables_operations56109', 'craft56109_installations', 'craft56109_exports', 'craft56109_plans') +   # 5.6.109 (lot V) : reçus d'idempotence des livrables structurés, installations Craft vérifiées (empreintes), intentions d'export et plans de commandes IA des séances (les fichiers produits sont des fichiers du dossier)
+    _x(_T, 'decision_recus56109') +          # 5.6.109 (lot K) : reçus d'idempotence du réglage de l'organisation locale et des réponses aux questions ciblées
+    _x(_T, 'simulation_ops56109') +          # 5.6.109 (lot N) : reçus d'idempotence de l'onglet « Simulation de décision » (aucun contenu)
+    _x('Texte brut du modèle avant masquage des pourcentages inventés (sans valeur probante, jamais restitué) : la simulation exportée porte la '
+       'version masquée.', 'simulation_bruts56109') +   # 5.6.109 (intégration I1) : brut gardé hors export, résultat masqué dans ``simulation_runs56109``
+    _x('Texte brut du modèle avant masquage des pourcentages inventés (sans valeur probante) : le projet d’avis exporté porte la version masquée.',
+       'legal_opinion_bruts56109') +   # 5.6.109 (intégration I1) : brut du projet d'avis hors export, ``data`` masqué dans ``legal_opinion_projects_v260``
+    _x(_PERSO, 'assistant_thread_preferences109', 'assistant_groups109', 'assistant_drafts109') +   # 5.6.109 (lot H) : épingles, archives, groupes et brouillons propres à un compte
+    _x(_T, 'assistant_ops109') +             # 5.6.109 (lot H) : reçus d'idempotence des actions sur les discussions et l'apparence
+    _x(_PERSO, 'fiche_preferences56109') +   # 5.6.109 (lot D) : ordre et cartes masquées de la fiche, propres à un compte (le modèle du cabinet, lui, est exporté)
+    _x(_C, 'fiche_mentions56109') +          # 5.6.109 (lot D) : mentions relues dans les actes et contrats exportés (les décisions prises dessus sont exportées)
+    _x(_TMP, 'poste56109_autorisations') +   # 5.6.109 (lot O, F12) : autorisations temporaires de mission sur un poste : jamais réactivées sur un autre appareil (les étapes sont au journal de la mission)
+    _x(_T, 'poste56109_recus', 'poste56109_ordres', 'poste56109_baux') +   # 5.6.109 (lot O, F12, G13) : reçus d'idempotence des étapes, ordres signés et baux du compagnon (aucun contenu, aucun secret)
+    _x(_S, 'poste56109_postes') +            # 5.6.109 (lot O, G13) : postes associés (clés publiques) : un nouvel appairage est demandé après restauration
+    _x(_T, 'fonds56109_ops', 'local56109_ops', 'local56109_inventaires', 'local56109_vus') +   # 5.6.109 (lot Q) : reçus d'idempotence, curseurs d'inventaire des emplacements locaux
+    _x(_C, 'local56109_documents') +         # 5.6.109 (lot Q, F13) : versions lues des fichiers d'un emplacement local (recalculées depuis les fichiers du poste)
+    _x('Autorisation d’accès propre à un poste (chemin local privé du poste) : jamais réactivée sur un autre appareil ; l’emplacement est accordé '
+       'à nouveau sur le poste après restauration.', 'local56109_emplacements') +   # 5.6.109 (lot Q, F13)
     _x(_SECU, 'acces5670_allow', 'acces5670_bans', 'acces5670_events', 'fraude56106_avis', 'fraude56106_exceptions', 'fraude56106_ibans',
        'fraude56106_retours', 'fraude56106_verdicts', 'secu56101_accuses', 'secu56101_constats', 'secu56101_fiches', 'secu56101_rapports') +
     _x(_AUTRE, 'example_reviews', 'examples_v2', 'excluded_examples', 'forgotten', 'memory_meta', 'pairs5667', 'preferences', 'seen') +

@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS legal_opinion_sources_v260(
  project_id TEXT NOT NULL, source_id TEXT NOT NULL, kind TEXT NOT NULL,
  path TEXT NOT NULL, sha256 TEXT NOT NULL, official INTEGER NOT NULL,
  PRIMARY KEY(project_id,source_id));
+CREATE TABLE IF NOT EXISTS legal_opinion_bruts56109(
+ project_id TEXT PRIMARY KEY, matter TEXT NOT NULL, data_brut_json TEXT NOT NULL, ecrit_le TEXT NOT NULL);
 """,)
 
 
@@ -121,17 +123,37 @@ def _collect_ids(result):
     return ids,authority
 
 
-def _deterministic(result,packet,critique):
+# 5.6.109 (lot N, F14) : même motif pour le contrôle et pour le masquage d'affichage de ``simulation56109`` (un seul motif à tenir à jour)
+NUMERIC_PROBABILITY=re.compile(r'(?<!\d)(?:\d{1,3}(?:[.,]\d+)?\s*%|probabilit[eé]\s*(?:de|:)?\s*\d|chances?\s*(?:de|:)?\s*\d)',re.I)
+
+
+# 5.6.109 (intégration I1) : même texte que ``simulation56109.MASQUE``. La colonne exportée ``data`` porte le texte du modèle masqué ; le brut
+# reste en base dans ``legal_opinion_bruts56109`` (exclue de l'export avec motif) et ``preview`` le relit : le module se comporte comme avant.
+MASQUE_PROBABILITE='[estimation chiffrée masquée : aucun modèle statistique validé]'
+
+
+def masquer_probabilites(valeur):
+    if isinstance(valeur,str):return NUMERIC_PROBABILITY.sub(MASQUE_PROBABILITE,valeur)
+    if isinstance(valeur,list):return [masquer_probabilites(x) for x in valeur]
+    if isinstance(valeur,dict):return {k:masquer_probabilites(v) for k,v in valeur.items()}
+    return valeur
+
+
+def _deterministic(result,packet,critique,expected_decision_id=None):
+    """Contrôle déterministe. 5.6.109 (lot N, F14) : ``expected_decision_id`` (simulation en appel) : la critique doit citer LA décision de
+    première instance identifiée par le cabinet, pas seulement un identifiant connu du paquet."""
     valid={x['id'] for x in packet};official={x['id'] for x in packet if x.get('officially_verified')}
     ids,authority=_collect_ids(result);raw=json.dumps(result,ensure_ascii=False)
-    no_numeric=not re.search(r'(?<!\d)(?:\d{1,3}\s*%|probabilit[eé]\s*(?:de|:)?\s*\d|chance\s*(?:de|:)?\s*\d)',raw,re.I)
+    no_numeric=not NUMERIC_PROBABILITY.search(raw)
+    appeal=result['appeal_critique']
     checks={'all_sources_known':all(x in valid for x in ids+authority),
       'official_authorities_only':bool(authority) and all(x in official for x in authority),
       'both_sides_analyzed':bool(result['claimant_analysis']) and bool(result['defendant_analysis']),
       'scenarios_reasoned':bool(result['decision_scenarios']) and all(x['reasoned_outcome'].strip() and x['authority_source_ids'] for x in result['decision_scenarios']),
       'sensitivity_present':bool(result['sensitivity_analysis']),
       'no_uncalibrated_probability':no_numeric,
-      'appeal_source_present':not critique or (result['appeal_critique']['enabled'] and result['appeal_critique']['decision_source_id'] in valid)}
+      'appeal_source_present':not critique or (appeal['enabled'] and appeal['decision_source_id'] in valid
+                                               and (expected_decision_id is None or appeal['decision_source_id']==expected_decision_id))}
     reasons=[label for label,value in checks.items() if not value]
     return checks,reasons
 
@@ -158,13 +180,27 @@ def prepare_opinion(desk,args,model=None,control_model=None,dav=None,
     packet=sources+authorities+([decision] if decision else [])
     if not sources:raise Stop('sources_dossier_avis_absentes')
     if not authorities:raise Stop('jurisprudence_officielle_verifiee_absente')
-    prompt={'matter':{'id':matter['id'],'name':matter.get('client_name',''),'path':matter['path']},
-      'question':question,'critique_first_instance':critique,'sources':packet,
-      'rules':{'official_authorities_only':True,'qualitative_calibration_only':True,
-        'numeric_probability_forbidden':True,'internal_project_only':True,'lawyer_review_required':True}}
+    return preparer_avec_paquet(desk,matter,question,packet,critique,model=model,control_model=control_model,
+                                research_summary=research_summary)
+
+
+def preparer_avec_paquet(desk,matter,question,packet,critique,model=None,control_model=None,research_summary=None,
+                         expected_decision_id=None,extra_rules=None,checkpoint=None,simulation=None):
+    """5.6.109 (lot N, F14) : rédaction, contrôle et stockage d'un avis à partir d'un paquet DÉJÀ contrôlé côté serveur (extrait de
+    ``prepare_opinion``, comportement inchangé pour lui). ``simulation56109`` y passe l'instantané autorisé du dossier, les seules décisions
+    vérifiées sur un texte officiel et, en appel, le jugement identifié (``expected_decision_id``) : aucune seconde recherche historique à
+    liste de fournisseurs fixe. ``checkpoint`` : pause, annulation et budget revalidés avant l'enregistrement (un retour tardif du modèle
+    après une annulation n'écrit rien). Les règles ``extra_rules`` s'AJOUTENT aux règles communes, qui ne peuvent pas être assouplies."""
+    rules={'official_authorities_only':True,'qualitative_calibration_only':True,
+        'numeric_probability_forbidden':True,'internal_project_only':True,'lawyer_review_required':True}
+    for key,value in (extra_rules or {}).items():
+        if key not in rules:rules[key]=value
+    prompt={'matter':{'id':matter['id'],'name':matter.get('client_name',''),'path':matter.get('path','')},
+      'question':question,'critique_first_instance':critique,'sources':packet,'rules':rules}
     writer=model or Model(routed_config(desk.c,'legal_analysis'));result=writer.ask('legal_opinion_simulation',prompt)
     validate(result,LEGAL_OPINION_SIMULATION)
-    checks,reasons=_deterministic(result,packet,critique)
+    if checkpoint:checkpoint()
+    checks,reasons=_deterministic(result,packet,critique,expected_decision_id)
     controller=control_model or Model(routed_config(desk.c,'control'))
     independent=controller.ask('opinion_control',{'question':question,'project':result,
       'sources':[{'id':x['id'],'kind':x['kind'],'path':x['path'],
@@ -201,10 +237,17 @@ def prepare_opinion(desk,args,model=None,control_model=None,dav=None,
       'improvement_actions':improvements[:30],
       'safety':{'internal_project_only':True,'documents_created':False,'emails_sent':False,
         'rpva_filed':False,'billing_finalized':False,'numeric_probability_forbidden':True}}
+    if simulation:data['simulation56109']=simulation   # 5.6.109 (lot N) : lien vers le traitement de l'onglet (identifiant, mode)
     status='blocked' if blocked else 'pending_review'
+    authorities=[x for x in packet if x.get('officially_verified')]
+    if checkpoint:checkpoint()   # 5.6.109 (lot N) : dernier contrôle avant d'écrire ; une annulation gagne sur le retour tardif
+    brut=json.dumps(data,ensure_ascii=False)
+    expose=json.dumps({**data,'opinion':masquer_probabilites(data['opinion'])},ensure_ascii=False)   # seul le texte du modèle est masqué
     desk.db.execute('INSERT INTO legal_opinion_projects_v260 VALUES(?,?,?,?,?,?,?,?,?)',
-      (pid,matter['id'],status,question,json.dumps(data,ensure_ascii=False),fingerprint,
+      (pid,matter['id'],status,question,expose,fingerprint,
        json.dumps(control,ensure_ascii=False),stamp,stamp))
+    if expose!=brut:
+        desk.db.execute('INSERT OR REPLACE INTO legal_opinion_bruts56109 VALUES(?,?,?,?)',(pid,matter['id'],brut,stamp))
     for item in packet:
         desk.db.execute('INSERT INTO legal_opinion_sources_v260 VALUES(?,?,?,?,?,?)',
           (pid,item['id'],item['kind'],item.get('path',''),item.get('sha256') or item.get('official_text_sha256') or digest(item.get('excerpt','')),
@@ -220,7 +263,8 @@ def preview(desk,pid):
     if not re.fullmatch(r'[a-f0-9]{32}',str(pid)):raise Stop('projet_avis_invalide')
     row=desk.db.execute('SELECT * FROM legal_opinion_projects_v260 WHERE id=?',(pid,)).fetchone()
     if not row:raise Stop('projet_avis_absent')
-    data=json.loads(row['data']);data['status']=row['status'];data['created']=row['created'];data['updated']=row['updated']
+    brut=desk.db.execute('SELECT data_brut_json FROM legal_opinion_bruts56109 WHERE project_id=?',(pid,)).fetchone()
+    data=json.loads(brut[0] if brut else row['data']);data['status']=row['status'];data['created']=row['created'];data['updated']=row['updated']
     return data
 
 
@@ -246,7 +290,11 @@ def reject(desk,pid):
 
 
 def perform(desk,kind,args):
-    if kind=='prepare_legal_opinion':return prepare_opinion(desk,args)
+    if kind=='prepare_legal_opinion':
+        if args.get('simulation56109'):   # 5.6.109 (lot N, F14) : traitement de l'onglet « Simulation de décision », dans la même file
+            from .simulation56109 import executer
+            return executer(desk,args)
+        return prepare_opinion(desk,args)
     if kind=='review_legal_opinion':
         if args.get('status')!='rejected':raise Stop('revue_avis_invalide')
         return reject(desk,args.get('project_id',''))

@@ -513,6 +513,12 @@ def routed_config(config, purpose):
         role=PURPOSES[purpose][1]
     else:
         raise Stop('fonction_ia_invalide')
+    if purpose=='browser_navigation' and 'ollama' in config:   # 5.6.109 (lot O, G24) : modèle du navigateur résolu et verrouillé (ni routeur automatique, ni hybride, ni secours)
+        from .navigateur56109 import config_navigateur
+        return config_navigateur(config)
+    from .choix_modele56109 import resoudre as _choix56109   # 5.6.109 (lot T) : modèle fixé par l'administrateur pour cette fonction (ce modèle seul,
+    _pin56109=_choix56109(config,purpose,role)            # à l'intersection de la politique) ; None sans choix : chemin historique inchangé
+    if _pin56109 is not None:return _pin56109
     _local5697=local_seul_actif()   # 5.6.97 (lot gmail, C06) : modèle local seul ; ni politique de routage externe, ni hybride, ni secours
     if 'ollama' in config and not _local5697:   # 5.6.82 : politique centrale ; mode à fournisseur unique ou automatique : aucun repli hérité d'anciens réglages
         from .politique5682 import routed as _politique5682
@@ -828,9 +834,12 @@ class Model:
                 raise Stop('fournisseur_externe_non_autorise')
             from .chatgpt5662 import access_token
             access_token(cfg.get('state_dir',''))   # jeton valide ou erreur claire avant toute transmission de contenu
-        elif self.provider_type in ('openai','mistral','openrouter','anthropic'):
+        elif self.provider_type in ('openai','mistral','openrouter','anthropic','gemini'):
             if not cfg.get('external_data_allowed',False):
                 raise Stop('fournisseur_externe_non_autorise')
+            if self.provider_type=='gemini':   # 5.6.109 (lot E, F15) : adresse officielle, connexion testée pour sa révision, modèle du catalogue lu
+                from .gemini56109 import garde_connexion;garde_connexion(cfg)
+            from .modeles_catalogue56109 import garde_modele;garde_modele(cfg)   # 5.6.109 (lot E) : modèle absent du catalogue de la clé : jamais envoyé
             from .common import read_secret
             secret=read_secret(cfg.get('secret_file',''))
             self.http=HTTP(cfg['url'],timeout=cfg.get('timeout_seconds',240))
@@ -841,6 +850,7 @@ class Model:
             else:
                 self.http.headers['Authorization']='Bearer '+secret
             if cfg.get('sans_liste5682'):return   # 5.6.82 : modèle pris dans le catalogue de la connexion, déjà lu
+            if self.provider_type=='gemini' and not cfg.get('diagnostic5682'):return   # 5.6.109 (lot E) : catalogue lu et daté par le test (garde ci-dessus)
             # A read-only model listing produces a clear authentication/network
             # diagnostic before a confidential prompt is ever transmitted.
             # 5.6.82 : au plus une fois par heure et par clé (trois lectures par relevé auparavant) ; toujours pour un contrôle de connexion.
@@ -860,6 +870,10 @@ class Model:
 
     def _translate_error(self,error):
         Model._note_error(self,error)
+        if getattr(self,'provider_type','')=='gemini':   # 5.6.109 (lot E, F15) : 429 Google : motif propre, jamais un code de plafond (aucun relais local implicite)
+            from .gemini56109 import traduire_erreur
+            _gemini=traduire_erreur(error)
+            if _gemini is not None:return _gemini
         if getattr(self,'provider_type','')=='mistral':   # 5.6.96 (A03) : 401/403, 429 (Retry-After), quota, réseau, 5xx : état de la connexion
             from .mistral5696 import noter_erreur
             noter_erreur(getattr(self,'cfg',None) or {},error)
@@ -869,6 +883,10 @@ class Model:
             from .budget5668 import note_credit
             note_credit(self.cfg)
             return Stop('credit_fournisseur_epuise')
+        if code in ('http_400','http_404','http_422'):   # 5.6.109 (lot E) : motif lisible (type, code, paramètre du fournisseur), jamais « http 400 »
+            from .modeles_catalogue56109 import refus
+            _refus=refus(self.cfg,error)
+            if _refus is not None:return _refus
         if code=='http_403':return Stop('acces_fournisseur_refuse')
         if code=='http_404':return Stop('modele_ou_route_fournisseur_absent')
         if code=='http_429':return Stop('quota_fournisseur_depasse')
@@ -924,11 +942,13 @@ class Model:
                 if str(error) not in ESCALATABLE_LOCAL_ERRORS:raise
                 reason,first=str(error),error
         from .arret5643 import STOP_CODES
+        from .transmission56109 import eligible_au_repli as _repli56109
         for candidate in sec['candidates']:
             try:
                 value=self._call_child(candidate,method,*args)
             except Stop as error:
                 if str(error) in STOP_CODES:raise   # 5.6.43 (§ 16.3) : aucun recours au secours après un arrêt ou une pause
+                if not _repli56109(str(error)):raise   # 5.6.109 (P04) : refus de confidentialité : arrêt expliqué, ni fournisseur suivant ni retour au local
                 secours564.record(self.cfg.get('state_dir',''),candidate,reason,'error',str(error));continue
             self.last_provider=candidate['provider_id'];self.last_model=str(candidate.get('model') or '')
             secours564.record(self.cfg.get('state_dir',''),candidate,reason,'ok');return value
@@ -938,8 +958,12 @@ class Model:
     def complete(self,messages,temperature=None,max_tokens=3500,json_schema=None):
         if temperature is None:   # 5.6.34 : argument absent → température du profil ; un 0 explicite reste 0
             temperature=float(self.cfg.get('temperature',0) or 0)
+        if self.cfg.get('browser_pin109'):   # 5.6.109 (lot O, G24) : verrou du navigateur : ni secours, ni hybride, ni routeur, ni repli budgétaire
+            from .navigateur56109 import garde_complet;garde_complet(self.cfg)
         self._external_context={'payload':getattr(self,'_trace',('',None))[1],
                                 'messages':messages,'inherited':self.cfg.get('external_context')}
+        if (self.cfg.get('choix56109') or {}).get('applique'):   # 5.6.109 (lot T) : modèle fixé dans Paramètres : verrou, décision enregistrée, aucune substitution
+            from .choix_modele56109 import executer;return executer(self,messages,temperature,max_tokens,json_schema)
         if self.cfg.get('routeur5682'):
             from . import routage5682
             stage,data=getattr(self,'_trace',('',None))
@@ -957,8 +981,10 @@ class Model:
                     self.last_provider=decision['provider'];self.last_model=decision['model']
                     record(config,decision,'external_completed');return value
                 except Stop as error:
-                    record(config,decision,'local_fallback' if decision['fallback_local_on_error'] else 'external_error',str(error))
-                    if not decision['fallback_local_on_error']:raise
+                    from .transmission56109 import eligible_au_repli as _repli56109   # 5.6.109 (P04) : refus de confidentialité : jamais de repli silencieux, même local
+                    _local=decision['fallback_local_on_error'] and _repli56109(str(error))
+                    record(config,decision,'local_fallback' if _local else 'external_error',str(error))
+                    if not _local:raise
             self.last_provider='ollama';self.last_model=str(self.cfg.get('model') or '')
             try:
                 return self._call_child(self._local_only_config(),'complete',messages,temperature,max_tokens,json_schema)
@@ -978,11 +1004,14 @@ class Model:
                     self.last_provider=retry['provider'];self.last_model=retry['model']
                     record(config,retry,'external_after_local_failure');return value
                 except Stop as external_error:
-                    record(config,retry,'external_error',str(external_error));raise error
+                    record(config,retry,'external_error',str(external_error))
+                    from .transmission56109 import eligible_au_repli as _repli56109
+                    if not _repli56109(str(external_error)):raise   # 5.6.109 (P04) : le refus de confidentialité garde son code, jamais déguisé en panne locale
+                    raise error
         if self.cfg.get('budget_fallback'):
             from .budget5668 import BUDGET_CODES,note_fallback
             try:
-                return self._traced(messages,temperature,max_tokens,json_schema)
+                return self._reprise56109(messages,temperature,max_tokens,json_schema)
             except Stop as error:
                 # 5.6.68 : refus du plafond AVANT tout envoi ; le modèle local de la même fonction prend le relais
                 if str(error) not in BUDGET_CODES:raise
@@ -992,7 +1021,25 @@ class Model:
                 self.last_provider='ollama';self.last_model=str(fallback.get('model') or '')
                 note_fallback(self.cfg,str(error))
                 return value
-        return self._traced(messages,temperature,max_tokens,json_schema)
+        return self._reprise56109(messages,temperature,max_tokens,json_schema)
+
+    def _reprise56109(self,messages,temperature,max_tokens,json_schema):
+        """5.6.109 (lot E) : réponse coupée et consommée par le raisonnement : UNE reprise avec une borne plus grande, par le même circuit
+        complet (politique, pseudonymisation, enveloppe, pause, budget, journal) ; sinon motif exact « consommée en raisonnement »."""
+        trace=getattr(self,'_trace',('',None))
+        try:return self._traced(messages,temperature,max_tokens,json_schema)
+        except Stop as error:
+            if str(error)!='generation_ia_raisonnement_epuise':raise
+            suivant=int((getattr(error,'detail',None) or {}).get('max_tokens_suivant') or 0)
+            if self.cfg.get('relance_interdite56109') or suivant<=int(max_tokens):
+                from .erreurs5634 import Qualified
+                raise Qualified('reponse_consommee_en_raisonnement',**dict(getattr(error,'detail',None) or {})) from None
+        self._trace=trace
+        try:return self._traced(messages,temperature,suivant,json_schema)
+        except Stop as error:
+            if str(error)!='generation_ia_raisonnement_epuise':raise
+            from .erreurs5634 import Qualified
+            raise Qualified('reponse_consommee_en_raisonnement',**dict(getattr(error,'detail',None) or {})) from None
 
     def _traced(self,messages,temperature,max_tokens,json_schema):
         """4.8.0 : journal de traçabilité (références et empreintes uniquement, jamais le texte)."""
@@ -1007,6 +1054,13 @@ class Model:
         return value
 
     def _leaf(self,messages,temperature,max_tokens,json_schema):
+        """5.6.109 (lot P) : une émission externe = UN instantané des identités, relu du registre, pour le texte, la lecture des images et
+        le contrôle de l'enveloppe ; l'état réel (préparé, émis, refusé, à vérifier) est noté au journal des envois à la sortie."""
+        from .transmission56109 import emission as _emission56109
+        with _emission56109(self):
+            return self._feuille(messages,temperature,max_tokens,json_schema)
+
+    def _feuille(self,messages,temperature,max_tokens,json_schema):
         from .data_policy5689 import garde_modele   # 5.6.89 : politique des données, juste avant tout envoi, pour tous les fournisseurs (local compris)
         garde_modele(self.cfg,messages,getattr(self,'_trace',('',None))[0])
         from .vision56106 import choisir as _choisir56106   # 5.6.106 (lot I) : images de CET appel : locale, masquée (externe) ou aucune
@@ -1040,6 +1094,10 @@ class Model:
             estimated=len(json.dumps(messages,ensure_ascii=False))//3
             if estimated+int(max_tokens)>num_ctx-256:raise Stop('contexte_ia_insuffisant')
             options,ignored=provider_options('ollama',temperature,self.cfg.get('sampling') or {})
+            _nav56109=None
+            if self.cfg.get('browser_pin109'):   # 5.6.109 (lot O, G24) : profil du navigateur validé (presence_penalty compris), verrou contrôlé sur la requête finale
+                from . import navigateur56109 as _nav56109
+                options,ignored=_nav56109.options_transport(self.cfg)
             options.update({'num_ctx':num_ctx,'num_predict':max_tokens})
             # 5.6.47 : en flux, le délai porte sur le silence entre deux morceaux et non sur toute la génération (longues fiches de dossier)
             req={'model':self.cfg['model'],'stream':True,'messages':messages,'options':options}
@@ -1050,6 +1108,7 @@ class Model:
             caps=getattr(self,'capabilities',None)
             if self.cfg.get('disable_thinking',True) and (caps is None or 'thinking' in caps):req['think']=False   # option non envoyée si non prise en charge
             self.last_options=dict(options)
+            if _nav56109 is not None:_nav56109.verifier_requete(self,req)   # modèle exact, profil, schéma et « think » de la requête réellement émise
             from .arret5643 import interruptible   # 5.6.43 (§ 16.3) : appel surveillé, interrompu sur arrêt ou pause
             try:result=interruptible(lambda:self.http.json('POST','/api/chat',req),self.cfg)
             except Stop as error:raise self._translate_error(error) from None
@@ -1057,7 +1116,7 @@ class Model:
                 prompt_tokens=int(result.get('prompt_eval_count') or estimated);produced=int(result.get('eval_count') or 0)
                 room=num_ctx-prompt_tokens-128
                 if prompt_tokens+produced>=num_ctx-16:raise Stop('contexte_ia_insuffisant')   # fenêtre pleine : compresser l'entrée
-                if room>int(max_tokens)*1.25:
+                if room>int(max_tokens)*1.25 and not self.cfg.get('relance_interdite56109'):   # 5.6.109 (lot K, F07) : classement court : aucune relance
                     # Réponse coupée par la longueur demandée alors que la fenêtre a de la place : une relance, plus longue.
                     req['options']['num_predict']=int(min(room,int(max_tokens)*2.5))
                     try:result=interruptible(lambda:self.http.json('POST','/api/chat',req),self.cfg)
@@ -1081,23 +1140,30 @@ class Model:
             if message.get('tool_calls'):raise Stop('appel_outil_ia_refuse')
             content=message.get('content')
         else:
+            if self.cfg.get('browser_pin109'):   # 5.6.109 (lot O, G24) : fournisseur externe choisi pour le navigateur : même verrou
+                from .navigateur56109 import verifier_externe;verifier_externe(self)
             from .policy567 import check_external
             check_external(self.cfg,payload=getattr(self,'_external_context',None),messages=messages)
             # 5.4.0 : tout envoi hors du serveur est pseudonymisé ici (mode manuel, mixte ou hybride), puis la réponse est
             # rétablie localement. La table de correspondance ne quitte jamais la mémoire du serveur.
             from .pseudo540 import Pseudonymizer,log_transmission
+            from . import transmission56109 as _t56109
+            # 5.6.109 (P01, P02) : identités de CETTE émission (instantané posé par ``_leaf``, relu du registre : une partie ajoutée à
+            # l'instant est connue) ; (P03) les marqueurs littéraux des sources sont relevés avant toute attribution.
             pseudo=Pseudonymizer(self.cfg.get('pseudo') or {'state_dir':self.cfg.get('state_dir','')})
             messages=pseudo.apply_messages(messages,method_at=skill_at)
             self.last_pseudonymization=pseudo.summary()
-            log_transmission(self.cfg,pseudo,messages)
+            self._pseudo56109=pseudo
+            self._journal56109=log_transmission(self.cfg,pseudo,messages)
+            _t56109.controler_schema(self,pseudo,json_schema)   # (P05) aucun fournisseur ne reçoit un schéma portant une identité
             if self.provider_type=='anthropic':
                 content=self._anthropic(messages,temperature,max_tokens,json_schema)
-                return pseudo.restore(content,json_mode=json_schema is not None)
-            if self.provider_type=='chatgpt':   # 5.6.62 : API Responses, store false, flux ; pseudonymisé ci-dessus comme les autres
+            elif self.provider_type=='chatgpt':   # 5.6.62 : API Responses, store false, flux ; pseudonymisé ci-dessus comme les autres
                 content=self._chatgpt(messages,json_schema)
-                return pseudo.restore(content,json_mode=json_schema is not None)
-            content=self._openai_compatible(messages,temperature,max_tokens,json_schema)
-            return pseudo.restore(content,json_mode=json_schema is not None)
+            else:
+                content=self._openai_compatible(messages,temperature,max_tokens,json_schema)
+            # (P04) marqueur inconnu ou altéré : arrêt expliqué, rien n'est rendu (donc rien n'est déposé), aucun nom n'est deviné
+            return _t56109.restituer(self,pseudo,content,json_schema is not None)
         if not isinstance(content,str) or not content.strip():raise Stop('reponse_ia_vide')
         return content.strip()
 
@@ -1123,11 +1189,13 @@ class Model:
         elif self.cfg.get('effort5682'):req['output_config']={'effort':self.cfg['effort5682']}
         if system.strip():req['system']=system
         from .vision56106 import monter as _monter56106,supplement as _supplement56106;_monter56106(self,req)   # 5.6.106 (lot I) : blocs « image » (déjà masqués)
+        from .transmission56109 import emettre as _emettre56109,figer as _figer56109
+        corps=_figer56109(self,req)   # 5.6.109 (P05) : enveloppe finale (consignes, schéma, images admises) contrôlée puis figée : ce sont ces octets qui partent
         estimated=estimate_and_check_budget(self.cfg,messages+_supplement56106(self),req['max_tokens'])   # 5.6.89 : borne de sortie réellement demandée (double pour la réflexion) ; 5.6.106 : jetons des images
         from .arret5643 import interruptible
         from .budget_ledger5689 import preparer_emission
         preparer_emission(self.cfg)
-        try:result=interruptible(lambda:self.http.json('POST','/messages',req),self.cfg)
+        try:result=interruptible(lambda:self.http.json('POST','/messages',_emettre56109(self,corps)),self.cfg)   # l'objet remis au transport est celui relu des octets figés
         except Stop as error:
             record_usage(self.cfg,{},estimated,'error',messages,error=str(error))
             self.usage_cost_known=False
@@ -1154,10 +1222,12 @@ class Model:
         from .budget_ledger5689 import noter_forfait,preparer_emission
         noter_forfait(self.cfg)   # 5.6.89 : hors routeur aussi, une ligne au registre
         preparer_emission(self.cfg)
+        from .transmission56109 import figer_octets as _figer56109   # 5.6.109 (P05) : le corps de chaque essai est contrôlé en octets juste avant le transport
         try:
             text,usage=interruptible(lambda:respond(state,self.cfg['model'],messages,json_schema,
                                                     self.cfg.get('structured_mode','strict')=='strict',timeout=self.cfg.get('timeout_seconds',240),
-                                                    effort=self.cfg.get('effort5682') or None,info=info),self.cfg)
+                                                    effort=self.cfg.get('effort5682') or None,info=info,
+                                                    controle=lambda octets:_figer56109(self,octets)),self.cfg)
         except Stop as error:
             record_usage(self.cfg,{},0.0,'error',messages,error=str(error))
             self._note_error(error)
@@ -1172,6 +1242,8 @@ class Model:
 
     def _openai_compatible(self,messages,temperature,max_tokens,json_schema):
         from .ai_gateway import estimate_and_check_budget,record_usage
+        from .modeles_catalogue56109 import noter_raisonnement,plancher_sortie   # 5.6.109 (lot E) : modèle qui raisonne : marge de sortie (budget compris)
+        max_tokens=plancher_sortie(self.cfg,max_tokens)
         from .profil5634 import provider_options, record as record_params
         sent,ignored=provider_options(self.provider_type,temperature,self.cfg.get('sampling') or {})
         if 'repeat_penalty' in sent:sent['repetition_penalty']=sent.pop('repeat_penalty')   # nom OpenRouter
@@ -1180,31 +1252,49 @@ class Model:
         except Exception:pass
         if self.provider_type=='openrouter' and self.cfg.get('zdr_required'):
             req['provider']={'zdr':True,'allow_fallbacks':False}
-        if json_schema is not None:
+        if self.provider_type=='gemini':   # 5.6.109 (lot E, F15) : seconde garde, aucune image, schéma non promis sans essai (consigne JSON, validation locale)
+            from .gemini56109 import adapter_requete
+            req=adapter_requete(self,req,json_schema)
+        elif json_schema is not None:
             if self.cfg.get('structured_mode')=='strict':
                 from .schema5634 import strict_form
                 req['response_format']={'type':'json_schema','json_schema':{
                     'name':'axiorhub_result','strict':True,'schema':strict_form(json_schema)}}
             else:req['response_format']={'type':'json_object'}
         from .vision56106 import monter as _monter56106,supplement as _supplement56106;_monter56106(self,req)   # 5.6.106 (lot I) : « image_url » (déjà masquées)
+        from .transmission56109 import emettre as _emettre56109,figer as _figer56109
+        corps=_figer56109(self,req)   # 5.6.109 (P05) : enveloppe finale (messages, schéma, champs du fournisseur, images admises) contrôlée puis figée
         estimated=estimate_and_check_budget(self.cfg,messages+_supplement56106(self),max_tokens)   # 5.6.106 : jetons des images comptés au budget
         from .arret5643 import interruptible
         from .budget_ledger5689 import preparer_emission
         preparer_emission(self.cfg)
-        try:result=interruptible(lambda:self.http.json('POST','/chat/completions',req),self.cfg)
+        try:result=interruptible(lambda:self.http.json('POST','/chat/completions',_emettre56109(self,corps)),self.cfg)   # l'objet remis au transport est celui relu des octets figés
         except Stop as error:
             record_usage(self.cfg,{},estimated,'error',messages,error=str(error))
             self.usage_cost_known=False
             raise self._translate_error(error) from None
         self.usage_cost_usd+=float(record_usage(self.cfg,result,estimated,'done',messages) or 0)
+        noter_raisonnement(self.cfg,result)   # jetons de raisonnement déclarés : noté au catalogue (preuve : réponse du fournisseur)
         if self.provider_type=='mistral':   # 5.6.96 : réponse obtenue : l'incident éventuel de la connexion est levé
             from .mistral5696 import noter_succes
             noter_succes(self.cfg)
+        if self.provider_type=='gemini':   # 5.6.109 (lot E, F15) : seule une fin « stop » est une réponse ; blocage, troncature, outil, vide : arrêt motivé
+            from .gemini56109 import lire_reponse
+            from .modeles_catalogue56109 import raisonnement_epuise
+            try:return lire_reponse(result,json_schema is not None)
+            except Stop as _fin:
+                _epuise=raisonnement_epuise(self.cfg,result,max_tokens) if str(_fin)=='generation_ia_incomplete' else None
+                if _epuise is not None:raise _epuise from None
+                raise
         try:
             choice=result['choices'][0];message=choice['message'];content=message['content']
             finish=choice.get('finish_reason')
         except (KeyError,IndexError,TypeError):raise Stop('reponse_fournisseur_invalide') from None
-        if finish in ('length','max_tokens'):raise Stop('generation_ia_incomplete')
+        if finish in ('length','max_tokens'):
+            from .modeles_catalogue56109 import raisonnement_epuise   # 5.6.109 (lot E) : sortie consommée par le raisonnement : une reprise plus large (``complete``)
+            _epuise=raisonnement_epuise(self.cfg,result,max_tokens)
+            if _epuise is not None:raise _epuise
+            raise Stop('generation_ia_incomplete')
         if message.get('tool_calls'):raise Stop('appel_outil_ia_refuse')
         if isinstance(content,list):
             content=''.join(str(x.get('text') or x.get('content') or '') if isinstance(x,dict) else str(x) for x in content)
@@ -1236,8 +1326,10 @@ class Model:
                     self.last_provider=decision['provider'];self.last_model=decision['model']
                     record(config,decision,'external_completed');return value
                 except Stop as error:
-                    record(config,decision,'local_fallback' if decision['fallback_local_on_error'] else 'external_error',str(error))
-                    if not decision['fallback_local_on_error']:raise
+                    from .transmission56109 import eligible_au_repli as _repli56109   # 5.6.109 (P04) : comme pour complete
+                    _local=decision['fallback_local_on_error'] and _repli56109(str(error))
+                    record(config,decision,'local_fallback' if _local else 'external_error',str(error))
+                    if not _local:raise
             self.last_provider='ollama';self.last_model=str(self.cfg.get('model') or '')
             try:
                 return self._call_child(self._local_only_config(),'ask',stage,data)
@@ -1256,7 +1348,10 @@ class Model:
                     self.last_provider=retry['provider'];self.last_model=retry['model']
                     record(config,retry,'external_after_local_failure');return value
                 except Stop as external_error:
-                    record(config,retry,'external_error',str(external_error));raise error
+                    record(config,retry,'external_error',str(external_error))
+                    from .transmission56109 import eligible_au_repli as _repli56109
+                    if not _repli56109(str(external_error)):raise   # 5.6.109 (P04)
+                    raise error
         schema, prompt = {'triage': (TRIAGE, TRIAGE_PROMPT), 'compose': (COMPOSE, COMPOSE_PROMPT),
                           'verify': (VERIFY, VERIFY_PROMPT),
                           'desk_review': (DESK_REVIEW, DESK_REVIEW_PROMPT),

@@ -243,6 +243,10 @@ class RefMap:
         entry = self._targets.get(str(ref or '').strip())
         return (entry[0][0], entry[0][1]) if entry else None
 
+    def cibles(self):
+        """5.6.109 (lot O, G24) : repères présents dans le dernier plan → (rôle, nom, nœud DOM), pour la fraîcheur des cibles."""
+        return {ref: (key[0], key[1], backend) for ref, (key, backend) in self._targets.items() if backend is not None}
+
 
 def _prop(node, name):
     for p in node.get('properties') or ():

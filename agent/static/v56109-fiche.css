@@ -1,0 +1,39 @@
+/* AxiorHub 5.6.109 (lot D, F04) — fiche Conseil / Contentieux du dossier (d109-) : première carte, cartes repliables par fonction, propositions
+   à décider, provenance des parties. Jetons Carbon avec repli (clair et sombre) ; un état est toujours écrit en mots, jamais par la seule couleur. */
+.d109-fiche { display: grid; gap: .75rem; min-width: 0; }
+.d109-premiere { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); padding-bottom: .75rem; }
+.d109-bref { display: grid; gap: .5rem 1rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); margin: 0 0 .5rem; }
+.d109-bref div { min-width: 0; }
+.d109-bref dt { color: var(--cds-text-secondary, #525252); font-size: .8125rem; }
+.d109-bref dd { margin: 0; overflow-wrap: anywhere; }
+.d109-questions { display: grid; gap: .5rem 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+.d109-champ { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; padding: .5rem .75rem; }
+.d109-champ h3 { font-size: .9375rem; margin: 0 0 .25rem; }
+.d109-valeur { overflow-wrap: anywhere; }
+.d109-liste { margin: 0; padding-left: 1.1rem; }
+.d109-origine, .d109-provenance, .d109-pied { font-size: .8125rem; margin: .25rem 0 0; }
+.d109-carte { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; }
+.d109-carte.d109-premiere { border-left: 0; border-radius: 0; border-right: 0; border-top: 0; }
+.d109-carte > summary { align-items: baseline; cursor: pointer; display: flex; font-weight: 600; gap: .5rem; padding: .5rem .75rem; }
+.d109-carte > summary:focus-visible, .d109-perso > summary:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.d109-corps { display: grid; gap: .5rem; padding: 0 .75rem .75rem; }
+.d109-elements { margin: 0; }
+.d109-item { overflow-wrap: anywhere; }
+.d109-attribution { font-style: italic; }
+.d109-force, .d109-statut { border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 10px; color: var(--cds-text-secondary, #525252); font-size: .75rem;
+  padding: 0 .4rem; white-space: nowrap; }
+.d109-statut { background: var(--ui-attention-doux, #fcf4d6); border-color: var(--cds-support-warning, #b28600); color: var(--ui-attention-texte, #3d2f00); }
+.d109-avis { border-left: 4px solid var(--cds-support-warning, #b28600); margin: .25rem 0; padding: .125rem .5rem; }
+.d109-nettoyage { border-style: dashed; }
+.d109-proposition { border: 1px dashed var(--cds-border-strong, #8d8d8d); border-radius: 6px; margin-top: .5rem; padding: .5rem; }
+.d109-comparaison { display: grid; gap: .5rem 1rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); margin: .25rem 0; }
+.d109-comparaison dt { color: var(--cds-text-secondary, #525252); font-size: .8125rem; }
+.d109-comparaison dd { margin: 0; overflow-wrap: anywhere; }
+.d109-instances { list-style: none; margin: .25rem 0; padding: 0; }
+.d109-outils { align-items: flex-start; display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
+.d109-perso { min-width: 0; }
+.d109-perso[open] { flex: 1 1 100%; }
+.d109-cartes input[type=number] { width: 4.5rem; }
+@media (max-width: 640px) {
+  .d109-questions, .d109-bref { grid-template-columns: 1fr; }
+}

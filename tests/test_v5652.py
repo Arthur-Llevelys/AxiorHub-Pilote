@@ -322,7 +322,9 @@ class Routines(Base):
         self.desk.setting('routines520', cfg)
         rt.migrate(self.desk)
         rows = {r['id']: r for r in self.desk.db.execute('SELECT * FROM routines5652')}
-        self.assertEqual(set(rows), {'r520-briefing', 'r520-tri', 'r520-bilan'})
+        # 5.6.109 (lot B) : la routine livrée par défaut « Rappel de rendez-vous » (type fermé, désactivée) existe dès le démarrage
+        self.assertEqual({k for k, r in rows.items() if r['task_type'] not in rt.TYPES_FERMES}, {'r520-briefing', 'r520-tri', 'r520-bilan'})
+        self.assertEqual({k: r['enabled'] for k, r in rows.items() if r['task_type'] in rt.TYPES_FERMES}, {'r109-rappel-rdv': 0})
         self.assertEqual(rows['r520-bilan']['enabled'], 0)
         self.assertFalse(rt.migrate(self.desk))                                                 # relançable, sans effet
         self.assertTrue(self.desk.settings('routines5652:backup520'))

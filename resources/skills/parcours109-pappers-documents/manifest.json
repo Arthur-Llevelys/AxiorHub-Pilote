@@ -1,0 +1,39 @@
+{
+  "id": "builtin.parcours109.pappers_documents",
+  "name": "Documents publics des sociétés du dossier",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub proposition de développement",
+  "license": "AGPL-3.0",
+  "description": "Rechercher et classer les documents de sociétés par une API autorisée, avec provenance et budget.",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "redaction_courriel",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "statuts pappers",
+    "documents pappers",
+    "actes pappers",
+    "comptes pappers",
+    "documents publics pappers"
+  ],
+  "enabled_default": true,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "activation_note": "Méthode uniquement ; collecte soumise aux droits, à la connexion et à l’autorisation de mission."
+}

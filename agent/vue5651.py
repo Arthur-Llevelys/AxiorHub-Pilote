@@ -25,10 +25,20 @@ CHRONO_FILTERS = (('litige', 'Vie du litige'), ('procedure', 'Procédure'), ('to
 PRECISION = {'jour': '', 'mois': ' (mois seulement)', 'annee': ' (année seulement)', 'inconnue': ''}
 
 
-def _date_fr(value, precision='jour'):
+def _date_fr(value, precision='jour', fuseau=None):
+    """Date française d'une valeur ``AAAA-MM-JJ`` (ou ``AAAA-MM``, ``AAAA``). 5.6.109 (C02) : une date de stockage complète — HTTP
+    (« Wed, 14 Oct 2026 10:00:00 GMT ») ou ISO avec heure et fuseau — est convertie dans le fuseau du cabinet AVANT d'être mise en forme ;
+    elle n'est plus coupée à dix caractères (« Wed, 14 Oc »). Valeur illisible : ``''``, jamais un fragment de la chaîne d'origine."""
     from .dossier5627 import _date_fr as fr
+    import re
     if not value:
         return ''
+    value = str(value)
+    if not re.match(r'\d{4}', value) or re.match(r'\d{4}-\d{2}-\d{2}[T ]\d', value):
+        from .tri56109 import jour_cabinet
+        value = jour_cabinet(value, fuseau)
+        if not value:
+            return ''
     if precision == 'mois' and len(value) >= 7:
         months = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre')
         return '%s %s' % (months[int(value[5:7]) - 1], value[:4])

@@ -51,6 +51,9 @@ INTRO = ('La température réduit ou augmente la variation des réponses. La fen
 # Paramètres réellement transmis selon le fournisseur (les autres sont signalés comme non pris en charge).
 SUPPORTED_BY = {'ollama': set(SAMPLING), 'openrouter': {'temperature', 'top_p', 'top_k', 'min_p', 'repeat_penalty'},
                 'openai': {'temperature', 'top_p'}, 'mistral': {'temperature', 'top_p'}, 'anthropic': {'temperature'}}
+# 5.6.109 (lot E) : fournisseurs qui exigent top_p explicite en échantillonnage glouton (température 0). Mistral : refus 400 constaté
+# (« invalid_request_greedy_sampling », code 3054) pour temperature 0 sans top_p ou avec top_p ≠ 1 ; accepté avec top_p 1. Une ligne par fournisseur.
+TOP_P_GLOUTON = {'mistral': 1}
 
 
 def number(value, key):
@@ -152,6 +155,11 @@ def provider_options(provider_type, temperature, sampling):
             sent[key] = value
         else:
             ignored.append(key)
+    exige = TOP_P_GLOUTON.get(provider_type)
+    if exige is not None and temperature is not None and not isinstance(temperature, bool) and float(temperature) == 0:
+        if 'top_p' in sent and sent['top_p'] != exige:
+            ignored.append('top_p (échantillonnage glouton)')   # relevé des paramètres transmis : le top_p du profil n'est pas envoyé
+        sent['top_p'] = exige
     return sent, ignored
 
 

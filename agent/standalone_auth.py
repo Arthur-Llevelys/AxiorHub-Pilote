@@ -106,6 +106,81 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56108/ia-locale/'):   # 5.6.108 (lot L) : « Configurer l'IA locale » (administrateur seulement ; le service refait le contrôle, GET compris)
         from .ia_locale56108 import allowed as allowed56108l
         return allowed56108l(role, method, api)
+    if api.startswith('m56109/fiche/'):   # 5.6.109 (lot D, F04) : fiche du dossier (les trois rôles du cabinet ; dossier, version, clé et droit « réglages » du modèle de fiche relus par le service)
+        from .projection56109 import allowed as allowed56109d
+        return allowed56109d(role, method, api)
+    if api.startswith('m56109/honoraires/'):   # 5.6.109 (lot D, F05) : catalogue de prestations (droits « voir_honoraires », « facturation », « réglages » relus par le service ; publier : jamais un assistant)
+        from .catalogue56109 import allowed as allowed56109h
+        return allowed56109h(role, method, api)
+    if api.startswith('m56109/reanalyse/'):   # 5.6.109 (lot A, F03) : lancer, arrêter une analyse, décider d'une proposition (avocat et administrateur ; dossier, droits et version relus par le service)
+        from .reanalyse56109 import allowed as allowed56109a
+        return allowed56109a(role, method, api)
+    if api.startswith('m56109/conso/'):   # 5.6.109 (lot M, F18) : relevé « Consommation et coûts » — lecture seule : aucune écriture, pour aucun rôle hors administrateur (le service refuse aussi la sienne)
+        return False
+    if api.startswith('m56109/sources/'):   # 5.6.109 (lot S, F11) : « Revérifier » une source publique (administrateur seulement)
+        from .sources_publiques56109 import allowed as allowed56109s
+        return allowed56109s(role, method, api)
+    if api.startswith('m56109/international/'):   # 5.6.109 (lot S, G18-G19) : identifier une société étrangère, collecter ses documents publics (avocat et administrateur ; dossier relu par le service)
+        from .international56109 import allowed as allowed56109i
+        return allowed56109i(role, method, api)
+    if api.startswith('m56109/historique/'):   # 5.6.109 (lot H, F09) : brouillon (trois rôles) ; attribution d'anciennes discussions (administrateur ; preuve écrite, trace)
+        from .historique56109 import allowed as allowed56109h
+        return allowed56109h(role, method, api)
+    if api.startswith('m56109/discussions/'):   # 5.6.109 (lot H, F09) : actions sur les discussions (trois rôles ; propriété, ACL, politique, droit « supprimer » et révision relus par le service) ; politique : administrateur
+        from .discussions56109 import allowed as allowed56109di
+        return allowed56109di(role, method, api)
+    if api.startswith('m56109/apparence/'):   # 5.6.109 (lot H, F10) : préférence d'apparence du compte connecté (trois rôles ; jamais celle d'un autre compte)
+        from .apparence56109 import allowed as allowed56109ap
+        return allowed56109ap(role, method, api)
+    if api.startswith('m56109/choix-modele/'):   # 5.6.109 (lot T) : modèle fixé et contexte transmis par fonction (administrateur seulement)
+        from .choix_modele56109 import allowed as allowed56109cm
+        return allowed56109cm(role, method, api)
+    if api.startswith('m56109/navigateur/'):   # 5.6.109 (lot O, G13 et G24) : modèle du navigateur (administrateur) ; prise et reprise de main (trois rôles ; titulaire de la séance relu par le service)
+        from .navigateur56109 import allowed as allowed56109nav
+        return allowed56109nav(role, method, api)
+    if api.startswith('m56109/livrables/'):   # 5.6.109 (lot V, F08) : livrables structurés (créer, enregistrer : trois rôles ; plan des sous-agents : avocat ; document, dossier, sources et révision relus par le service)
+        from .artefacts56109 import allowed as allowed56109v
+        return allowed56109v(role, method, api)
+    if api.startswith('m56109/modeles/'):   # 5.6.109 (lot V, F08) : modèles Word du cabinet (importer : avocat ; valider : avocat ayant le droit « valider un modèle » ; produire : trois rôles)
+        from .modele_docx56109 import allowed as allowed56109m
+        return allowed56109m(role, method, api)
+    if api.startswith('m56109/editeurs/'):   # 5.6.109 (lot V, F16) : éditeurs Craft facultatifs (séances : trois rôles ; installer, activer : administrateur ; séance et droits relus par le service)
+        from .craft56109 import allowed as allowed56109c
+        return allowed56109c(role, method, api)
+    if api.startswith('m56109/poste/'):   # 5.6.109 (lot O, F12 et G13) : autorisations de mission, pause, révocation, appairage (trois rôles ; mission, dossiers et propriétaire relus par le service)
+        from .poste56109 import allowed as allowed56109poste
+        return allowed56109poste(role, method, api)
+    if api.startswith('m56109/bland/'):   # 5.6.109 (lot B) : téléphonie par IA — clé, test, activation (administrateur) ; confirmer, annuler, constater, rappels, agents (avocat et administrateur) ; préparer (trois rôles, jamais confirmer)
+        from .bland56109 import allowed as allowed56109bland
+        return allowed56109bland(role, method, api)
+    if api.startswith('m56109/decision/'):   # 5.6.109 (lot K, F07) : réglage de l'organisation locale (administrateur) ; réponse à une question ciblée (trois rôles ; propriétaire, dossier et version relus par le service)
+        from .decision56109 import allowed as allowed56109dec
+        return allowed56109dec(role, method, api)
+    if api.startswith('m56109/simulation/'):   # 5.6.109 (lot N, F14) : simulation de décision — cadrage, simuler, annuler, corriger, conserver (avocat et administrateur ; dossier, révision, simulation et clé relus par le service)
+        from .simulation56109 import allowed as allowed56109sim
+        return allowed56109sim(role, method, api)
+    if api.startswith('m56109/fonds/'):   # 5.6.109 (lot Q, G23) : fonds juridique local — import, mise à jour, suspension, index (administrateur seulement)
+        from .fonds_juridique56109 import allowed as allowed56109fonds
+        return allowed56109fonds(role, method, api)
+    if api.startswith('m56109/fichiers-locaux/'):   # 5.6.109 (lot Q, F13) : emplacements du poste (trois rôles ; ajout : avocat et administrateur ; propriétaire, poste et révision relus par le service)
+        from .contexte56109 import allowed as allowed56109local
+        return allowed56109local(role, method, api)
+    if api.startswith('m56109/gemini/'):   # 5.6.109 (lot E, F15) : connexion Google Gemini (tester, enregistrer, activer : administrateur seulement)
+        from .gemini56109 import allowed as allowed56109gemini
+        return allowed56109gemini(role, method, api)
+    if api.startswith('m56109/gestion/'):   # 5.6.109 (lot G1) : préfacturation, assistance régulière, fonds/frais/débours (trois rôles ; droits « facturation » et « voir_honoraires » relus par le service ; clôturer, qualifier, vérifier une coordonnée bancaire : avocat et administrateur)
+        from .gestion56109 import allowed as allowed56109gestion
+        return allowed56109gestion(role, method, api)
+    if api.startswith('m56109/operations/'):   # 5.6.109 (lot G3) : closing, suites, formalités (trois rôles ; autoriser un effet, décision qualifiée, confirmer une obligation, constater : avocat et administrateur ; opération, dossier, version et clé relus par le service)
+        from .closing56109 import allowed as allowed56109g3
+        return allowed56109g3(role, method, api)
+    if api.startswith(('m56109/partage/', 'm56109/appels/', 'm56109/remplacements/', 'm56109/kit/')):   # 5.6.109 (lot G2) : partage client, remplacements (écritures : avocat et administrateur) ; appels, kit d'audience, retour du client en quarantaine (trois rôles) ; dossier, version, clé relus par le service
+        from . import appels56109, kit_audience56109, partage_client56109, remplacements56109
+        module = {'partage': partage_client56109, 'appels': appels56109, 'remplacements': remplacements56109, 'kit': kit_audience56109}[api.split('/')[1]]
+        return module.allowed(role, method, api)
+    if api.startswith('m56109/parcours/'):   # 5.6.109 (lot G4) : offre (trois rôles, droit « facturation » relu) ; collecte, dépôt des brouillons, routine, Pappers (avocat et administrateur) ; profils de portail et politique Pappers (administrateur)
+        from .parcours56109 import allowed as allowed56109g4
+        return allowed56109g4(role, method, api)
     if api.startswith('m56106/redaction/'):   # 5.6.106 (lot R) : modèles de réponse (avocat, administrateur ; auteur et version relus par le service)
         from .redaction56106 import allowed as allowed56106r
         return allowed56106r(role, method, api)

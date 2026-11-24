@@ -25,6 +25,13 @@ def _routes(desk):
 
 
 def current(desk):
+    """5.6.109 (lot T) : le libellé du mode général reste vrai quand des fonctions ont un modèle fixé (« … ; N fonction(s) réglée(s) à la main »)."""
+    out = _current_general(desk)
+    from .choix_modele56109 import libelle_general
+    return {**out, 'label': libelle_general(desk, out['label'])}
+
+
+def _current_general(desk):
     from .ai_gateway import PURPOSES
     from .hybrid400 import policy
     from . import politique5682
@@ -90,6 +97,8 @@ def apply_mixed(desk, provider_id, model, local_model='', test=True):
     for value in (model, local_model):
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:/-]{0,159}', value):
             raise Stop('modele_fournisseur_invalide')
+    from .modeles_catalogue56109 import exiger   # 5.6.109 (lot E) : modèle listé par la clé (catalogue relu si besoin quand le test est demandé)
+    exiger(desk, provider_id, model, relecture=test)
     if test:
         from .model import Model
         Model({**provider, 'model': model})                # contrôle de la clé et de l'adresse ; aucun contenu n'est envoyé
@@ -144,9 +153,10 @@ def page(desk, prefix, shell, csrf):
         '<p class="m5-warn">Aucun fournisseur externe n’est encore activé et autorisé. Renseignez-en un (clé API, « Activer », « J’autorise l’envoi… ») dans '
         '<a href="%s">Paramètres › IA</a>.</p>' % e(prefix + '/parametres?tab=ia'))
     log = pseudo540.recent(desk.c['state_dir'], 30)
-    rows = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td><button type="button" class="ax-btn ghost m5-mini" data-p540-sample="%d">Voir</button></td></tr>' % (
+    rows = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td><button type="button" class="ax-btn ghost m5-mini" data-p540-sample="%d">Voir</button></td></tr>' % (
         e(_local(x['at'])), e(x['provider']), e(x['model']), e(x['purpose']),
-        e(', '.join('%s : %d' % (pseudo540.LABELS.get(k, k), n) for k, n in x['counts'].items()) or 'aucun remplacement'), x['characters'], x['id']) for x in log)
+        e(', '.join('%s : %d' % (pseudo540.LABELS.get(k, k), n) for k, n in x['counts'].items()) or 'aucun remplacement'), x['characters'],
+        e(pseudo540.ETATS.get(x.get('etat', ''), pseudo540.ETATS[''])), x['id']) for x in log)   # 5.6.109 (lot P) : état réel (préparé, émis, refusé, à vérifier)
     labels = sorted(((m['id'], matter_display(m)) for m in _matters(desk)), key=lambda x: x[1].lower())
     search_card = _search_card(desk)
     matter_opts = ''.join('<option value="%s">%s</option>' % (e(k, quote=True), e(v)) for k, v in labels)
@@ -154,7 +164,7 @@ def page(desk, prefix, shell, csrf):
     body = ('<div class="ia540"><h1>Intelligence artificielle</h1>'
             '<p class="ax-muted">Une seule rubrique : modèles locaux, routage par fonction, régime économe et consommation, puis l’IA externe sûre. '
             'Tout envoi à un fournisseur non local est <strong>pseudonymisé sur le serveur</strong>, puis la réponse est rétablie localement.</p>'
-            + _politique5682(desk) +
+            + _politique5682(desk, prefix).replace('%', '%%') +   # 5.6.109 : la carte peut afficher un pourcentage ; elle entre dans un gabarit « % » ; préfixe transmis (I2)
             '%s<h2 class="ia540-sub">IA externe sûre</h2><p class="ax-muted">Ce que l’agent envoie hors du serveur, quand et sous quelle forme.</p>'
             '<section class="ax-card"><h2>Mode d’utilisation</h2><p><strong>Actuellement :</strong> %s</p>%s'
             '<div class="ia540-modes"><article><h3>Tout en local</h3><p>Modèle Ollama du serveur pour tout. Confidentialité maximale ; vitesse limitée par le serveur.</p>'
@@ -172,19 +182,22 @@ def page(desk, prefix, shell, csrf):
             '<h3>Remplacements (gardés sur le serveur)</h3><table class="vf-table"><thead><tr><th>Marqueur</th><th>Donnée d’origine</th><th>Catégorie</th></tr></thead>'
             '<tbody id="p540-table"></tbody></table><p class="vf-note" id="p540-check"></p></div></section>'
             '<section class="ax-card"><h2>Journal des envois (7 jours)</h2>%s<pre class="ia540-sent" id="p540-sample" hidden></pre>'
-            '<p class="vf-note">Le journal garde, sur le serveur, le texte tel qu’il est parti (déjà pseudonymisé), 7 jours. La table de correspondance n’est jamais conservée.</p></section>'
+            '<p class="vf-note">Le journal garde, sur le serveur, le texte préparé pour l’envoi (déjà pseudonymisé) et l’état réel de chaque ligne, 7 jours. '
+            'Une ligne « Préparé, non émis » ou « Refusé avant l’envoi » ne prouve aucune transmission. La table de correspondance n’est jamais conservée.</p></section>'
             '<section class="ax-card"><h2>Limites</h2><ul><li>La pseudonymisation n’est pas une anonymisation : un détail factuel (une date, un lieu, un montant '
             'singulier) peut encore permettre de reconnaître une affaire. Les données restent des données personnelles au sens du RGPD.</li>'
             '<li>Les noms écrits en minuscules ou les prénoms rares sans civilité peuvent échapper à la détection : vérifiez l’aperçu sur vos textes types.</li>'
             '<li>Préférez un fournisseur avec engagement de non-conservation ou hébergement européen, et un contrat de traitement des données.</li></ul></section>'
             '</div><script defer src="%s"></script>') % (
         local_models_html(desk, prefix), e(cur['label']), _mixte5681(desk), mixed, e(prefix + '/routage-hybride'), secours_html(desk, prefix), matter_opts,
-        ('<table class="vf-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>Modèle</th><th>Fonction</th><th>Remplacements</th><th>Caractères</th><th></th></tr></thead>'
+        ('<table class="vf-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>Modèle</th><th>Fonction</th><th>Remplacements</th><th>Caractères</th><th>État</th><th></th></tr></thead>'
          '<tbody>%s</tbody></table>' % rows) if rows else '<p class="ok">Aucun envoi externe sur les 7 derniers jours.</p>',
         e(prefix + '/static/v540.js'))
     from . import economie569, pseudo5677
     body = body.replace('<form class="m5-form" id="p540-form"', pseudo5677.autotest_html() + search_card + '<form class="m5-form" id="p540-form"', 1)
     body = body.replace('<h2 class="ia540-sub">IA externe sûre</h2>', economie569.section_html(desk, prefix) + '<h2 class="ia540-sub">IA externe sûre</h2>', 1)
+    from .transmission56109 import information_html as _information56109   # 5.6.109 (lot P) : ce qui est réellement masqué, les contrôles, les limites
+    body = body.replace('<section class="ax-card"><h2>Limites</h2>', _information56109() + '<section class="ax-card"><h2>Limites</h2>', 1)
     return shell('Intelligence artificielle', body, prefix, csrf, '/ia-externe')
 
 
@@ -196,6 +209,14 @@ def local_models_html(desk, prefix):
     cfg = desk.c.get('ollama') or {}
     profile = economie569.model_profile(desk)
     installed = ', '.join('%s (%s Go)' % (e(m['name']), m['size_gb']) for m in profile.get('models', [])) if profile.get('available') else 'Ollama ne répond pas ou aucun modèle installé'
+    from .interface56100 import active as _interface56100
+    from .membres5650 import current_author as _auteur56109
+    if _interface56100(desk, _auteur56109() or 'cabinet'):   # 5.6.109 (lot T) : tableau réglable (connexion, modèle, contexte) ; ancienne présentation derrière l'interrupteur
+        from .choix_modele56109 import tableau_html
+        return ('<section class="ax-card" id="ia5613-local"><h2>Modèles locaux et routage</h2>'
+                '<p>Ollama : <code>%s</code> · modèle par défaut <strong>%s</strong> · fenêtre de contexte %s jetons. '
+                '<a href="%s/parametres/connexions">Modifier (Connexions › Intelligence artificielle)</a></p><p>Modèles installés : %s.</p>%s</section>') % (
+            e(str(cfg.get('url', ''))), e(str(cfg.get('model', ''))), e(str(cfg.get('num_ctx', ''))), e(prefix), installed, tableau_html(desk, prefix, profile))
     rows = ''
     for purpose, (label, role) in PURPOSES.items():
         try:
@@ -238,6 +259,8 @@ def handle(desk, name, data, method='POST', args=None):
     if n == 'preview' and method == 'POST':
         out = pseudo540.preview(pseudo_sources(desk.c), data.get('text', ''), data.get('matter', ''))
         desk.audit('ia540_apercu', {'counts': out['counts']})
+        from .transmission56109 import traduire as _traduire56109   # 5.6.109 (lot P) : note et limites de l'aperçu, dans la langue de l'écran
+        out.update(note=_traduire56109(out['note']), limites=[_traduire56109(x) for x in out['limites']])
         return {**out, 'message': 'Aperçu prêt : %d remplacement(s). Rien n’a été envoyé.' % len(out['replacements'])}
     if n == 'sample' and method == 'GET':
         try:
@@ -278,6 +301,8 @@ def apply_external_all(desk, provider_id, model):
     model = str(model or provider.get('model') or '').strip()
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:/-]{0,159}', model):
         raise Stop('modele_fournisseur_invalide')
+    from .modeles_catalogue56109 import exiger   # 5.6.109 (lot E) : modèle listé par la clé, catalogue relu s'il n'a jamais été lu
+    exiger(desk, provider_id, model)
     _write_routes(desk, {p: {'provider': provider_id, 'model': model} for p in PURPOSES})
     _set_mode(desk, 'manual')
     _reset_policy(desk)

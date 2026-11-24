@@ -1,0 +1,25 @@
+/* AxiorHub 5.6.109 (lot B) — téléphonie par IA (Bland) : carte des Paramètres › Connexions API, demande à confirmer (/operation), routines
+   « Mes routines | Mes agents IA » (rappel de rendez-vous, agents IA). Couleurs par les variables communes (clair et sombre) ; focus visible. */
+.b109-carte .cx52-state { margin-left: 8px; }
+.b109-etat-pret { color: var(--ax-success-text, #1a7f37); }
+.b109-etat-cle_refusee, .b109-etat-hors_ligne { color: var(--ax-danger, #b42318); }
+.b109-etat-a_verifier, .b109-etat-non_configure { color: var(--ax-warning, #9a6700); }
+.b109-avertissement, .b109-exception, .b109-alerte { margin: 6px 0 10px; padding: 6px 10px; border-left: 3px solid var(--ax-warning, #9a6700);
+  background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); border-radius: 4px; }
+.b109-alerte { border-left-color: var(--ax-danger, #b42318); }
+.b109-form { margin: 4px 6px 4px 0; }
+.b109-form label { display: block; margin: 4px 0; }
+.b109-form.r52-inline { display: inline-block; }
+.b109-outils ul, .b109-demandes, .b109-lot ul { padding-left: 20px; max-height: 320px; overflow: auto; }
+.b109-texte { white-space: pre-wrap; word-break: break-word; margin: 4px 0; padding: 6px 8px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 4px;
+  background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.b109-fiche dd strong { font-size: 1.05em; }
+.b109-lot { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff);
+  color: var(--ax-text, #1b1f24); }
+.b109-lot h4, .b109-carte h4 { margin: 8px 0 4px; font-size: 1em; }
+.b109-carte summary:focus-visible, .b109-carte button:focus-visible, .b109-carte input:focus-visible, .b109-carte a:focus-visible,
+.b109-fiche button:focus-visible, .b109-fiche input:focus-visible, .b109-fiche summary:focus-visible, .b109-routine summary:focus-visible,
+.b109-routine button:focus-visible, .b109-routine input:focus-visible, .b109-routine textarea:focus-visible, .b109-routine select:focus-visible,
+.b109-creer summary:focus-visible, .b109-creer input:focus-visible, .b109-creer button:focus-visible, .b109-agent button:focus-visible {
+  outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+@media (max-width: 720px) { .b109-form.r52-inline { display: block; } }

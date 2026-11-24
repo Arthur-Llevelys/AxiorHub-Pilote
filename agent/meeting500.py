@@ -341,7 +341,55 @@ def draft(desk, event_id, notes):
     if ev['matter']:
         lines.append('Dossier : %s' % m5.matter_label(desk, ev['matter']))
     lines += ['Participants : à compléter', '']
-    warnings = []
+    body, warnings = _corps_sections(sections)
+    lines += body
+    lines.append('Projet établi à partir de vos notes, sans ajout ni réécriture : à relire et à valider avant tout usage.')
+    return {'event_id': event_id, 'matter': ev['matter'], 'text': '\n'.join(lines), 'sections': sections, 'warnings': warnings[:20]}
+
+
+# 5.6.109 (lot G2, G06) : source du compte rendu. Un appel est une source « appel » distincte d'un rendez-vous : il n'a jamais d'``event_id``
+# (aucun faux événement d'agenda) ; son compte rendu canonique est une version du registre commun des livrables (``livrables5689``).
+SOURCES_COMPTE_RENDU = {'evenement': 'Rendez-vous', 'appel': 'Appel'}
+SERVICE_APPEL = 'appels56109'
+
+
+def draft_appel(desk, appel, notes):
+    """Projet de compte rendu d'un APPEL (dictée ou saisie de l'avocat) : même structuration sans ajout ni réécriture que ``draft`` ; durée
+    inconnue laissée « à compléter » (jamais déduite de la longueur du texte) ; interlocuteur non confirmé dit tel quel."""
+    sections = structure_notes(notes)
+    start = _parse_dt(appel.get('instant_utc'))
+    when = (fr_long(start.date()) + start.strftime(' à %H:%M UTC')) if start else str(appel.get('instant_utc') or '')[:16]
+    lines = ['COMPTE RENDU D’APPEL (PROJET)', '', 'Appel %s' % ('reçu' if appel.get('sens') == 'entrant' else 'passé'), 'Date : %s' % when,
+             'Interlocuteur : %s' % ((appel.get('interlocuteur') or 'à préciser') + (' (à confirmer)' if appel.get('contact_a_confirmer') else '')),
+             'Dossier : %s' % (m5.matter_label(desk, appel['matter_id']) if appel.get('matter_id') else 'non rattaché'),
+             'Durée : %s' % (('%d min' % appel['duree_minutes']) if appel.get('duree_minutes') is not None else 'à compléter'), '']
+    body, warnings = _corps_sections(sections)
+    lines += body
+    lines.append('Projet établi à partir de vos notes, sans ajout ni réécriture : à relire et à valider avant tout usage.')
+    return {'source': {'kind': 'appel', 'id': appel.get('id')}, 'matter': appel.get('matter_id') or '', 'text': '\n'.join(lines), 'sections': sections,
+            'warnings': warnings[:20]}
+
+
+def save_report_appel(desk, appel, text, revision, owner):
+    """Compte rendu canonique d'un appel : version ``rev:N`` du registre commun des livrables (service ``appels56109``, objet = l'appel),
+    SANS commit (transaction de l'appelant). Jamais une ligne de ``meeting500_reports`` (réservée aux rendez-vous de l'agenda)."""
+    from . import livrables5689 as liv
+    text = str(text or '').strip()[:30000]
+    if not text:
+        raise Stop('notes_vides')
+    liv.ensure_schema(desk)
+    sha = __import__('hashlib').sha256(text.encode('utf-8')).hexdigest()
+    titre = 'Compte rendu d’appel — %s' % (appel.get('interlocuteur') or 'interlocuteur à préciser')
+    item = liv.observe(desk, {'service': SERVICE_APPEL, 'object': appel['id'], 'version': 'rev:%d' % int(revision), 'matter': appel.get('matter_id') or '',
+                              'kind': 'note', 'label': 'Compte rendu d’appel', 'title': titre[:300], 'state': 'verified', 'sha256': sha, 'owner': str(owner)[:160],
+                              'provenance': {'producteur': SERVICE_APPEL, 'source': 'appel', 'appel': appel['id'], 'revision': int(revision), 'sha256': sha}})
+    row = desk.db.execute('SELECT id, document_id, version_id FROM prepared_items5689 WHERE id=?', (item,)).fetchone()
+    return {'item_id': row['id'], 'document_id': row['document_id'], 'version_id': row['version_id'], 'sha256': sha}
+
+
+def _corps_sections(sections):
+    """Sections structurées → lignes du projet et avertissements (action sans responsable ou sans date complète : signalée, jamais complétée)."""
+    lines, warnings = [], []
     for key in ('points', 'decisions', 'actions', 'a_confirmer'):
         items = sections[key]
         if not items:
@@ -359,8 +407,7 @@ def draft(desk, event_id, notes):
                     warnings.append('Action sans date complète : « %s »' % it['text'][:80])
             lines.append('- ' + it['text'] + extra)
         lines.append('')
-    lines.append('Projet établi à partir de vos notes, sans ajout ni réécriture : à relire et à valider avant tout usage.')
-    return {'event_id': event_id, 'matter': ev['matter'], 'text': '\n'.join(lines), 'sections': sections, 'warnings': warnings[:20]}
+    return lines, warnings
 
 
 def save_report(desk, event_id, text, status='brouillon'):

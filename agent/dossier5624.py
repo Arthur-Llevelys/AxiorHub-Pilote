@@ -17,6 +17,8 @@ import hashlib
 from html import escape as e
 import json
 from pathlib import PurePosixPath
+import re
+import sqlite3
 from urllib.parse import urlencode
 
 from .common import Stop, load_matters
@@ -24,6 +26,23 @@ from .common import Stop, load_matters
 SCHEMA = '''CREATE TABLE IF NOT EXISTS analyses5624(
  matter TEXT NOT NULL, step TEXT NOT NULL, state TEXT NOT NULL, revision TEXT NOT NULL DEFAULT '', counters TEXT NOT NULL DEFAULT '{}',
  error TEXT NOT NULL DEFAULT '', started TEXT NOT NULL DEFAULT '', finished TEXT NOT NULL DEFAULT '', PRIMARY KEY(matter,step));'''
+# 5.6.109 (C04) : couverture réelle. Chaque étape garde sa révision d'ENTRÉE (figée avant la lecture, jamais antidatée) et sa campagne ; une
+# campagne est une demande d'analyse (une seule active par dossier : clé métier des demandes simultanées) ; la couverture garde l'état de
+# chaque pièce et de chaque courriel éligible à sa version (traité, en attente, en erreur, exclu, avec le motif), ce que le repérage des faits
+# a lu et ce que le modèle a réellement reçu pour la synthèse (une indexation n'est pas une analyse par le modèle).
+COLONNES_56109 = (('entree', "TEXT NOT NULL DEFAULT ''"), ('campagne', 'INTEGER NOT NULL DEFAULT 0'))
+SCHEMA_56109 = '''
+CREATE TABLE IF NOT EXISTS analyses5624_campagnes(matter TEXT NOT NULL, numero INTEGER NOT NULL, mode TEXT NOT NULL DEFAULT 'complete',
+ etat TEXT NOT NULL DEFAULT 'demandee', job_id INTEGER NOT NULL DEFAULT 0, demande_par TEXT NOT NULL DEFAULT '', cle TEXT NOT NULL DEFAULT '',
+ etapes TEXT NOT NULL DEFAULT '[]', entrees TEXT NOT NULL DEFAULT '{}', instantane TEXT NOT NULL DEFAULT '{}', bilan TEXT NOT NULL DEFAULT '{}',
+ cree_le TEXT NOT NULL, maj_le TEXT NOT NULL, fini_le TEXT NOT NULL DEFAULT '', PRIMARY KEY(matter, numero));
+CREATE UNIQUE INDEX IF NOT EXISTS analyses5624_campagne_active ON analyses5624_campagnes(matter) WHERE etat IN ('demandee','en_cours','suspendue');
+CREATE TABLE IF NOT EXISTS analyses5624_couverture(matter TEXT NOT NULL, genre TEXT NOT NULL, ref TEXT NOT NULL, nom TEXT NOT NULL DEFAULT '',
+ version TEXT NOT NULL DEFAULT '', etat TEXT NOT NULL, motif TEXT NOT NULL DEFAULT '', partiel INTEGER NOT NULL DEFAULT 0,
+ fragments INTEGER NOT NULL DEFAULT 0, lu_faits TEXT NOT NULL DEFAULT '', lu_modele TEXT NOT NULL DEFAULT '', campagne INTEGER NOT NULL DEFAULT 0,
+ maj_le TEXT NOT NULL, PRIMARY KEY(matter, genre, ref));
+CREATE INDEX IF NOT EXISTS analyses5624_couverture_etat ON analyses5624_couverture(matter, genre, etat);
+'''
 STEPS = (('indexation', 'Indexation des pièces et courriels'), ('faits', 'Recherche des faits dans les pièces'),
          ('chronologie', 'Chronologie du dossier'), ('synthese', 'Synthèse du dossier (modèle)'))
 RUBRIQUES = (('synthese', 'Synthèse'), ('parties', 'Parties'), ('faits', 'Faits et procédure'), ('pretentions', 'Arguments des parties'),
@@ -31,12 +50,41 @@ RUBRIQUES = (('synthese', 'Synthèse'), ('parties', 'Parties'), ('faits', 'Faits
              ('ecritures', 'Écritures et projets'), ('simulation', 'Simulation'), ('decisions', 'Décisions'), ('actions', 'Actions'),
              ('structure', 'Dossier structuré'), ('conseil', 'Conseil'))   # 5.6.89 : mémoire typée, mission de consultation, revue de contrat, accords
 STATE_LABELS = {'jamais': 'jamais lancée', 'en_cours': 'en cours', 'ok': 'terminée', 'erreur': 'en erreur', 'ignoree': 'ignorée', 'a_jour': 'à jour',
-                'perimee': 'périmée (sources ou faits modifiés depuis)', 'partielle': 'partielle'}
+                'perimee': 'périmée (sources ou faits modifiés depuis)', 'partielle': 'partielle',
+                'interrompue': 'interrompue (arrêt, pause ou attente)'}   # 5.6.109 (C05) : jamais « en cours » sans travail, jamais « terminée »
+LOTS_INDEXATION = 10      # lots d'indexation par passage du travail : une borne de travail, jamais une preuve de fin (C04)
+MODES = {'changements': 'Actualiser ce qui a changé', 'complete': 'Analyse complète'}
+CAMPAGNES_ACTIVES = ('demandee', 'en_cours', 'suspendue')
+ETATS_CAMPAGNE = {'demandee': 'demandée', 'en_cours': 'en cours', 'suspendue': 'suspendue (reprise possible)', 'terminee': 'terminée',
+                  'partielle': 'partielle', 'annulee': 'annulée', 'interrompue': 'interrompue'}
+ETATS_COUVERTURE = {'traite': 'lu', 'en_attente': 'en attente', 'en_erreur': 'à vérifier', 'exclu': 'exclu'}
+MOTIFS_COUVERTURE = {
+    'aucun_texte_lisible': 'aucun texte lisible (scan sans texte ou page vide)',
+    'texte_non_recupere': 'courriel rattaché au dossier dont le texte n’a pas été récupéré',
+    'representation_secondaire_de_correspondance': 'copie de lecture d’un courriel déjà conservé',
+    'piece_trop_volumineuse': 'fichier trop volumineux pour être lu',
+    'archive_decompressee_trop_grosse': 'archive trop volumineuse une fois décompressée',
+    'lecture_partielle': 'document long : seule une partie a été indexée',
+}
+EXCLUSIONS = ('representation_secondaire_de_correspondance', 'piece_trop_volumineuse', 'archive_decompressee_trop_grosse')
+ANNULATIONS = frozenset(('operation_annulee', 'mission_annulee'))
 
 
 def ensure_schema(desk):
-    desk.db.executescript(SCHEMA)
-    desk.db.commit()
+    """Tables de l'analyse (démarrage, puis filet de sécurité des appels). Sans changement : aucune écriture, aucune validation (R05)."""
+    voulus = re.findall(r'CREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX)\s+IF\s+NOT\s+EXISTS\s+(\w+)', SCHEMA + SCHEMA_56109)
+    existants = {r[0] for r in desk.db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','index')")}
+    if any(n not in existants for n in voulus):
+        if desk.db.in_transaction:
+            desk.db.commit()
+        desk.db.executescript(SCHEMA + SCHEMA_56109)
+        desk.db.commit()
+    colonnes = {r[1] for r in desk.db.execute('PRAGMA table_info(analyses5624)')}
+    manquantes = [(n, d) for n, d in COLONNES_56109 if n not in colonnes]
+    for nom, definition in manquantes:
+        desk.db.execute('ALTER TABLE analyses5624 ADD COLUMN %s %s' % (nom, definition))
+    if manquantes:
+        desk.db.commit()
 
 
 def _matter(desk, mid):
@@ -46,16 +94,31 @@ def _matter(desk, mid):
     return m
 
 
-def source_revision(desk, mid):
-    """Révision courante : pièces indexées (chemin, version, date), courriels indexés, décisions humaines sur les faits (F30)."""
-    parts = []
+def interruption(ex):
+    """5.6.109 (C05) : arrêt central (annulation, pause, horaires, attente de budget ou d'abonnement, droits ou compte retirés, autre poste
+    exécuteur). Il remonte tel quel au moteur des travaux : jamais transformé en « étape en erreur », en « partial » ni en reprise."""
+    from .reprise56109 import arret_central
+    return arret_central(ex)
+
+
+def _lire_index(desk, mid):
+    """Pièces et courriels indexés du dossier, pour les révisions : deux textes, ou l'exception de lecture (jamais « rien » par défaut)."""
     try:
         from .index import DocumentIndex
         idx = DocumentIndex(desk.c['state_dir'])
-        parts.append(json.dumps([list(r) for r in idx.db.execute('SELECT path,etag,modified FROM docs WHERE matter=? ORDER BY path', (mid,))], default=str))
-        parts.append(str(tuple(idx.db.execute('SELECT COUNT(*),MAX(modified) FROM knowledge_chunks WHERE matter=?', (mid,)).fetchone())))
-    except Exception as ex:
-        parts.append('index_indisponible:' + str(ex)[:40])
+        try:
+            return [json.dumps([list(r) for r in idx.db.execute('SELECT path,etag,modified FROM docs WHERE matter=? ORDER BY path', (mid,))], default=str),
+                    str(tuple(idx.db.execute('SELECT COUNT(*),MAX(modified) FROM knowledge_chunks WHERE matter=?', (mid,)).fetchone()))]
+        finally:
+            idx.db.close()
+    except Exception as ex:   # noqa: BLE001 — index illisible : révision distincte, donc jamais « à jour » par défaut
+        return ex
+
+
+def source_revision(desk, mid, lues=None):
+    """Révision courante : pièces indexées (chemin, version, date), courriels indexés, décisions humaines sur les faits (F30)."""
+    lues = _lire_index(desk, mid) if lues is None else lues
+    parts = ['index_indisponible:' + str(lues)[:40]] if isinstance(lues, Exception) else list(lues)
     try:
         from .legal_memory import ensure_schema as lm_schema
         lm_schema(desk)
@@ -70,128 +133,564 @@ def source_revision(desk, mid):
     return hashlib.sha256('|'.join(parts).encode()).hexdigest()[:16]
 
 
-def _step(desk, mid, step, state, revision='', counters=None, error=''):
+def revision_entrees(desk, mid, lues=None):
+    """5.6.109 (C04) : révisions d'entrée séparées (lecture seule). ``sources`` : pièces et courriels indexés (chemin, version, date) ;
+    ``decisions`` : décisions humaines (faits validés, épinglés, refusés ou archivés, faits de la fiche validés, dossier structuré). Un fait
+    seulement proposé par une étape ne périme ni l'indexation ni l'étape qui l'a produit (avant : une seule révision mêlait les deux)."""
+    def signe(parts):
+        return hashlib.sha256('|'.join(parts).encode()).hexdigest()[:16]
+    lues = _lire_index(desk, mid) if lues is None else lues
+    sources, decisions = (['index_indisponible:' + type(lues).__name__] if isinstance(lues, Exception) else list(lues)), []
+    for sql in ("SELECT id,status,revision FROM legal_memory_records WHERE matter=? AND status IN ('validated','pinned','disputed','archived') ORDER BY id",
+                "SELECT id,status,updated FROM case_facts WHERE matter=? AND status<>'suggested' ORDER BY id",
+                'SELECT COUNT(*),MAX(updated),SUM(revision) FROM case_assertions5689 WHERE matter=?',
+                "SELECT COUNT(*),SUM(etat='courante') FROM source_versions5689 WHERE matter=?"):
+        try:
+            decisions.append(str([tuple(r) for r in desk.db.execute(sql, (mid,))]))
+        except sqlite3.Error:   # table d'un module jamais initialisé : aucune décision de ce genre
+            decisions.append('')
+    return {'sources': signe(sources), 'decisions': signe(decisions)}
+
+
+def _entree(step, entrees):
+    """Ce que l'étape consomme : l'indexation lit le stockage (rien de local ne la périme) ; les faits lisent les sources ; la chronologie et
+    la synthèse lisent les sources et les décisions humaines."""
+    if step == 'indexation':
+        return 'stockage'
+    if step == 'faits':
+        return 's:' + entrees['sources']
+    return 's:%s|d:%s' % (entrees['sources'], entrees['decisions'])
+
+
+def _step(desk, mid, step, state, revision='', counters=None, error='', entree=None, campagne=None):
     now = desk.now()
-    desk.db.execute('INSERT OR IGNORE INTO analyses5624 VALUES(?,?,?,?,?,?,?,?)', (mid, step, state, '', '{}', '', now, ''))
+    desk.db.execute('INSERT OR IGNORE INTO analyses5624(matter,step,state,revision,counters,error,started,finished) VALUES(?,?,?,?,?,?,?,?)',
+                    (mid, step, state, '', '{}', '', now, ''))
     if state == 'en_cours':
         desk.db.execute("UPDATE analyses5624 SET state='en_cours',error='',started=?,finished='' WHERE matter=? AND step=?", (now, mid, step))
     else:
         desk.db.execute('UPDATE analyses5624 SET state=?,revision=?,counters=?,error=?,finished=? WHERE matter=? AND step=?',
                         (state, revision, json.dumps(counters or {}, ensure_ascii=False, default=str), str(error or '')[:300], now, mid, step))
+        if entree is not None:
+            desk.db.execute('UPDATE analyses5624 SET entree=? WHERE matter=? AND step=?', (str(entree), mid, step))
+    if campagne is not None:
+        desk.db.execute('UPDATE analyses5624 SET campagne=? WHERE matter=? AND step=?', (int(campagne), mid, step))
     desk.db.commit()
 
 
-def _pending_job(desk, mid):
+def _pending_job(desk, mid, sauf=None):
     try:
-        return desk.db.execute("SELECT id,status FROM jobs WHERE kind='analyser_dossier5624' AND status IN ('pending','running') AND json_extract(args,'$.matter')=? ORDER BY id DESC LIMIT 1", (mid,)).fetchone()
+        return desk.db.execute("SELECT id,status FROM jobs WHERE kind='analyser_dossier5624' AND status IN ('pending','running','cancel_requested') AND json_extract(args,'$.matter')=? AND id<>? ORDER BY id DESC LIMIT 1", (mid, int(sauf or 0))).fetchone()
     except Exception:
         return None
 
 
-def state(desk, mid):
-    """État de l'analyse du dossier : étapes, révision consommée, fraîcheur, travail en file, dernière réussite."""
+def _waiting_job(desk, mid):
+    """5.6.109 : demande conservée mais qui n'avance pas (suspendue par une pause, ou en file derrière un plafond ou une limite) ; None sinon."""
+    try:
+        row = desk.db.execute("SELECT id,status,stop_reason,blocked_by FROM jobs WHERE kind='analyser_dossier5624' AND json_extract(args,'$.matter')=? "
+                              "AND (status='suspended' OR (status='pending' AND COALESCE(blocked_by,'')<>'')) ORDER BY id DESC LIMIT 1", (mid,)).fetchone()
+    except Exception:   # noqa: BLE001 — colonnes d'une base antérieure : pas d'attente connue
+        return None
+    if not row:
+        return None
+    motif = str(row['stop_reason'] or 'pause') if row['status'] == 'suspended' else str(row['blocked_by'] or '')
+    libelles = {'pause': 'IA en pause : la demande est conservée et reprendra à la reprise de l’IA',
+                'pause_dossier': 'IA en pause sur ce dossier : la demande est conservée et reprendra à la levée de la pause',
+                'pause_horaire': 'pause programmée de l’IA : la demande reprendra à la fin de la plage'}
+    return {'job': row['id'], 'status': row['status'], 'motif': motif,
+            'libelle': libelles.get(motif) or 'la demande attend (%s) : elle reprendra sans nouvelle demande' % motif}
+
+
+# ------------------------------------------------------------------------------------------------ campagnes et couverture (5.6.109, C04)
+def _campagne(desk, mid, numero=None, active=False):
+    if active:
+        row = desk.db.execute("SELECT * FROM analyses5624_campagnes WHERE matter=? AND etat IN ('demandee','en_cours','suspendue') ORDER BY numero DESC LIMIT 1",
+                              (mid,)).fetchone()
+    elif numero:
+        row = desk.db.execute('SELECT * FROM analyses5624_campagnes WHERE matter=? AND numero=?', (mid, int(numero))).fetchone()
+    else:
+        row = desk.db.execute('SELECT * FROM analyses5624_campagnes WHERE matter=? ORDER BY numero DESC LIMIT 1', (mid,)).fetchone()
+    return dict(row) if row else None
+
+
+def _campagne_etat(desk, mid, numero, etat, bilan=None):
+    if not numero:
+        return
+    now = desk.now()
+    desk.db.execute('UPDATE analyses5624_campagnes SET etat=?, maj_le=?, fini_le=CASE WHEN ? THEN ? ELSE fini_le END WHERE matter=? AND numero=?',
+                    (etat, now, int(etat not in CAMPAGNES_ACTIVES), now, mid, int(numero)))
+    if bilan is not None:
+        desk.db.execute('UPDATE analyses5624_campagnes SET bilan=? WHERE matter=? AND numero=?',
+                        (json.dumps(bilan, ensure_ascii=False, default=str), mid, int(numero)))
+    desk.db.commit()
+
+
+def _campagne_ouvrir(desk, mid, args):
+    """Campagne de ce passage : celle de la demande (une reprise retrouve la sienne), sinon la campagne active du dossier, sinon une nouvelle
+    (demande d'une version antérieure, test, relance). Rend ``(numéro, mode)``."""
+    job = int(getattr(desk, 'active_job_id', None) or 0)
+    brut = args.get('campagne')
+    row = _campagne(desk, mid, int(brut)) if str(brut or '').isdigit() else None
+    if row is None or row['etat'] not in CAMPAGNES_ACTIVES:
+        row = _campagne(desk, mid, active=True)
+    now = desk.now()
+    if row is None:
+        mode = args.get('mode') if args.get('mode') in MODES else 'complete'
+        numero = int(desk.db.execute('SELECT COALESCE(MAX(numero),0) FROM analyses5624_campagnes WHERE matter=?', (mid,)).fetchone()[0]) + 1
+        try:
+            desk.db.execute("INSERT INTO analyses5624_campagnes(matter,numero,mode,etat,job_id,etapes,entrees,cree_le,maj_le) VALUES(?,?,?,'en_cours',?,?,?,?,?)",
+                            (mid, numero, mode, job, json.dumps(sorted(args.get('steps') or [])), json.dumps(revision_entrees(desk, mid)), now, now))
+        except sqlite3.IntegrityError:   # une autre demande vient d'ouvrir la campagne du dossier : ce passage la rejoint
+            desk.db.rollback()
+            row = _campagne(desk, mid, active=True) or _campagne(desk, mid)
+            numero, mode = row['numero'], row['mode']
+    else:
+        numero, mode = row['numero'], row['mode']
+        desk.db.execute("UPDATE analyses5624_campagnes SET etat='en_cours', job_id=CASE WHEN ? THEN ? ELSE job_id END, maj_le=? WHERE matter=? AND numero=?",
+                        (int(bool(job)), job, now, mid, numero))
+    desk.db.commit()
+    return numero, mode
+
+
+def _relever_couverture(desk, mid, numero, inventaire_complet):
+    """Après l'indexation (dans le travail, jamais pendant une lecture) : état de CHAQUE pièce et de CHAQUE courriel éligible, à sa version
+    courante. Une version nouvelle remet à zéro « lu par les faits » et « lu par le modèle » ; une pièce disparue n'est retirée que lorsque
+    l'inventaire du stockage est complet (un parcours borné n'est pas une preuve d'absence)."""
+    from .index import DocumentIndex
+    from .common import fold
+    idx = DocumentIndex(desk.c['state_dir'])
+    now = desk.now()
+    partiels = {}
+    for path, kind, meta, n, etag, modified in idx.db.execute(
+            'SELECT path,kind,MAX(meta),COUNT(*),MAX(etag),MAX(modified) FROM knowledge_chunks WHERE matter=? GROUP BY source_id', (mid,)):
+        try:
+            m = json.loads(meta or '{}')
+        except ValueError:
+            m = {}
+        m = m if isinstance(m, dict) else {}
+        partiels[(kind, path)] = (int(m.get('coverage') == 'partial'), int(n), m, str(etag or modified or ''))
+    lignes = []
+    for path, etag, modified, error, longueur in idx.db.execute('SELECT path,etag,modified,error,LENGTH(text) FROM docs WHERE matter=? ORDER BY path', (mid,)):
+        error = str(error or '').split(':')[0]
+        partiel, fragments = partiels.get(('document', path), (0, 0, {}, ''))[:2]
+        if error in EXCLUSIONS or error.startswith('format_a_convertir'):
+            etat, motif = 'exclu', error
+        elif error:
+            etat, motif = 'en_erreur', error
+        elif not longueur:
+            etat, motif = 'en_erreur', 'aucun_texte_lisible'
+        else:
+            etat, motif = 'traite', ('lecture_partielle' if partiel else '')
+        lignes.append(('piece', path, PurePosixPath(path).name, str(etag or modified or ''), etat, motif, partiel, fragments))
+    indexes = {}
+    idx.db.close()
+    for (kind, path), (partiel, fragments, m, version) in sorted(partiels.items()):
+        if kind not in ('email_received', 'email_sent', 'email_history'):
+            continue
+        sujet = str(m.get('subject') or '') or PurePosixPath(path).name
+        lignes.append(('courriel', path, sujet[:300], version, 'traite', 'lecture_partielle' if partiel else '', partiel, fragments))
+        if kind == 'email_received':
+            cle = (fold(sujet), fold(str(m.get('sender') or '')))
+            indexes[cle] = indexes.get(cle, 0) + 1
+    try:   # courriels rattachés au dossier par le registre des courriels : ceux dont le texte n'est pas indexé restent signalés, un par un
+        rattaches = desk.db.execute('SELECT mail_key,subject,sender,received FROM work_items WHERE matter=? ORDER BY received,mail_key LIMIT 5000', (mid,)).fetchall()
+    except sqlite3.Error:
+        rattaches = []
+    for r in rattaches:
+        cle = (fold(str(r['subject'] or '')), fold(str(r['sender'] or '')))
+        if indexes.get(cle, 0) > 0:
+            indexes[cle] -= 1
+            continue
+        lignes.append(('courriel', 'courriel:' + str(r['mail_key']), str(r['subject'] or 'sans objet')[:300], str(r['received'] or ''), 'en_erreur',
+                       'texte_non_recupere', 0, 0))
+    vus = set()
+    for genre, ref, nom, version, etat, motif, partiel, fragments in lignes:
+        vus.add((genre, ref))
+        desk.db.execute(
+            'INSERT INTO analyses5624_couverture(matter,genre,ref,nom,version,etat,motif,partiel,fragments,campagne,maj_le) VALUES(?,?,?,?,?,?,?,?,?,?,?) '
+            'ON CONFLICT(matter,genre,ref) DO UPDATE SET nom=excluded.nom, etat=excluded.etat, motif=excluded.motif, partiel=excluded.partiel, '
+            "fragments=excluded.fragments, campagne=excluded.campagne, maj_le=excluded.maj_le, "
+            "lu_faits=CASE WHEN version=excluded.version THEN lu_faits ELSE '' END, lu_modele=CASE WHEN version=excluded.version THEN lu_modele ELSE '' END, "
+            'version=excluded.version', (mid, genre, ref, nom, version, etat, motif, partiel, fragments, int(numero or 0), now))
+    if inventaire_complet:
+        for r in desk.db.execute('SELECT genre,ref FROM analyses5624_couverture WHERE matter=?', (mid,)).fetchall():
+            if (r['genre'], r['ref']) not in vus:
+                desk.db.execute('DELETE FROM analyses5624_couverture WHERE matter=? AND genre=? AND ref=?', (mid, r['genre'], r['ref']))
+    desk.db.commit()
+    return couverture(desk, mid, inventaire_complet)
+
+
+def _marquer_faits(desk, mid):
+    """Le repérage des faits lit toutes les pièces indexées sans erreur (``facts460.scan_matter``) : chacune est notée à sa version."""
+    desk.db.execute("UPDATE analyses5624_couverture SET lu_faits=version WHERE matter=? AND genre='piece' AND etat='traite'", (mid,))
+    desk.db.commit()
+
+
+def _marquer_modele(desk, mid):
+    """Ce que le modèle a réellement reçu pour la synthèse : les sources enregistrées avec la fiche (des extraits choisis, pas tout le dossier)."""
+    row = desk.db.execute('SELECT sources FROM case_briefs WHERE matter=? ORDER BY version DESC LIMIT 1', (mid,)).fetchone()
+    try:
+        chemins = sorted({str(s.get('path') or '') for s in json.loads(row['sources'] or '[]') if isinstance(s, dict)} - {''}) if row else []
+    except (ValueError, TypeError):
+        chemins = []
+    for chemin in chemins:
+        desk.db.execute('UPDATE analyses5624_couverture SET lu_modele=version WHERE matter=? AND ref=?', (mid, chemin))
+    desk.db.commit()
+    return len(chemins)
+
+
+def couverture(desk, mid, inventaire_complet=None):
+    """Couverture conservée du dossier (lecture seule) : compteurs par genre et par état, ce qui a été lu par le repérage des faits et par le
+    modèle, motifs de ce qui n'est pas couvert. ``satisfaite`` : couverture définie, inventaire complet, rien en attente ; les éléments
+    illisibles ou exclus restent des limites affichées avec leur motif (ils ne se résolvent pas en relançant l'analyse)."""
+    vide = lambda: {'total': 0, 'traite': 0, 'en_attente': 0, 'en_erreur': 0, 'exclu': 0, 'partiels': 0, 'faits': 0, 'modele': 0}
+    out = {'definie': False, 'campagne': 0, 'inventaire_complet': inventaire_complet, 'satisfaite': False, 'pieces': vide(), 'courriels': vide(),
+           'motifs': [], 'reserves': 0}
+    try:
+        rows = desk.db.execute("SELECT genre,etat,motif,COUNT(*) n,SUM(partiel) p,SUM(lu_faits<>'' AND lu_faits=version) f,"
+                               "SUM(lu_modele<>'' AND lu_modele=version) m,MAX(campagne) c FROM analyses5624_couverture WHERE matter=? "
+                               'GROUP BY genre,etat,motif ORDER BY genre,etat,motif', (mid,)).fetchall()
+        etape = desk.db.execute("SELECT state,counters,campagne FROM analyses5624 WHERE matter=? AND step='indexation'", (mid,)).fetchone()
+    except sqlite3.Error:
+        return out
+    for r in rows:
+        g = out['pieces' if r['genre'] == 'piece' else 'courriels']
+        g['total'] += r['n']
+        g[r['etat']] = g.get(r['etat'], 0) + r['n']
+        g['partiels'] += r['p'] or 0
+        g['faits'] += r['f'] or 0
+        g['modele'] += r['m'] or 0
+        out['campagne'] = max(out['campagne'], r['c'] or 0)
+        if r['etat'] != 'traite' or r['motif']:
+            out['motifs'].append({'genre': r['genre'], 'etat': r['etat'], 'motif': r['motif'], 'nombre': r['n'],
+                                  'libelle': MOTIFS_COUVERTURE.get(r['motif']) or motif_lisible(r['motif'])})
+    if inventaire_complet is None and etape is not None:
+        try:
+            compteurs = json.loads(etape['counters'] or '{}')
+        except ValueError:
+            compteurs = {}
+        if 'inventaire_complet' in compteurs:
+            out['inventaire_complet'] = bool(compteurs['inventaire_complet'])
+        out['definie'] = bool(etape['campagne']) and 'inventaire_complet' in compteurs
+    elif inventaire_complet is not None:
+        out['definie'] = True
+    out['reserves'] = sum(g['en_erreur'] + g['partiels'] for g in (out['pieces'], out['courriels']))
+    out['satisfaite'] = bool(out['definie'] and out['inventaire_complet'] and not out['pieces']['en_attente'] and not out['courriels']['en_attente'])
+    return out
+
+
+def motif_lisible(code):
+    code = str(code or '')
+    if code.startswith('format_a_convertir'):
+        return 'format non pris en charge (à convertir en PDF ou en Word)'
+    if not code:
+        return ''
+    try:
+        from .erreurs5634 import explain
+        return explain(code, None)
+    except Exception:   # noqa: BLE001
+        return code.replace('_', ' ')
+
+
+def couverture_liste(desk, mid, genre='', etat='', limite=200, apres=''):
+    """Éléments de la couverture (lecture seule, bornée, paginée par ``apres``) : une ligne par pièce ou par courriel éligible."""
+    sql, params = 'SELECT genre,ref,nom,version,etat,motif,partiel,fragments,lu_faits,lu_modele,campagne FROM analyses5624_couverture WHERE matter=?', [mid]
+    if genre in ('piece', 'courriel'):
+        sql += ' AND genre=?'
+        params.append(genre)
+    if etat in ETATS_COUVERTURE:
+        sql += ' AND etat=?'
+        params.append(etat)
+    if apres:
+        sql += ' AND ref>?'
+        params.append(str(apres))
+    limite = max(1, min(int(limite or 200), 500))
+    try:
+        rows = desk.db.execute(sql + ' ORDER BY ref LIMIT ?', params + [limite + 1]).fetchall()
+    except sqlite3.Error:
+        return {'elements': [], 'suite': ''}
+    elements = [{'genre': r['genre'], 'ref': r['ref'], 'nom': r['nom'], 'etat': r['etat'], 'etat_libelle': ETATS_COUVERTURE.get(r['etat'], r['etat']),
+                 'motif': r['motif'], 'motif_libelle': MOTIFS_COUVERTURE.get(r['motif']) or motif_lisible(r['motif']), 'partiel': bool(r['partiel']),
+                 'faits': bool(r['lu_faits'] and r['lu_faits'] == r['version']), 'modele': bool(r['lu_modele'] and r['lu_modele'] == r['version'])}
+                for r in rows[:limite]]
+    return {'elements': elements, 'suite': rows[limite - 1]['ref'] if len(rows) > limite else ''}
+
+
+def state(desk, mid, sans_travail=None):
+    """État de l'analyse du dossier : étapes, révision consommée, fraîcheur, travail en file, dernière réussite, couverture (lecture seule).
+    5.6.109 : « à jour » exige TOUTES les étapes terminées et fraîches ET une couverture définie et satisfaite ; une étape restée « en cours »
+    sans travail actif (coupure, arrêt) est dite « interrompue » ; une demande suspendue est signalée avec son motif."""
     ensure_schema(desk)
-    current = source_revision(desk, mid)
+    lues = _lire_index(desk, mid)
+    current = source_revision(desk, mid, lues)
+    entrees = revision_entrees(desk, mid, lues)
     rows = {r['step']: dict(r) for r in desk.db.execute('SELECT * FROM analyses5624 WHERE matter=?', (mid,))}
+    pending = _pending_job(desk, mid, sans_travail)
     steps, last_ok = [], ''
     for key, label in STEPS:
         r = rows.get(key)
         if not r:
-            steps.append({'step': key, 'label': label, 'state': 'jamais', 'state_label': STATE_LABELS['jamais'], 'fresh': None, 'counters': {}, 'error': '', 'finished': ''})
+            steps.append({'step': key, 'label': label, 'state': 'jamais', 'state_label': STATE_LABELS['jamais'], 'fresh': None, 'counters': {}, 'error': '', 'finished': '',
+                          'campagne': 0})
             continue
-        fresh = (r['revision'] == current) if r['state'] == 'ok' else None
-        if r['state'] == 'ok' and r['finished'] > last_ok:
+        etat = 'interrompue' if r['state'] == 'en_cours' and not pending and not sans_travail else r['state']   # C05 : conciliée à la lecture, sans écrire
+        fresh = None
+        if etat == 'ok':
+            fresh = (r['entree'] == _entree(key, entrees)) if r['entree'] else (r['revision'] == current)
+        if etat == 'ok' and r['finished'] > last_ok:
             last_ok = r['finished']
-        steps.append({'step': key, 'label': label, 'state': r['state'], 'state_label': STATE_LABELS.get(r['state'], r['state']), 'fresh': fresh,
-                      'counters': json.loads(r['counters'] or '{}'), 'error': r['error'], 'finished': r['finished'], 'revision': r['revision']})
-    pending = _pending_job(desk, mid)
+        steps.append({'step': key, 'label': label, 'state': etat, 'state_label': STATE_LABELS.get(etat, etat), 'fresh': fresh,
+                      'counters': json.loads(r['counters'] or '{}'), 'error': r['error'], 'finished': r['finished'], 'revision': r['revision'],
+                      'campagne': r['campagne']})
+    couv = couverture(desk, mid)
     if pending:
         overall = 'en_cours'
     elif all(s['state'] == 'jamais' for s in steps):
         overall = 'jamais'
-    elif any(s['state'] == 'erreur' for s in steps):
+    elif any(s['state'] != 'ok' for s in steps):
+        overall = 'partielle'
+    elif couv['definie'] and not couv['satisfaite']:
         overall = 'partielle'
     elif any(s['fresh'] is False for s in steps):
         overall = 'perimee'
     else:
         overall = 'a_jour'
+    label = STATE_LABELS.get(overall, overall)
+    if overall == 'a_jour' and couv['reserves']:
+        label += ', avec %d élément%s à vérifier' % (couv['reserves'], 's' if couv['reserves'] > 1 else '')
+    camp = _campagne(desk, mid)
     return {'matter': mid, 'revision': current, 'steps': steps, 'job': pending['id'] if pending else None, 'overall': overall,
-            'overall_label': STATE_LABELS.get(overall, overall), 'last_success': last_ok}
+            'overall_label': label, 'last_success': last_ok, 'couverture': couv, 'attente': None if pending else _waiting_job(desk, mid),
+            'arret_demande': bool(pending and pending['status'] == 'cancel_requested'),
+            'campagne': {'numero': camp['numero'], 'mode': camp['mode'], 'etat': camp['etat'], 'etat_libelle': ETATS_CAMPAGNE.get(camp['etat'], camp['etat']),
+                         'cree_le': camp['cree_le'], 'fini_le': camp['fini_le']} if camp else None}
 
 
-def request_analysis(desk, mid, steps=None):
-    """Demande regroupée : un seul travail en file par dossier (F25)."""
+def request_analysis(desk, mid, steps=None, mode='', par='', cle=''):
+    """Demande regroupée : un seul travail en file par dossier (F25). 5.6.109 : une seule campagne active par dossier, créée avec son travail
+    dans UNE transaction (clé métier : deux demandes simultanées retrouvent la même commande) ; un travail dont l'arrêt est demandé n'est
+    pas doublé ; une demande suspendue par une pause encore en vigueur est retrouvée, pas recréée."""
     _matter(desk, mid)
     ensure_schema(desk)
-    pending = _pending_job(desk, mid)
-    if pending:
-        return {'job_id': pending['id'], 'already': True, 'message': 'Analyse déjà en file (travail n° %d) : indexation, faits, chronologie, synthèse.' % pending['id']}
+    deja = _deja_demandee(desk, mid)
+    if deja:
+        return deja
     args = {'matter': mid}
     if steps:
         args['steps'] = [s for s in steps if s in dict(STEPS)]
-    job = desk.enqueue('analyser_dossier5624', args, priority=20)
-    return {'job_id': job, 'already': False, 'message': 'Analyse du dossier lancée (travail n° %d) : indexation, faits, chronologie, synthèse.' % job}
+    if mode in MODES:
+        args['mode'] = mode
+    if desk.db.in_transaction:
+        desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        deja = _deja_demandee(desk, mid)          # relu sous le verrou d'écriture : la seconde de deux requêtes simultanées s'arrête ici
+        if deja:
+            desk.db.rollback()
+            return deja
+        desk.db.execute("UPDATE analyses5624_campagnes SET etat='interrompue', maj_le=?, fini_le=? WHERE matter=? AND etat IN ('demandee','en_cours','suspendue')",
+                        (desk.now(), desk.now(), mid))   # campagne restée active sans travail vivant (coupure) : fermée, jamais reprise en silence
+        numero = int(desk.db.execute('SELECT COALESCE(MAX(numero),0) FROM analyses5624_campagnes WHERE matter=?', (mid,)).fetchone()[0]) + 1
+        args['campagne'] = numero
+        job = desk.enqueue('analyser_dossier5624', args, priority=20, transactional=True)
+        now = desk.now()
+        desk.db.execute("INSERT INTO analyses5624_campagnes(matter,numero,mode,etat,job_id,demande_par,cle,etapes,entrees,cree_le,maj_le) "
+                        "VALUES(?,?,?,'demandee',?,?,?,?,?,?,?)", (mid, numero, args.get('mode') or 'complete', job, str(par or '')[:200], str(cle or '')[:120],
+                                                                 json.dumps(args.get('steps') or []), json.dumps(revision_entrees(desk, mid)), now, now))
+        desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    desk.notify_queued(job, args)
+    return {'job_id': job, 'already': False, 'campagne': numero,
+            'message': 'Analyse du dossier lancée (travail n° %d) : indexation, faits, chronologie, synthèse.' % job}
+
+
+def _deja_demandee(desk, mid):
+    """Commande déjà vivante pour ce dossier : travail en file ou en cours, arrêt en attente de confirmation, ou demande suspendue par une
+    pause encore en vigueur. None : rien de vivant."""
+    pending = _pending_job(desk, mid)
+    if pending:
+        if pending['status'] == 'cancel_requested':
+            return {'job_id': pending['id'], 'already': True, 'arret_demande': True,
+                    'message': 'L’arrêt de l’analyse (travail n° %d) attend encore sa confirmation : relancez ensuite.' % pending['id']}
+        return {'job_id': pending['id'], 'already': True, 'message': 'Analyse déjà en file (travail n° %d) : indexation, faits, chronologie, synthèse.' % pending['id']}
+    attente = _waiting_job(desk, mid)
+    if attente and attente['status'] == 'suspended':
+        try:
+            from .arret5643 import pause_in_effect
+            row = desk.db.execute('SELECT id,kind,origin,priority,args,status,stop_reason,matter_ref FROM jobs WHERE id=?', (attente['job'],)).fetchone()
+            vivante = bool(row) and pause_in_effect(desk, row)
+        except Exception:   # noqa: BLE001 — contrôle de la pause illisible : la demande existante est gardée (jamais une seconde par défaut)
+            vivante = True
+        if vivante:
+            return {'job_id': attente['job'], 'already': True, 'en_attente': attente['motif'],
+                    'message': 'Demande déjà enregistrée (travail n° %d) : %s.' % (attente['job'], attente['libelle'])}
+    return None
 
 
 def analyse(desk, args):
-    """Travail « analyser_dossier5624 » : parcours complet et suivi ; une demande en file n'est jamais présentée comme une analyse terminée."""
+    """Travail « analyser_dossier5624 » : parcours complet et suivi ; une demande en file n'est jamais présentée comme une analyse terminée.
+    5.6.109 : contrôle d'arrêt avant chaque étape et chaque lot ; un arrêt central remonte tel quel (C05), l'étape devient « interrompue »
+    avec ce qui a déjà été accepté ; entrée de chaque étape figée AVANT sa lecture ; couverture relevée après l'indexation ; une limite de
+    lots atteinte ou un inventaire incomplet donne une indexation « partielle », jamais « terminée » (C04)."""
     mid = str(args.get('matter') or '')
     _matter(desk, mid)
     ensure_schema(desk)
     wanted = set(args.get('steps') or [s for s, _ in STEPS])
-    errors = {}
-    if 'indexation' in wanted:
-        _step(desk, mid, 'indexation', 'en_cours')
+    errors, inchangees = {}, []
+    from .pause5629 import checkpoint
+    checkpoint(desk)
+    numero, mode = _campagne_ouvrir(desk, mid, args)
+    avant = {r['step']: dict(r) for r in desk.db.execute('SELECT * FROM analyses5624 WHERE matter=?', (mid,))}
+
+    def acquise(step):
+        """Étape déjà terminée sur les MÊMES entrées : dans cette campagne (reprise après suspension), ou en mode « Actualiser ce qui a
+        changé ». Elle n'est pas refaite (aucun nouvel appel au modèle pour une synthèse dont rien n'a changé)."""
+        r = avant.get(step)
+        if not r or r['state'] != 'ok' or not r['entree'] or (mode != 'changements' and r['campagne'] != numero):
+            return False
+        return r['entree'] == _entree(step, revision_entrees(desk, mid))
+
+    def arreter(step, ex, counters=None):
+        code = str(ex).split(':')[0]
+        try:   # ce qui a déjà pu être accepté est conservé ; l'étape n'est plus « en cours », la campagne dit son état réel
+            _step(desk, mid, step, 'interrompue', '', counters or {}, code, campagne=numero)
+            _campagne_etat(desk, mid, numero, 'annulee' if code in ANNULATIONS else 'suspendue', {'arret': code, 'etape': step})
+        except sqlite3.Error:
+            pass   # base momentanément illisible : la lecture conciliera l'étape restée « en cours » (``state``)
+
+    def controler(step):
+        """Contrôle d'arrêt entre deux étapes : aucune étape n'est engagée après l'acquittement ; la campagne dit son état réel."""
         try:
-            counters = {'lots': 0}
-            for _ in range(10):
+            checkpoint(desk)
+        except Stop as ex:
+            code = str(ex).split(':')[0]
+            try:
+                _campagne_etat(desk, mid, numero, 'annulee' if code in ANNULATIONS else 'suspendue', {'arret': code, 'avant': step})
+            except sqlite3.Error:
+                pass
+            raise
+
+    if 'indexation' in wanted:
+        _step(desk, mid, 'indexation', 'en_cours', campagne=numero)
+        counters = {'lots': 0}
+        try:
+            fini = False
+            for _ in range(LOTS_INDEXATION):
+                checkpoint(desk)
                 res = desk.perform('index', {'matter': mid}) or {}
                 counters['lots'] += 1
                 counters.update({k: res.get(k) for k in ('indexes', 'en_attente', 'contenu_modifie', 'fichiers') if k in res})
-                if not res.get('en_attente'):
+                inventaire = res.get('inventaire') if isinstance(res.get('inventaire'), dict) else {}
+                if not res.get('en_attente') and inventaire.get('complete') is not False:
+                    fini = True      # plus rien en attente ET inventaire du stockage parcouru jusqu'au bout
                     break
-            _step(desk, mid, 'indexation', 'ok', source_revision(desk, mid), counters)
+            counters['inventaire_complet'] = fini
+            if not fini:
+                counters['motif'] = 'limite de %d lots atteinte : des fichiers restent à indexer, relancez pour poursuivre' % LOTS_INDEXATION
+            try:
+                resume = _relever_couverture(desk, mid, numero, fini)
+                counters['couverture'] = {'pieces': resume['pieces'], 'courriels': resume['courriels']}
+            except (sqlite3.Error, OSError) as ex:   # la couverture ne se relève pas : l'étape ne peut pas être dite complète
+                fini = False
+                counters['inventaire_complet'] = False
+                counters['motif'] = 'couverture non relevée (%s)' % type(ex).__name__
+            _step(desk, mid, 'indexation', 'ok' if fini else 'partielle', source_revision(desk, mid), counters, entree='stockage', campagne=numero)
         except Exception as ex:   # pylint: disable=broad-except
+            if interruption(ex):
+                arreter('indexation', ex, counters)
+                raise
             errors['indexation'] = str(ex)[:200]
-            _step(desk, mid, 'indexation', 'erreur', '', {}, str(ex))
+            _step(desk, mid, 'indexation', 'erreur', '', {}, str(ex), campagne=numero)
     if 'faits' in wanted:
-        _step(desk, mid, 'faits', 'en_cours')
-        try:
-            from .facts460 import scan_matter
-            res = scan_matter(desk, {'matter': mid, 'sync': False})
-            _step(desk, mid, 'faits', 'ok', source_revision(desk, mid), {k: res.get(k) for k in ('documents', 'faits', 'nouveaux', 'modifies', 'inchanges', 'refus_respectes', 'erreurs', 'documents_peu_lisibles') if k in res})
-        except Exception as ex:   # pylint: disable=broad-except
-            errors['faits'] = str(ex)[:200]
-            _step(desk, mid, 'faits', 'erreur', '', {}, str(ex))
-    if 'chronologie' in wanted:
-        _step(desk, mid, 'chronologie', 'en_cours')
-        try:
-            from .legal_memory import sync_matter_memory
-            res = sync_matter_memory(desk, {'matter': mid})
-            _step(desk, mid, 'chronologie', 'ok', source_revision(desk, mid), {'evenements': res['chronologie'], 'agenda': res['evenements_agenda'], 'agenda_erreur': res['agenda_erreur']})
-        except Exception as ex:   # pylint: disable=broad-except
-            errors['chronologie'] = str(ex)[:200]
-            _step(desk, mid, 'chronologie', 'erreur', '', {}, str(ex))
-    if 'synthese' in wanted:
-        if 'indexation' in errors:
-            _step(desk, mid, 'synthese', 'ignoree', '', {}, 'indexation en erreur : synthèse non recalculée')
+        controler('faits')
+        if acquise('faits'):
+            inchangees.append('faits')
         else:
-            _step(desk, mid, 'synthese', 'en_cours')
+            entree = _entree('faits', revision_entrees(desk, mid))
+            _step(desk, mid, 'faits', 'en_cours', campagne=numero)
+            try:
+                from .facts460 import scan_matter
+                res = scan_matter(desk, {'matter': mid, 'sync': False})
+                _marquer_faits(desk, mid)
+                _step(desk, mid, 'faits', 'ok', source_revision(desk, mid), {k: res.get(k) for k in ('documents', 'faits', 'nouveaux', 'modifies', 'inchanges', 'refus_respectes', 'erreurs', 'documents_peu_lisibles') if k in res},
+                      entree=entree, campagne=numero)
+            except Exception as ex:   # pylint: disable=broad-except
+                if interruption(ex):
+                    arreter('faits', ex)
+                    raise
+                errors['faits'] = str(ex)[:200]
+                _step(desk, mid, 'faits', 'erreur', '', {}, str(ex), campagne=numero)
+    if 'chronologie' in wanted:
+        controler('chronologie')
+        if acquise('chronologie'):
+            inchangees.append('chronologie')
+        else:
+            entree = _entree('chronologie', revision_entrees(desk, mid))
+            _step(desk, mid, 'chronologie', 'en_cours', campagne=numero)
+            try:
+                from .legal_memory import sync_matter_memory
+                res = sync_matter_memory(desk, {'matter': mid})
+                _step(desk, mid, 'chronologie', 'ok', source_revision(desk, mid), {'evenements': res['chronologie'], 'agenda': res['evenements_agenda'], 'agenda_erreur': res['agenda_erreur']},
+                      entree=entree, campagne=numero)
+            except Exception as ex:   # pylint: disable=broad-except
+                if interruption(ex):
+                    arreter('chronologie', ex)
+                    raise
+                errors['chronologie'] = str(ex)[:200]
+                _step(desk, mid, 'chronologie', 'erreur', '', {}, str(ex), campagne=numero)
+    if 'synthese' in wanted:
+        controler('synthese')
+        if 'indexation' in errors:
+            _step(desk, mid, 'synthese', 'ignoree', '', {}, 'indexation en erreur : synthèse non recalculée', campagne=numero)
+        elif acquise('synthese'):
+            inchangees.append('synthese')
+        else:
+            entree = _entree('synthese', revision_entrees(desk, mid))
+            _step(desk, mid, 'synthese', 'en_cours', campagne=numero)
             try:
                 from .intelligence import refresh_brief
                 res = refresh_brief(desk, {'matter': mid})
-                _step(desk, mid, 'synthese', 'ok', source_revision(desk, mid), {'fiche_version': res.get('fiche_version'), 'sources': res.get('sources'), 'fichiers_en_attente': res.get('fichiers_en_attente')})
+                compteurs = {'fiche_version': res.get('fiche_version'), 'sources': res.get('sources'), 'fichiers_en_attente': res.get('fichiers_en_attente')}
+                try:
+                    compteurs['sources_lues_par_le_modele'] = _marquer_modele(desk, mid)
+                except sqlite3.Error:
+                    pass
+                _step(desk, mid, 'synthese', 'ok', source_revision(desk, mid), compteurs, entree=entree, campagne=numero)
             except Exception as ex:   # pylint: disable=broad-except
+                if interruption(ex):
+                    arreter('synthese', ex)
+                    raise
                 errors['synthese'] = str(ex)[:200]
-                _step(desk, mid, 'synthese', 'erreur', '', {}, str(ex))
-    st = state(desk, mid)
-    desk.audit('dossier5624_analyse', {'matter': mid, 'etat': st['overall'], 'erreurs': sorted(errors)})
+                _step(desk, mid, 'synthese', 'erreur', '', {}, str(ex), campagne=numero)
+    st = state(desk, mid, sans_travail=getattr(desk, 'active_job_id', None))
+    desk.audit('dossier5624_analyse', {'matter': mid, 'etat': st['overall'], 'erreurs': sorted(errors), 'campagne': numero})
     done = [s['step'] for s in st['steps'] if s['state'] == 'ok']
     message = 'Analyse du dossier %s : %s.' % (STATE_LABELS.get(st['overall'], st['overall']), ', '.join(done) or 'aucune étape réussie')
     if errors:
         message += ' Étape(s) en erreur : ' + ' ; '.join('%s (%s)' % (k, v[:80]) for k, v in errors.items()) + '. Le bouton « Reprendre » relance ces seules étapes.'
-    return {'status': 'prepared' if not errors else 'partial', 'matter': mid, 'etat': st['overall'], 'steps': {s['step']: s['state'] for s in st['steps']},
-            'errors': errors, 'message': message}
+    couv = st['couverture']
+    complet = not errors and all(s['state'] == 'ok' for s in st['steps'] if s['step'] in wanted) and (
+        'indexation' not in wanted or not couv['definie'] or couv['satisfaite'])
+    if not complet and not errors:
+        message += ' Analyse partielle : ce qui n’a pas été lu est listé dans la couverture du dossier.'
+    try:   # 5.6.109 (F03) : ce que l'analyse changerait à une information VALIDÉE devient une proposition à décider, jamais un remplacement
+        from .reanalyse56109 import apres_campagne
+        a_decider = apres_campagne(desk, mid, numero)
+    except Exception as ex:   # pylint: disable=broad-except
+        if interruption(ex):
+            raise
+        a_decider = None    # la comparaison n'a pas pu être préparée : dit dans le bilan, l'analyse garde son résultat
+    if a_decider:
+        message += ' %d changement(s) proposé(s) sur des informations validées : à décider dans la fiche du dossier.' % a_decider
+    _campagne_etat(desk, mid, numero, 'terminee' if complet else 'partielle',
+                   {'etapes': {s['step']: s['state'] for s in st['steps']}, 'erreurs': errors, 'inchangees': inchangees, 'propositions': a_decider,
+                    'couverture': {'pieces': couv['pieces'], 'courriels': couv['courriels'], 'satisfaite': couv['satisfaite']}})
+    return {'status': 'prepared' if complet else 'partial', 'matter': mid, 'etat': st['overall'], 'steps': {s['step']: s['state'] for s in st['steps']},
+            'errors': errors, 'message': message, 'campagne': numero, 'inchangees': inchangees, 'propositions': a_decider}
 
 
 # ------------------------------------------------------------------------------------------------ rubriques
@@ -449,14 +948,35 @@ def analysis_html(prefix, mid, st):
         e(s['state']), e(s['label']), e(s['state_label']), (' · ' + e(s['finished'][:16].replace('T', ' '))) if s.get('finished') else '',
         (' · <span class="fc-badge warn">périmée</span>' if s['fresh'] is False else '') + ((' · <span class="fc-badge bad">%s</span>' % e(s['error'][:120])) if s.get('error') else '')) for s in st['steps'])
     retry = ''
-    if st['overall'] == 'partielle':
-        retry = ' <button type="button" class="ax-btn ghost" id="fc-reprendre" data-steps="%s">Reprendre les étapes en erreur</button>' % e(','.join(s['step'] for s in st['steps'] if s['state'] == 'erreur'), quote=True)
+    a_reprendre = [s['step'] for s in st['steps'] if s['state'] in ('erreur', 'interrompue', 'partielle')]   # 5.6.109 : seulement ce qui n'a pas abouti
+    if st['overall'] == 'partielle' and a_reprendre:
+        retry = ' <button type="button" class="ax-btn ghost" id="fc-reprendre" data-steps="%s">Reprendre les étapes en erreur</button>' % e(','.join(a_reprendre), quote=True)
     return ('<section class="ax-card fc-analysis" id="fc-analysis" data-matter="%s" data-job="%s"><h2>Analyse du dossier</h2><p>État : <strong>%s</strong>%s. '
-            '<button type="button" class="ax-btn" id="fc-analyse">Analyser le dossier</button>%s <span id="fc-analyse-result" class="fc-muted"></span></p>'
+            '<button type="button" class="ax-btn" id="fc-analyse">Analyser le dossier</button>%s <span id="fc-analyse-result" class="fc-muted"></span></p>%s'
             '<details><summary>Étapes et compteurs</summary><ul class="fc-list">%s</ul><p class="fc-muted">Révision courante des sources et faits : %s. Une demande en file n’est pas une analyse terminée ; '
             'les résultats antérieurs restent affichés avec leur fraîcheur.</p></details></section>') % (
         e(mid, quote=True), e(str(st['job'] or ''), quote=True), e(st['overall_label']), (' (dernière réussite : %s)' % e(st['last_success'][:16].replace('T', ' '))) if st['last_success'] else '',
-        retry, steps, e(st['revision']))
+        retry, couverture_html(st), steps, e(st['revision']))
+
+
+def couverture_html(st):
+    """5.6.109 (C04) : ce qui a réellement été lu, d'après les états conservés du parcours (jamais un texte rédigé par l'IA)."""
+    c = st.get('couverture') or {}
+    out = ''
+    if st.get('attente'):
+        out += '<p class="fc-muted" role="status"><span class="fc-badge warn">en attente</span> %s.</p>' % e(st['attente']['libelle'][:1].upper() + st['attente']['libelle'][1:])
+    if not c.get('definie'):
+        return out
+    p, m = c['pieces'], c['courriels']
+    out += ('<p class="fc-muted">Couverture : %d pièce(s) présente(s), %d indexée(s), %d lue(s) par le repérage des faits, %d transmise(s) au modèle pour la synthèse ; '
+            '%d courriel(s), dont %d indexé(s).%s</p>') % (
+        p['total'], p['traite'], p['faits'], p['modele'], m['total'], m['traite'],
+        '' if c.get('inventaire_complet') else ' <span class="fc-badge warn">inventaire du répertoire incomplet</span>')
+    if c.get('motifs'):
+        out += '<ul class="fc-list">%s</ul>' % ''.join('<li><span class="fc-badge %s">%s</span> <strong>%d</strong> <span>%s</span> : <span>%s</span></li>' % (
+            'bad' if x['etat'] == 'en_erreur' else 'warn', e(ETATS_COUVERTURE.get(x['etat'], x['etat'])), x['nombre'],
+            'pièce(s)' if x['genre'] == 'piece' else 'courriel(s)', e(x['libelle'] or x['motif'])) for x in c['motifs'][:12])
+    return out
 
 
 def _add_task5688(desk, prefix, mid):

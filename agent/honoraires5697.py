@@ -210,6 +210,7 @@ def preparer_brouillon(desk, acteur, mid, data):
     """Brouillon de facture depuis les éléments validés non imputés (sans modèle d'IA). Chaque ligne garde sa source ; la réservation
     empêche toute double facturation. Rien n'est émis ni envoyé."""
     from . import facturation5653
+    from .gestion56109 import quantite_heures
     g.dossier(desk, acteur, mid)
     _schemas(desk)
     a = g.acteur_de(acteur)
@@ -219,7 +220,7 @@ def preparer_brouillon(desk, acteur, mid, data):
     for e in elements['temps']:
         if choisis and e['id'] not in choisis:
             continue
-        lignes.append({'nature': 'honoraires', 'libelle': e['label'] or 'Diligences', 'quantite': str((Decimal(e['minutes']) / 60).quantize(CENT)), 'unite': 'heure',
+        lignes.append({'nature': 'honoraires', 'libelle': e['label'] or 'Diligences', 'quantite': str(quantite_heures(e['minutes'])), 'unite': 'heure',   # 5.6.109 (G01) : ligne = montant du temps validé
                        'prix_unitaire_ht_cents': e['rate_cents'], 'periode': e['day'], 'sources': [{'type': 'temps', 'id': e['id']}]})
     for f in elements['frais']:
         if choisis and f['id'] not in choisis:

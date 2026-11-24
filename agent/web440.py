@@ -67,6 +67,22 @@ from .wordcraft56108 import statiques as _statiques56108w   # noqa: E402 — 5.6
 STATIC.update(_statiques56108w())
 STATIC.update({'/static/v56108-fichiers.js': 'text/javascript', '/static/v56108-fichiers.css': 'text/css'})   # 5.6.108 (lot F) : onglet Fichiers du dossier, remplir un PDF, outils PDF
 STATIC.update({'/static/v56108-ia-locale.js': 'text/javascript', '/static/v56108-ia-locale.css': 'text/css'})   # 5.6.108 (lot L) : assistant « Configurer l'IA locale »
+STATIC.update({'/static/v56109-repertoire.js': 'text/javascript', '/static/v56109-repertoire.css': 'text/css', '/static/v56109-pieces.js': 'text/javascript', '/static/v56109-pieces.css': 'text/css'})   # 5.6.109 (lot L) : répertoire du dossier trié (F02), barre des pièces jointes et classement du lecteur (F01)
+STATIC.update({'/static/v56109-fiche.css': 'text/css', '/static/v56109-honoraires.css': 'text/css'})   # 5.6.109 (lot D) : fiche Conseil / Contentieux, prestations et honoraires du cabinet
+STATIC.update({'/static/v56109-conso.js': 'text/javascript', '/static/v56109-conso.css': 'text/css'})   # 5.6.109 (lot M) : section « Consommation et coûts » (filtres, affichage prix ou tokens, détail paginé)
+STATIC.update({'/static/v56109-reanalyse.js': 'text/javascript', '/static/v56109-reanalyse.css': 'text/css'})   # 5.6.109 (lot A, F03) : bloc « Analyse du dossier » de la fiche (suivi, couverture, comparaison avant remplacement)
+STATIC.update({'/static/v56109-sources.css': 'text/css'})   # 5.6.109 (lot S) : sources publiques, services étrangers, registre étranger et documents publics
+STATIC.update({'/static/v56109-navigateur.css': 'text/css'})   # 5.6.109 (lot O) : modèle du navigateur, prise de main acquittée, accès à ce poste
+STATIC.update({'/static/v56109-produire.js': 'text/javascript', '/static/v56109-produire.css': 'text/css', '/static/v56109-craft-host.js': 'text/javascript'})   # 5.6.109 (lot V) : Produire en trois vues, livrables structurés, modèles Word (F08) ; pont hôte des éditeurs Craft facultatifs (F16)
+STATIC.update({'/static/v56109-historique.js': 'text/javascript', '/static/v56109-historique.css': 'text/css', '/static/v56109-discussions.js': 'text/javascript',
+               '/static/v56109-apparence.js': 'text/javascript', '/static/v56109-apparence.css': 'text/css'})   # 5.6.109 (lot H) : historique et discussions de l'assistant (F09), apparence du menu (F10)
+STATIC.update({'/static/v56109-fonds.js': 'text/javascript', '/static/v56109-fonds.css': 'text/css'})   # 5.6.109 (lot Q) : « Fonds juridique local » (G23) et « Fichiers de ce poste » (F13) dans les Paramètres
+STATIC.update({'/static/v56109-bland.css': 'text/css'})   # 5.6.109 (lot B) : carte Bland (Paramètres › Connexions API), demande à confirmer, routines « Mes agents IA »
+STATIC.update({'/static/v56109-relations.js': 'text/javascript', '/static/v56109-relations.css': 'text/css'})   # 5.6.109 (lot G2) : partage client, appels, remplacements, kit d'audience (téléchargement d'un paquet rendu une fois ; formulaires communs)
+STATIC.update({'/static/v56109-operations.css': 'text/css'})   # 5.6.109 (lot G3) : « À finaliser », Suites et exécution, formalités supervisées, RIB CARPA (aucun script propre : formulaires communs m5-form)
+STATIC.update({'/static/v56109-gestion.css': 'text/css'})   # 5.6.109 (lot G1) : Préfacturation, Assistance régulière, Fonds, frais et débours (aucun script propre : formulaires communs d97)
+STATIC.update({'/static/v56109-parcours.css': 'text/css'})   # 5.6.109 (lot G4) : cartes de collecte de portail, d'offre et PDF joint, de documents Pappers (aucun script propre : formulaires communs m5-form)
+STATIC.update({'/static/v56109-simulation.css': 'text/css'})   # 5.6.109 (lot N, F14) : onglet « Simulation de décision » du dossier (aucun script propre : formulaires communs, tiroir Sources natif)
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -266,6 +282,12 @@ def human(code):
         from .messages5668 import MESSAGES as messages5668   # 5.6.68 : plafond, scans, pauses… en clair
         if code in messages5668:
             return messages5668[code]
+        from .gemini56109 import MESSAGES as messages56109e   # 5.6.109 (lot E, F15) : connexion Gemini non testée, blocage de sécurité, limite…
+        if code in messages56109e:
+            return messages56109e[code]
+        from .modeles_catalogue56109 import MESSAGES as messages56109m   # 5.6.109 (lot E) : modèle à choisir, refus lisible du fournisseur
+        if code in messages56109m:
+            return messages56109m[code]
     return table.get(code, code.replace('_', ' '))
 
 
@@ -377,6 +399,11 @@ def route(env, cfg, auth, prefix, path, args, method):
         from .shell501 import set_context
         set_context(cfg)
         return signaturepdf56108.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and (path == '/editeur/craft' or path.startswith('/editeur/craft/')):   # 5.6.109 (lot V, F16) : éditeurs Craft facultatifs (page, cadre, ressources du manifeste ; désactivés par défaut)
+        from . import craft56109
+        from .shell501 import set_context
+        set_context(cfg)
+        return craft56109.page_route(env, cfg, auth, prefix, path, args, shell)
     if method == 'GET' and path in ('/editeur/wordcraft', '/editeur/wordcraft/cadre', '/editeur/traitement'):   # 5.6.108 (lot W) : éditeur intégré WordCraft, cadre, Word / LibreOffice du poste
         from . import wordcraft56108
         from .shell501 import set_context
@@ -429,6 +456,25 @@ def route(env, cfg, auth, prefix, path, args, method):
     try:
         if path.startswith('/api440/'):
             return api(env, desk, auth, prefix, path[len('/api440/'):], args, method)
+        if method == 'GET' and path in ('/honoraires', '/contacts-crm', '/dossier'):   # 5.6.109 (lot G1) : mêmes pages, mêmes modules ; sections Préfacturation, Assistance régulière (fiche client), Fonds, frais et débours (dossier) insérées (lecture seule)
+            from .gestion56109 import habiller
+            habille = habiller(desk, env, prefix, path, args, shell)
+            if path == '/dossier':   # 5.6.109 (lot G3, G16) : RIB CARPA documentaire inséré après « Fonds, frais et débours » (lecture seule)
+                from .formalites56109 import habiller as habiller_g3
+                habille = habiller_g3(desk, env, prefix, path, args, habille)
+            if path == '/honoraires':
+                from . import web500
+                from .web567 import actor
+                return page_out(web500.honoraires_page(desk, auth, prefix, args, habille, actor(env)))
+            if path == '/contacts-crm':
+                from . import pages5636
+                out5636 = pages5636.page(desk, auth, prefix, env, args, path, habille)
+                return out5636 if isinstance(out5636, dict) else page_out(out5636)
+            from . import dossier5627
+            try:
+                return page_out(dossier5627.page(desk, auth, prefix, args, habille))
+            except Stop as ex:
+                return page_out(shell('Dossier introuvable', '<h1>Dossier introuvable</h1><p>%s</p>' % e(human(str(ex))), prefix, auth['csrf'], '/dossiers'))
         if method != 'GET':
             return {'status': '405 Method Not Allowed', 'kind': 'text/plain; charset=utf-8', 'body': 'Méthode refusée.'}
         if path in _pages5636():   # 5.6.36 : contacts, initiatives, pièces, outils IA, corporate, relances, complément Word
@@ -464,6 +510,9 @@ def route(env, cfg, auth, prefix, path, args, method):
             return page_out(page(desk,auth,prefix,env,path))
         if path in ('/accueil-administratif','/missions','/parametres/assistant','/parametres/connexions'):
             from . import web567
+            if path == '/accueil-administratif' and str(args.get('vue') or '') == 'bland':   # 5.6.109 (I2) : onglet « Téléphonie par IA (Bland) » de la famille
+                from .bland56109 import page_famille
+                return page_out(page_famille(desk,auth,prefix,env))
             if path == '/accueil-administratif':return page_out(web567.reception_page(desk,auth,prefix,env))
             if path == '/missions':return page_out(web567.page(desk,auth,prefix,env))
             if path == '/parametres/connexions':return page_out(web567.connections_page(desk,auth,prefix,env))
@@ -708,6 +757,82 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m56108/ia-locale/'):   # 5.6.108 (lot L) : « Configurer l'IA locale » (administrateur ; détection en GET sans écriture ; 403, 404 neutre, 409, no-store, clé d'idempotence)
         from . import ia_locale56108
         return ia_locale56108.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/fiche/'):   # 5.6.109 (lot D, F04) : fiche Conseil / Contentieux — projection, candidats, qualités par instance, champs, propositions, présentation (404 neutre, 409, 422, 503, no-store, clé d'idempotence)
+        from . import projection56109
+        return projection56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/honoraires/'):   # 5.6.109 (lot D, F05) : catalogue de prestations — brouillons, publication, import, simulation, proposition (droits relus par le service ; 404 neutre, 409, 422, 503, no-store, clé d'idempotence)
+        from . import catalogue56109
+        return catalogue56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/reanalyse/'):   # 5.6.109 (lot A, F03) : « Analyser le dossier » depuis la fiche — état, couverture, propositions (GET) ; lancer, arrêter, décider (POST : avocat ; 404 neutre, 409, 503, no-store, clé d'idempotence)
+        from . import reanalyse56109
+        return reanalyse56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/conso/'):   # 5.6.109 (lot M, F18) : relevé « Consommation et coûts » — lecture seule (JSON, fragment, export CSV filtré) ; chacun ses propres demandes, administrateur : tout le cabinet (404 neutre, 503, no-store)
+        from . import gouvernance_web5689
+        return gouvernance_web5689.api_consommation(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/sources/'):   # 5.6.109 (lot S, F11) : état des sources publiques (GET) ; « Revérifier » (POST : administrateur ; clé d'idempotence, aucun réseau dans la requête, no-store)
+        from . import sources_publiques56109
+        return sources_publiques56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/international/'):   # 5.6.109 (lot S, G18-G19) : registre étranger d'une société, documents publics classés (GET) ; identifier, collecter (POST : avocat ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import international56109
+        return international56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/historique/'):   # 5.6.109 (lot H, F09) : historique de l'assistant — fils, messages, recherche, export, corbeille (GET sans écriture) ; brouillon, attribution (POST ; 404 neutre, 409, no-store)
+        from . import historique56109
+        return historique56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/discussions/'):   # 5.6.109 (lot H, F09) : renommer, épingler, grouper, rattacher, partager, révoquer, supprimer, restaurer, politique (POST ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import discussions56109
+        return discussions56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/apparence/'):   # 5.6.109 (lot H, F10) : préférence d'apparence du compte (GET ; POST : enregistrer, rétablir ; 409, no-store, clé d'idempotence)
+        from . import apparence56109
+        return apparence56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/choix-modele/'):   # 5.6.109 (lot T) : modèle fixé et contexte transmis par fonction (administrateur ; 403, 404 neutre, 409, no-store)
+        from . import choix_modele56109
+        return choix_modele56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/navigateur/'):   # 5.6.109 (lot O, G13 et G24) : modèle du navigateur (administrateur), prise et reprise de main acquittées (poste ; 403, 404 neutre, 409, no-store)
+        from . import navigateur56109
+        return navigateur56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/livrables/'):   # 5.6.109 (lot V, F08) : livrables structurés du registre commun — trames, contenu, export de données, réconciliation (GET) ; créer, enregistrer, plan (POST ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import artefacts56109
+        return artefacts56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/modeles/'):   # 5.6.109 (lot V, F08) : modèles Word du cabinet — liste, aperçu (GET) ; importer, valider, produire et contrôler (POST ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import modele_docx56109
+        return modele_docx56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/editeurs/'):   # 5.6.109 (lot V, F16) : éditeurs Craft facultatifs — état, séances, candidats, exports distincts, commandes IA validées, décision (404 neutre, 409, no-store, clé d'idempotence)
+        from . import craft56109
+        return craft56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/poste/'):   # 5.6.109 (lot O, F12 et G13) : autorisations de mission sur le poste, pause, révocation, appairage du compagnon (404 neutre, 409, no-store, clé d'idempotence)
+        from . import poste56109
+        return poste56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/bland/'):   # 5.6.109 (lot B) : téléphonie par IA (Bland) — état, outils, fiche (GET sans écriture) ; clé, test, activation, demandes, confirmation de l'avocat, rappels, agents (POST ; 403, 404 neutre, 409, no-store, clé d'idempotence)
+        from . import bland56109
+        return bland56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/decision/'):   # 5.6.109 (lot K, F07) : organisation locale des demandes — état et questions (GET sans écriture) ; réglage (administrateur), réponse à une question ciblée (403, 404 neutre, 409, no-store, clé d'idempotence)
+        from . import decision56109
+        return decision56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/simulation/'):   # 5.6.109 (lot N, F14) : simulation de décision du dossier — contexte, traitement (GET sans écriture ni modèle) ; cadrage, simuler (202, file commune), annuler, corriger, conserver (POST : avocat ; 403, 404 neutre, 409, 503, no-store, clé d'idempotence)
+        from . import simulation56109
+        return simulation56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/fonds/'):   # 5.6.109 (lot Q, G23) : fonds juridique local — état, recherche sans réseau, texte d'une version (GET, trois rôles) ; importer un lot local, avancer, suspendre, reprendre, supprimer ou reconstruire l'index (POST : administrateur ; 409, no-store, clé d'idempotence)
+        from . import fonds_juridique56109
+        return fonds_juridique56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/fichiers-locaux/'):   # 5.6.109 (lot Q, F13) : fichiers de ce poste — état, recherche, passage cité (GET) ; ajouter un emplacement (poste), indexer, révoquer, interroger (POST ; 404 neutre « absence d'autorisation », 409, no-store, clé d'idempotence)
+        from . import contexte56109
+        return contexte56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/gemini/'):   # 5.6.109 (lot E, F15) : connexion Google Gemini par clé API — état (GET) ; tester, enregistrer, activer (POST : administrateur ; 403, 409, no-store, clé d'idempotence ; la clé n'est jamais rendue)
+        from . import gemini56109
+        return gemini56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/gestion/'):   # 5.6.109 (lot G1) : préfacturation, assistance régulière, fonds/frais/débours — vues (GET sans écriture) ; collecte, traces, lot atomique, contrat, périodes, mouvements, coordonnées bancaires (POST ; droits relus par le service ; 404 neutre, 409, 422, no-store, clé d'idempotence)
+        from . import gestion56109
+        return gestion56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/operations/'):   # 5.6.109 (lot G3) : « À finaliser » (G04), suites et exécution (G05), formalités supervisées INPI, Infogreffe, RIB CARPA, étranger (G14-G16, G20) — vues (GET sans écriture) ; préparer, décider, autoriser un effet précis (avocat), constater (POST ; droits relus par le service ; 403, 404 neutre, 409, 422, no-store, clé d'idempotence ; aucun secret reçu)
+        from . import closing56109
+        return closing56109.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith(('m56109/partage/', 'm56109/appels/', 'm56109/remplacements/', 'm56109/kit/')):   # 5.6.109 (lot G2) : partage client (G03), appels (G06), remplacements (G07), kit d'audience hors ligne (G08) — vues (GET sans écriture) ; préparer, confirmer, révoquer, importer un retour, classer, consigner, décider, instruire, transitions, geler un kit, notes, reconnexion (POST ; droits relus par le service ; 403, 404 neutre, 409, no-store, clé d'idempotence)
+        from . import appels56109, kit_audience56109, partage_client56109, remplacements56109
+        module = {'partage': partage_client56109, 'appels': appels56109, 'remplacements': remplacements56109, 'kit': kit_audience56109}[name.split('/')[1]]
+        return module.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56109/parcours/'):   # 5.6.109 (lot G4) : offre et PDF joint au brouillon (G10), collecte supervisée d'un portail et routine (G11-G12), documents publics Pappers (G17) — vues (GET sans écriture) ; préparer, profils, lancer, déposer, routine, politique, collecter (POST ; droits relus par le service ; 403, 404 neutre, 409, no-store, clé d'idempotence)
+        from . import parcours56109
+        return parcours56109.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m5674/'):   # 5.6.74 : téléphones associés par QR code (version serveur)
         from . import appareils5674
         try:
@@ -1599,5 +1724,6 @@ def settings_page(desk, auth, prefix, args, render=None):
                '<div class="ax-table"><table><thead><tr><th>Dossier</th><th>Votre rôle</th><th>Confrère</th><th>Son courriel</th><th></th></tr></thead><tbody>%s</tbody></table></div></section>') % (
         ' checked' if enabled else '', ' checked' if calendar else '', rows)
     from . import wordcraft56108   # 5.6.108 (lot W) : éditeur intégré WordCraft proposé ou non (réglage administrateur)
-    body = '<h1>Réglages de l’atelier</h1>' + office + wordcraft56108.section_reglages(desk) + notices
+    from . import craft56109   # 5.6.109 (lot V, F16) : éditeurs Craft facultatifs (installés et activés par l'administrateur ; désactivés par défaut)
+    body = '<h1>Réglages de l’atelier</h1>' + office + wordcraft56108.section_reglages(desk) + craft56109.section_reglages(desk, prefix) + notices
     return (render or shell)('Réglages de l’atelier', body, prefix, auth['csrf'], '/parametres')

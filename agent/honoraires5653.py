@@ -102,6 +102,24 @@ def settings(desk):
     return out
 
 
+CONFIRMATION = 'honoraires5653:tarifs_confirmes'
+
+
+def tarifs_confirmes(desk):
+    """5.6.109 (F05) : les valeurs techniques de ``DEFAULTS`` (220 € de l'heure, 150 € en postulation…) ne sont pas une décision du cabinet.
+    Vrai seulement si le cabinet a enregistré ses réglages d'honoraires (les taux déjà saisis sont préservés) ou les a expressément confirmés
+    dans Paramètres › Cabinet › Prestations et honoraires. Tant que ce n'est pas le cas, ces valeurs servent aux estimations internes mais ne
+    sont jamais communiquées comme « tarif du cabinet » (``catalogue56109.tarif_applicable``)."""
+    if desk.settings(CONFIRMATION, None):
+        return True
+    return bool((desk.settings(SETTING, None) or {}).get('taux_horaire'))
+
+
+def confirmer_tarifs(desk, compte):
+    """Confirmation expresse des réglages d'honoraires (auteur et date gardés) ; ne modifie aucune valeur."""
+    desk.setting(CONFIRMATION, {'par': str(compte or '')[:200], 'le': _now()})
+
+
 def save_settings(desk, data):
     cur = settings(desk)
     rate = dec(data.get('taux_horaire', cur['taux_horaire']), 'taux_horaire')
@@ -352,9 +370,16 @@ def estimate(desk, inputs, cfg=None):
         fixed = Decimal(0)
     elif fixed is not None and fixed == 0:
         raise Stop('forfait_zero_sans_gratuite')
+    # 5.6.109 (F05) : un forfait calculé par le catalogue du cabinet (``catalogue56109.vers_estimation``) porte son origine ; il n'est pas
+    # « choisi par l'avocat » tant que l'avocat ne l'a pas retenu
+    catalogue = inputs.get('origine_forfait') if isinstance(inputs.get('origine_forfait'), dict) and inputs['origine_forfait'].get('type') == 'catalogue' else None
     if mode == 'temps':
         proposed = central
         basis = 'estimation au temps passé du périmètre inclus (les options restent à part)'
+    elif fixed is not None and catalogue and not free:
+        proposed = cents(fixed)
+        basis = 'forfait du catalogue du cabinet (prestation « %s », version %s), à confirmer par l’avocat' % (
+            str(catalogue.get('libelle') or catalogue.get('offre_id') or '')[:160], str(catalogue.get('offre_version') or '')[:8])
     elif fixed is not None:
         proposed = cents(fixed)
         basis = 'forfait choisi par l’avocat' if not free else 'mission gratuite ou remise totale (motif : %s)' % str(inputs.get('motif_gratuite'))[:200]
@@ -368,22 +393,28 @@ def estimate(desk, inputs, cfg=None):
         warnings.append('Forfait inférieur à 70 % de la fourchette haute : risque de sous-évaluation.')
     if hours and effective_rate < cost_rate and not free:
         warnings.append('Taux horaire effectif inférieur au coût de revient du cabinet.')
-    if not lines:
+    if not lines and not catalogue:
         warnings.append('Aucune diligence : le montant proposé ne peut pas être expliqué.')
     pct = inputs.get('provision_pct') if inputs.get('provision_pct') not in (None, '') else cfg['provision_pct']
     prov = provision(proposed, pct, cfg.get('arrondi_provision', 'centime')) if proposed else 0
     explain.append('%s : %s HT.' % (basis[:1].upper() + basis[1:], fmt(proposed)))
-    explain.append('Périmètre inclus : %d min (%s h), au taux de %s € HT/h sauf taux particulier.' % (minutes['inclus'], (Decimal(minutes['inclus']) / 60).quantize(
-        Decimal('0.01')), rate))
+    if catalogue and not lines:   # le détail (base, conditions, hypothèses) est celui de la simulation du catalogue ; aucune fourchette n'est inventée
+        explain.append('Détail du calcul : simulation du catalogue %s (règles et hypothèses conservées avec leur version).' % str(catalogue.get('simulation') or '')[:40])
+    else:
+        explain.append('Périmètre inclus : %d min (%s h), au taux de %s € HT/h sauf taux particulier.' % (minutes['inclus'], (Decimal(minutes['inclus']) / 60).quantize(
+            Decimal('0.01')), rate))
     if total['option']:
         explain.append('Options (accord préalable) : %s HT, présentées séparément.' % fmt(total['option']))
-    explain.append('Fourchette réaliste : %s à %s HT.' % (fmt(low), fmt(high)))
+    if not (catalogue and not lines):
+        explain.append('Fourchette réaliste : %s à %s HT.' % (fmt(low), fmt(high)))
     result = {'moteur': ENGINE_VERSION, 'mode': mode, 'taux_horaire': str(rate), 'lignes': lines, 'minutes': minutes, 'montants_ht_cents': total,
               'propose_ht_cents': proposed, 'central_ht_cents': central, 'bas_ht_cents': low, 'haut_ht_cents': high,
               'forfait_ht_cents': cents(fixed) if fixed is not None else None, 'gratuite': free, 'provision_pct': str(dec(pct, 'provision')),
               'provision_ht_cents': prov, 'interne': {'cout_horaire': eco['cout_horaire'], 'cout_previsible_cents': cost, 'marge_interne_cents': proposed - cost,
                                                       'taux_effectif': str(effective_rate), 'taux_cible': eco['taux_cible']},
               'avertissements': warnings, 'explication': explain, 'calcule_le': _now()}
+    if catalogue:   # 5.6.109 (F05) : origine du prix gardée avec l'estimation (prestation, version, empreinte, simulation)
+        result['origine_prix'] = {'type': 'catalogue_cabinet', **{k: str(catalogue.get(k) or '')[:200] for k in ('offre_id', 'offre_version', 'libelle', 'empreinte', 'simulation')}}
     result['reference_calcul'] = hashlib.sha256(json.dumps({'in': inputs, 'cfg': cfg, 'v': ENGINE_VERSION}, sort_keys=True, ensure_ascii=False,
                                                           default=str).encode()).hexdigest()[:24]
     return result

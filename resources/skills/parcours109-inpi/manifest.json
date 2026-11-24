@@ -1,0 +1,38 @@
+{
+  "id": "builtin.parcours109.inpi",
+  "name": "INPI et transfert de siège",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub proposition de développement",
+  "license": "AGPL-3.0",
+  "description": "INPI et transfert de siège via un parcours supervisé et borné, sans droits implicites.",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "redaction_courriel",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "guichet unique inpi",
+    "formalite inpi",
+    "formalites inpi",
+    "transfert de siege inpi"
+  ],
+  "enabled_default": true,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "activation_note": "Méthode seulement ; profil de portail et capacités à qualifier."
+}

@@ -3,6 +3,269 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.109 — incident de sauvegarde corrigé, confidentialité avant une IA externe, fiche et honoraires, gestion du cabinet, parcours supervisés, téléphonie Bland
+
+Cahier des charges et dossier technique du cabinet du 23/11/2026 (60 tickets), demandes du 23/11 (téléphonie Bland, rappel de
+rendez-vous, historique de l'assistant sur un serveur) et incident de production du 23/11. Beaucoup de fonctions nouvelles n'ont été
+essayées qu'avec de faux services (modèle, portails, Bland, Gemini, Pappers, registres étrangers) : elles sont livrées **désactivées**
+ou refusent tout effet tant qu'elles ne sont pas qualifiées. Le détail ticket par ticket est dans `VALIDATION-5.6.109.json`.
+
+**Incident de production et sauvegarde (priorité absolue)**
+- Constat : sur un serveur de production en 5.6.108, la base du bureau (`desk.sqlite3`) a été trouvée endommagée (« database disk
+  image is malformed ») après une sauvegarde ; erreur 500 sur toutes les pages, service en boucle de redémarrage, interface à sa limite
+  de mémoire. Le cabinet a remis le service en route depuis l'archive de la nuit (contrôle d'intégrité correct).
+- Mécanisme : en 5.6.108, la reconnaissance des bases par la sauvegarde ouvrait puis refermait le fichier vivant de la base dans le
+  processus qui la tient ouverte. Sous Linux, refermer ce fichier annule les verrous de ce processus sur la base : un autre processus
+  peut alors la croire libre et retirer son journal (WAL) pendant qu'elle est encore écrite. **Démontré sous Linux** (conteneur
+  Python 3.12, SQLite 3.46.1, deux passages) : verrou perdu, journal retiré par l'autre processus, 5 écritures perdues sur 686 ; même essai
+  sans ouverture du fichier : verrou gardé, aucune perte. Conclusion de l'essai : mécanisme « démontré » (verrou perdu, journal retiré,
+  écritures perdues) ; l'état « base illisible » lui-même n'a pas été reproduit par ce petit essai ; la tâche périodique de maintenance
+  est le candidat retenu pour le retrait du journal en production, sans preuve directe.
+- Correctif : la sauvegarde n'ouvre plus jamais une base autrement que par SQLite (reconnaissance par le nom, en-tête lu sur la copie) ;
+  même règle pour l'index de recherche, la mise à jour (`upgrade.py`, contrôle par `sqlite3` en lecture seule), les dossiers des
+  affaires et les sources locales du poste (fichiers de base jamais ouverts). Deux gardes dans les tests : une analyse du code
+  (`tests/garde_sqlite56109.py`, réécrite, qui parcourt aussi `deploy/` et `scripts/` : aucune ouverture directe trouvée) et une garde à
+  l'exécution qui épie les ouvertures pendant la sauvegarde, l'export, le contrôle de santé, l'outil de secours, la mise à jour sous Linux
+  et la synchronisation. Ce qu'elles ne voient pas : un chemin calculé à l'exécution (nom lu dans un fichier, une base ou un réglage), un
+  chemin passé d'un module à l'autre ou par un conteneur, le code d'une bibliothèque tierce ; la publication d'un fichier par la
+  synchronisation (`sync56108_fichiers.publier`) n'est pas couverte par la garde à l'exécution. Copie faite dans un processus séparé ; une copie en échec
+  donne une sauvegarde en échec, dite comme telle ; le contrôle quotidien n'est plus refusé en silence quand la file des travaux
+  automatiques est pleine (60 travaux) ; l'alerte « aucune sauvegarde depuis 48 h » est vérifiée. La cause des nuits manquées chez le
+  cabinet n'est pas établie : l'outil de secours ci-dessous les montre.
+- Base illisible : au lieu d'une erreur 500, page « AxiorHub est arrêté par sécurité » qui renvoie à la procédure « Base illisible »
+  du guide de réversibilité (`docs/REVERSIBILITE-5.6.88.md`, complétée) ; les services s'arrêtent sans boucle (code de sortie 78, délai
+  croissant). Les unités systemd livrées ne redémarrent plus un service arrêté par sécurité (`RestartPreventExitStatus=78`, au plus 5
+  redémarrages en 10 minutes) et portent de nouvelles limites de mémoire (interface : freinage à 450 Mo, 768 Mo au plus, échange 256 Mo ; travailleur :
+  freinage à 1,5 Go). Défaut trouvé à l'intégration : une mise à jour ne réécrivait jamais les unités installées, qui gardaient celles
+  de la première installation ; elle les réécrit désormais depuis la version livrée, garde l'ancien contenu dans `backups/` et recharge
+  systemd (un retour arrière ne remet pas les anciennes unités). Vrai systemd non essayé (tests sous Linux dans Docker). La cause de la limite
+  de 512 Mo atteinte par l'interface n'a pas été trouvée : ces valeurs restent à confirmer par une mesure sur le serveur.
+- Après une restauration : sur le serveur du cabinet, une sauvegarde est repartie seule une heure après la remise en place et a retiré
+  l'archive saine du jour. Cause établie dans le code : la planification normale (la base restaurée porte une dernière réussite de la
+  veille, donc une sauvegarde « due »), pas la reprise d'un travail interrompu ; et la rétention ne gardait que l'archive la plus récente
+  du jour. Corrigé : une sauvegarde interrompue n'est jamais relancée (elle est close « interrompue ») ; après une remise en place par
+  l'outil de secours, aucune sauvegarde automatique avant l'heure planifiée suivante (une heure au moins) et l'archive d'origine est
+  protégée 72 heures. Limite : ce délai de garde ne joue que si la remise en place passe par l'outil de secours.
+- Outil de secours : `python3 -m agent.secours56109 diagnostic | sauvegardes | archives | preparer-remise | lever`.
+- **Consigne aux installations encore en 5.6.108 : ne lancer ni sauvegarde automatique (décocher « Sauvegarder automatiquement chaque
+  jour », Paramètres › Poste) ni sauvegarde manuelle depuis l'interface (même chemin de code) avant la mise à jour en 5.6.109**, puis
+  réactiver la sauvegarde automatique.
+
+**Fiabilité (C04 à C08, F03)**
+- C05 : une pause, une annulation, un refus de droits ou de budget arrête réellement l'analyse ; elle n'est plus marquée « partielle »
+  et aucun nouvel effet ne part après l'arrêt. C06 : le relevé des fichiers reprend là où il s'était arrêté. C07 : une écriture dont le
+  résultat est incertain est rapprochée avant d'être refaite. C08 : une saisie faite dans WordCraft pendant un enregistrement n'est plus
+  déclarée enregistrée à tort.
+- C04 : chaque analyse dit sa couverture (pièces et courriels lus, non lus, en échec) ; couverture page par page non faite.
+- F03 : bandeau « Analyser le dossier » (puis « Réanalyser ») dans l'en-tête de la fiche du dossier : inventaire des sources, comparaison avant
+  remplacement, propositions à valider sans écraser les choix de l'avocat. Partiel : résultat non retrouvable depuis Aujourd'hui et
+  Produire, pas de validation groupée ; les propositions de l'analyse ne sont pas versées dans la fiche Conseil / Contentieux (F04).
+
+**Confidentialité avant une IA externe (P01 à P06)**
+- Avant tout envoi à un fournisseur externe, les noms connus du dossier et du cabinet (parties, contacts, sociétés) sont détectés
+  localement et masqués ; une partie ajoutée est masquée dès le premier envoi suivant ; les marqueurs écrits par l'utilisateur ne se
+  confondent plus avec les substitutions ; un marqueur inconnu ou altéré au retour bloque le dépôt automatique au lieu de deviner un nom ;
+  l'enveloppe et le format de la demande sont contrôlés avant l'envoi ; le connecteur Claude et les correspondances suivent une politique
+  explicite. Un refus de confidentialité est un arrêt expliqué, définitif pour les automatismes (plus de nouvelle tentative inutile), et
+  il arrête aussi le repli local en mode hybride.
+- Limites de détection : un nom absent des registres n'est pas masqué ; prénom seul, surnom, initiales et fautes de frappe échappent à
+  la détection ; visages, signatures et tampons sur une image ne sont pas traités ; la voix envoyée à un service externe n'est pas
+  contrôlée ; la colonne d'origine des masques du connecteur Claude n'est pas chiffrée ; la purge annuelle n'a pas de tâche planifiée ;
+  Courriels et Produire n'ont pas encore d'état « à vérifier » propre (message d'arrêt). Essayé avec de faux transports seulement.
+
+**Courriels et fichiers (C01, C02, C03, C09, F01, F02)**
+- C01 : courriels HTML et repli texte lisibles (le texte déjà mis en cache pour les messages Gmail n'est pas recalculé). C02 : dates
+  HTTP converties en français. C03 : contraste du fil d'Ariane et des listes en clair et en sombre (survol et focus non contrôlés dans un
+  vrai navigateur). C09 : une date de création inconnue est dite inconnue (plus de date déduite à tort) ; les instantanés déjà
+  enregistrés ne sont pas requalifiés.
+- F01 : barre des pièces jointes, classement d'une pièce ou d'un lot dans le dossier, avec confirmation et reprise ; l'état du lot et sa
+  mise en file sont écrits ensemble (une seule transaction), rien n'est déposé sans lot confirmé, les droits sont relus avec le rôle
+  actuel de la personne, et une panne du contrôle des droits répond « service indisponible » (503) au lieu d'un accès ou d'un 404. F02 : tri global du
+  répertoire du dossier et aperçu commun.
+
+**Fiche et honoraires (C10, C11, F04, F05)**
+- C10 : un intitulé de juridiction coupé sur deux lignes n'est plus pris pour une partie. C11 : une personne non identifiée comme
+  cliente n'est plus proposée d'office comme adverse ; le rôle se choisit (dont cocontractant et tiers).
+- F04 : fiche Conseil / Contentieux personnalisable avec projection des faits. Partiel : **non fait** : verser dans la fiche les
+  propositions de l'analyse (il faut une étape d'extraction dédiée) ; corriger ou écarter un fait renvoie à la vue existante ; la projection n'est pas utilisée par les autres rédactions.
+- F05 : catalogue de 77 trames de prestations (18 domaines, sans prix imposé) dans Paramètres › Cabinet, barèmes conditionnels et
+  estimation motivée ; l'éditeur de règles accepte jusqu'à quatre conditions (une cinquième est refusée) et une règle importée n'est plus
+  tronquée à l'enregistrement. Partiel : montants hors tarif
+  non branchés sur la rédaction des courriels, instantané non repris dans le devis et la lettre de mission, import par collage,
+  simulation affichée en texte.
+
+**Consommation et coûts (C12, F18)**
+- C12 : une mesure de cache absente ou une consommation partielle est dite comme telle (« incertain », majorant étiqueté), jamais un
+  faux zéro ; un tarif à 0 signifie « non renseigné ».
+- F18 : section unique « Consommation et coûts » dans Paramètres › Modèles d'IA (jetons, plafonds, relevé, export) ; les anciens
+  compteurs renvoient vers elle (nouvelle interface) ; appels Bland et documents des registres étrangers inscrits comme quantités de service. Restent à
+  faire : alertes configurables, conversion de devise, écran par collaborateur, coût déclaré par OpenRouter. Fenêtres des plafonds en
+  mois UTC, vues en mois du cabinet.
+
+**Compétences, décision locale, simulation (F06, F07, F14)**
+- F06 : sélection des compétences par étape et questionnaire des informations manquantes ; « Analyser l'assignation reçue » ne charge
+  plus une méthode de création (défaut réel corrigé). Assistant juridique reste la compétence par défaut. Questions ciblées partielles.
+- F07 : décision locale (choix fermé des actions par un petit modèle local) derrière un réglage **désactivé par défaut** (Paramètres ›
+  IA). Partiel : questions ciblées visibles seulement dans Paramètres › IA, pas de relance du travail après la réponse, complexité non
+  transmise au routage, gain non mesuré (24 cas synthétiques seulement).
+- F14 : onglet « Simulation de décision » des dossiers de contentieux et de postulation (cadrage, quatre actions, recherche
+  contradictoire anonymisée ; la force de cette anonymisation n'a pas été vérifiée). Aucun pourcentage inventé par un modèle n'est
+  affiché ni exporté : le résultat est enregistré masqué et le texte brut reste dans une table exclue de l'export ; même règle pour les
+  anciens projets d'avis bloqués. Partiel : « Contrer » est une
+  projection de l'avis sans appel dédié ; « Créer une tâche » et « Mettre à jour le projet de conclusions » ne sont pas raccordés ; pas
+  d'estimation de coût avant lancement. Recette juridique par un avocat nécessaire avant tout usage.
+
+**Livrables, modèles Word, éditeurs Craft (F08, F16)**
+- F08 : un livrable reste le même objet depuis Aujourd'hui, Courriels, Produire et Dossiers ; Produire en trois vues ; modèles Word du
+  cabinet (styles) et trame de conclusions. Restent : correction par l'IA des livrables structurés, suivi des modifications, tableaux et
+  groupes répétitifs.
+- F16 : éditeurs facultatifs GridCraft, PdfCraft, DeckCraft raccordés (Paramètres › Documents), **désactivés** ; les binaires compilés ne
+  sont pas livrés, l'option ne peut donc pas être activée ; essayés avec une archive d'essai, formats réels non qualifiés.
+
+**Historique, discussions, apparence (F09, F10)**
+- F09 : historique des instructions de l'assistant par personne (plus aucune purge ni lecture du fil d'autrui), discussions partagées
+  avec droits. Les anciens fils sans auteur sont **attribués d'office** au compte quand une seule identité a pu les écrire (installation
+  autonome à un compte, serveur avec l'administrateur seul ou authentification du serveur sans registre, aucune autre identité jamais
+  vue), avec trace au journal ; sinon ils restent invisibles jusqu'à leur attribution par l'administrateur (`/assistant?vue=attribuer`) ;
+  jamais en mode application Nextcloud. Restent : recherche simple (sans index plein texte), conversations antérieures à la 1.6 et
+  messages du cockpit non repris, rattachement à un livrable, corbeille sans purge physique.
+- F10 : Paramètres › Apparence (couleur du menu de gauche en clair et en sombre, mode d'affichage) et assistant accessible sans défilement.
+- Défaut trouvé par les parcours dans un vrai navigateur à l'intégration, et corrigé : au format téléphone (375 px), la barre ajoutée à
+  l'en-tête du volet de l'assistant (Historique, Nouvelle discussion, Ouvrir en grand) écrasait le titre, sortait « Fermer » de l'écran
+  et repoussait la saisie sous la vue. Elle passe désormais sous le titre, sur une ligne qui défile sur elle-même.
+- Page Aujourd'hui : avec l'intitulé « Mes routines | Mes agents IA » et la routine de rappel livrée désactivée, le bandeau des routines
+  tient sur deux lignes au plus à 1920 px (une seule auparavant).
+
+**Sources publiques, international, fonds juridique local, fichiers du poste (F11, F13, G18, G19, G21, G22, G23)**
+- F11 : sources publiques sans clé (data.gouv.fr, JusticeLibre, législations allemande, espagnole, britannique, canadienne et québécoise)
+  **préconfigurées et activées après une vérification automatique** par le serveur (recherche neutre, aucune donnée du cabinet) ; une
+  source désactivée par l'utilisateur le reste. Vérification jamais exercée sur les vrais services.
+- G21 : clés et accès étrangers dans Paramètres › Connexions API et à l'installation. G18 : profils internationaux et identifiants des
+  registres (sans lien vers les fiches de textes). G19 : documents des sociétés étrangères classés sans doublon pour Companies House et
+  la SEC seulement (autres registres : « service non raccordé »), sur faux transports.
+- G23 : fonds juridique local choisi, versionné, mis à jour par pas déclenchés à la main (Paramètres › Recherche et sources). G22 :
+  chaîne de qualité locale, partielle (relecture des citations non appelée par les réponses existantes). F13 : questions sur les
+  fichiers du poste (Paramètres › Poste), partiel : pas d'entrée depuis l'assistant ni depuis Dossier › Fichiers.
+
+**Poste et navigateur (F12, G13, G24)**
+- G13 : prise de main du navigateur supervisé acquittée ; délégation au poste pour un serveur : canal serveur-compagnon et interface de
+  l'application Nextcloud (ExApp) non faits. G24 : navigateur piloté par un modèle Ollama local, essayé avec un faux modèle seulement :
+  la recette des 30 parcours avec le vrai qwen3.5:9b (Windows 11 et Ubuntu 24.04) est à faire par le cabinet
+  (`scripts/recette-navigateur-qwen56109.py`, jamais lancé). F12 : partiel, aucune boucle d'outils de l'IA n'exécute encore d'action
+  sur le poste ; pas de pilote graphique ni de bac à sable.
+
+**Connexion Mistral : refus « http 400 » et réponses coupées** (constat du cabinet du 24/11/2026 sur un serveur en 5.6.108)
+- Constat : avec une clé Mistral valide et le mode mixte, toute rédaction échouait avec le seul message « http 400 » ; le test de la
+  carte réussissait pourtant. Cause établie par une requête directe du cabinet à l'API : le fournisseur refuse une température 0 sans
+  `top_p` égal à 1 (`invalid_request_greedy_sampling`). Une fois `top_p` mis à 1, la rédaction échouait autrement (« réponse
+  incomplète ») : le modèle raisonne avant de répondre et ce raisonnement compte dans la longueur de sortie accordée (3 000 jetons,
+  fixés dans le code). Le test de la carte ne prouvait rien : il portait sur le modèle le plus économe de la clé, pas sur le modèle en service.
+- Corrigé : `top_p` 1 envoyé d'office à Mistral quand la température est à 0 (le réglage du profil est alors noté « ignoré ») ; un
+  refus 400, 404 ou 422 d'un fournisseur donne un motif lisible (échantillonnage, modèle inconnu, paramètre nommé) avec le type et le
+  code du fournisseur, jamais le texte libre ; chaque refus laisse une ligne au journal du service, sans contenu ni clé ; un modèle qui
+  déclare des jetons de raisonnement reçoit une marge de sortie (1 024 à 32 768 jetons, réservée au budget) ; une réponse coupée faite
+  surtout de raisonnement donne lieu à une seule reprise plus large, puis au message « le modèle a consommé sa réponse en
+  raisonnement » ; le message « choisissez un modèle plus capable » disparaît. Le préréglage mixte prend son modèle dans le catalogue de
+  la clé ; un modèle absent de ce catalogue n'est jamais envoyé (« Modèle à choisir »). Bouton « Essayer une requête réelle » dans les
+  cartes Mistral et Gemini (courriel fictif, même forme que la rédaction). Le test de la carte porte sur le modèle en service.
+- **Jamais essayé sur le vrai service** : faux transport seulement, d'après les constats du cabinet. Aucun réglage officiel du
+  fournisseur pour limiter le raisonnement n'a pu être établi (aucun n'est envoyé). Sur une 5.6.108 : mettre `top_p` à 1 dans le profil
+  lève le refus 400 ; rien ne règle la longueur de sortie : garder la rédaction sur un modèle qui ne raisonne pas jusqu'à la mise à jour.
+
+**Modèle et contexte choisis pour chaque tâche** (demande du cabinet du 24/11/2026)
+- Paramètres › Modèles d'IA, tableau « Modèles locaux et routage » : chaque fonction (tri, pièces jointes, rédaction des courriels,
+  assistant, voix, analyse, audiences, documents, Roundcube, contrôle) peut recevoir une connexion et un modèle exacts (« Choisi par
+  vous ») ou suivre le mode général (valeur par défaut). Le modèle fixé est appelé seul : ni routeur automatique, ni bascule hybride, ni
+  secours, ni substitution en cas d'échec (le message nomme la fonction et le modèle). Le choix n'élargit jamais ce qui est permis :
+  mode local, connexion désactivée, consentement absent ou politique des données → refus expliqué à l'enregistrement et à l'exécution ;
+  local exigé pour une demande ou dossier exclu de l'externe → la demande reste locale et la mission le dit. Un modèle local fixé reste
+  admis dans un mode à fournisseur externe unique (rien ne sort). Modèle externe : doit figurer au catalogue de la clé ; local : parmi
+  les modèles installés.
+- « Contexte transmis » par fonction, « Réduit » ou « Normal » (valeur par défaut, bornes inchangées). Réduit : 20 noms de fichiers au
+  lieu de 80, 4 passages au lieu de 12, 4 courriels au lieu de 12, 8 événements au lieu de 20, 10 faits au lieu de 25 ; les pièces
+  choisies ou jointes par l'avocat sont toujours transmises. Mesure sur une base fictive (rédaction d'un courriel) : 50 946 caractères
+  envoyés au niveau normal, 20 272 au niveau réduit ; un second appel de même taille a lieu quand le contrôle de rédaction relève un écart.
+- Le détail d'une mission indique, pour chaque appel au modèle, la fonction, la connexion, le modèle, la taille réellement transmise
+  (caractères, jetons estimés), le contexte par catégorie et ce que le niveau réduit a écarté. Consommation des 30 derniers jours par
+  fonction et par modèle à côté du tableau.
+- Une installation mise à jour garde exactement son comportement tant qu'aucun choix n'est fait dans ce tableau (les routes héritées
+  et celles du mode mixte ne deviennent pas des choix fixés). Non faits : retour automatique au mode général en cas de panne d'un modèle
+  fixé ; niveau « étendu ». L'écran exige JavaScript. Jamais essayé avec un vrai Ollama, une vraie clé ni un vrai navigateur. Les bornes
+  du niveau réduit sont à valider par le cabinet.
+
+**Gemini (F15)** : connexion par l'adresse compatible de Google, clé au coffre, **désactivée**, sans envoi ni tarif à la création ;
+jamais utilisée tant que « Tester la connexion » n'a pas réussi (Paramètres › Modèles d'IA). Jamais essayée sur le vrai service. Non
+faits : mode « Gemini uniquement », images, Gemini CLI et Vertex.
+
+**Gestion du cabinet (G01 à G09)**
+- G01 : préfacturation assistée sans double saisie ni double facturation (durée des appels reprise). G02 : assistance régulière dans la
+  fiche client (délais de réponse non calculés). G09 : fonds, frais et débours dans la vue financière (justificatifs en référence texte).
+- G03 : demandes et partage avec le client dans le dossier (paquet ZIP non chiffré ; vrai Nextcloud non essayé) ; un partage non
+  confirmé, expiré ou révoqué refuse tout fichier. G06 : appels, comptes rendus et rappels ; rattacher un appel à un dossier copie le
+  dernier compte rendu dans un nouveau document « à relire » du nouveau dossier, laisse les versions antérieures intactes et le trace au
+  registre. G07 : remplacements et postulation liés à l'audience ; l'accès du confrère est borné au lendemain de l'audience courante,
+  relu à chaque accès. G08 : kit d'audience hors ligne (compte rendu au client non fait). Plus aucune écriture pendant une simple lecture
+  dans les quatre modules de relations (une création de table de l'annuaire par la page des audiences, antérieure à cette version,
+  subsiste sur d'autres écrans). G04 : closing dans Corporate et Cession, sans seconde opération. G05 : suites et exécution dans la fiche contentieux.
+- Les sections ajoutées au dossier, à la fiche contact et aux honoraires s'accrochent à des repères de page : à revérifier dans un vrai
+  navigateur.
+
+**Parcours, routines, portails, Pappers (G10 à G17, G20)**
+- G10 : offre, CGV et PDF joint au brouillon depuis une instruction (lettre de mission avec « [à compléter] » ; LibreOffice réel non
+  essayé). G12 : routine de collecte tous les trois jours avec rattrapage borné. G17 : documents publics Pappers du client et de
+  l'adversaire classés dans le dossier (fiche « Pappers Entreprises (API) » dans Connexions ; essayé sur faux transport).
+- G11 (e-Barreau) : **aucun adaptateur d'écran réel n'est livré : en production rien n'est collecté.** G14 (INPI), G15 (Infogreffe),
+  G16 (CARPA), G20 (portails étrangers) : préparation et suivi raccordés, exécution dans le navigateur non branchée, profils non
+  qualifiés : **tout effet est refusé** « profil non qualifié ».
+- Les compétences de parcours (`parcours109-*`) sont proposées actives comme méthodes sur une installation neuve (une désactivation
+  existante est conservée) ; les 13 méthodes métier (`metier109-*`) sont proposées désactivées (page Compétences).
+
+**Téléphonie par IA (Bland), « Mes routines | Mes agents IA », rappel de rendez-vous** (demande du cabinet du 23/11/2026)
+- Connecteur Bland (Paramètres › Connexions API, famille « Téléphonie par IA », clé au coffre), désactivé ; agent de prise de
+  rendez-vous préparé par un parcours guidé et confirmé par l'avocat (l'assistant répond par le chemin du parcours, sans lien cliquable) ;
+  « Comptes rendus — Mes routines | Mes agents IA » sur la page d'accueil ; guide `docs/GUIDE-BLAND.md` et onglet « Téléphonie par IA
+  (Bland) » du guide en ligne (`/accueil-administratif?vue=bland`) ; mention « Rappel envoyé » sur la fiche du rendez-vous ; chaque appel
+  ou SMS inscrit dans « Consommation et coûts ».
+- Routine « Rappel de rendez-vous au client, deux jours avant » (SMS ou appel), **créée désactivée** : texte fixe sans élément du
+  dossier, accord du client exigé, mode par défaut « préparer et faire confirmer » ; mode « envoyer automatiquement » seulement sur choix
+  explicite de l'avocat (choix de conception à confirmer par le cabinet), par un compte qui a le droit « envoyer », relu à chaque passage.
+  Après relecture indépendante : chaque tentative compte dans le plafond quotidien (compté au jour du cabinet) et le premier résultat
+  incertain suspend l'envoi automatique ; le lieu libre de l'agenda n'entre **jamais** dans un rappel (valeurs fermées : visioconférence,
+  téléphone, adresse du cabinet réglée, ou rien) ; en automatique, aucune exception d'identité n'est admise ; la validation couvre le
+  texte du SMS, la consigne d'appel et les coordonnées du cabinet (toute modification demande une nouvelle validation) ; un jeton de
+  service est refusé. Non codé : choisir explicitement le lieu libre à la confirmation. La routine n'a volontairement pas de bouton
+  « Lancer ».
+- Jamais essayé sur le vrai service (faux serveur local). Non faits : connexion OAuth, accord du client sur la fiche contact (il est sur
+  la carte de la routine), proposition transformée en événement d'agenda, transcription rattachée à un dossier.
+
+**Veille de sécurité du serveur** : le fichier de compte d'acme.sh (`account.conf`, clés d'API DNS) est surveillé ; un fichier de
+réglages sans réglage sensible identifié (par exemple `acme.sh.env`) descend d'un cran (« à surveiller ») ; l'exposition tient compte
+des alias globaux d'Apache (`conf-enabled`) en plus des sites ; une copie d'application qui n'est pas servie est signalée à part, un cran
+plus bas. La veille n'exécute rien. Vrai Apache non essayé.
+
+**Traductions** : 1 510 phrases ajoutées par langue (anglais, allemand, espagnol), plus un dernier passage pour les textes des
+corrections finales ; traduction automatique **non relue par un
+humain** ; termes juridiques incertains à faire relire (séquestre, cédant, dispositif, postulation, rétrocession, intimé, licencié,
+bordereau CARPA, déclaration d'appel, décision qualifiée, diligence…) ; 121 phrases volontairement non traduites (textes destinés au
+client, au confrère ou à l'appelant, données métier, consignes aux modèles).
+
+**Changements de comportement à connaître**
+- Facture au temps : la ligne est calculée en heures à 6 décimales (50 min à 200 € l'heure = 166,67 € au lieu de 166,00 €).
+- Les fichiers de base de données (`.sqlite3`, `.sqlite`, `.db` et leurs journaux) d'un dossier ou d'un emplacement du poste ne sont
+  plus jamais ouverts ni lus : ils apparaissent comme « fichier de base non lu ».
+- Compétences de parcours actives par défaut ; méthodes métier et téléphonie Bland désactivées ; Assistant juridique reste la
+  compétence par défaut.
+- Le contrôle quotidien de sauvegarde ne compte plus dans le plafond de la file des travaux automatiques.
+- Sources publiques sans clé activées après vérification automatique (le serveur les interroge avec une recherche neutre).
+- Historique de l'assistant : chaque personne ne voit que ses fils ; anciens fils attribués d'office ou à attribuer (voir F09).
+- Une base illisible arrête le service avec une page d'explication au lieu de boucler.
+- Mistral : `top_p` 1 envoyé d'office quand la température est à 0 ; un refus du fournisseur porte un motif lisible au lieu de « http 400 ».
+- Un modèle qui raisonne reçoit une marge de sortie : la réservation de budget d'un appel est plus haute d'autant.
+- Le test de génération de la carte Mistral porte sur le modèle en service (plus sur le modèle le plus économe de la clé).
+- Une sauvegarde interrompue n'est plus relancée ; après une remise en place par l'outil de secours, délai de garde et archive protégée 72 h.
+
+Ce qu'il faut faire à la mise à jour : `docs/MISE-A-JOUR-5.6.109.md`.
+
 ## 5.6.108 — correctifs de l'audit 5.6.107, IA mieux guidée pour les petits modèles, banc d'essai, Assistance métier en cinq parcours
 
 Cahier des charges du cabinet du 18/11/2026 (audit de la 5.6.107).

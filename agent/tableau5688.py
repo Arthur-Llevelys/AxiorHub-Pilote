@@ -12,7 +12,7 @@ import re
 
 from .common import Stop
 
-BLOCS = (('actuellement', 'Actuellement'), ('routines', 'Comptes rendus des routines'), ('style', 'Style du cabinet'), ('file', 'À décider / À relire'), ('activite', 'Ce que fait l’agent'),
+BLOCS = (('actuellement', 'Actuellement'), ('routines', 'Comptes rendus — Mes routines | Mes agents IA'), ('style', 'Style du cabinet'), ('file', 'À décider / À relire'), ('activite', 'Ce que fait l’agent'),
          ('journee', 'Ma journée'), ('veille', 'Veille juridique'), ('societes', 'Veille des sociétés'), ('memoire', 'À retenir'), ('reprise', 'Reprendre là où j’en étais'))
 IDS = tuple(k for k, _ in BLOCS)
 LARGES = ('actuellement', 'file', 'veille', 'societes', 'memoire', 'reprise')     # toute la largeur quand les blocs sont réordonnés

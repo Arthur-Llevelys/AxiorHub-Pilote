@@ -20,7 +20,8 @@ TARIFS = {'mistral-large-4': (0.70, 2.10),        # docs.mistral.ai/models/mistr
           'claude-haiku-5-5': (0.10, 0.50), 'claude-sonnet-5-5': (2.0, 10.0), 'claude-opus-5-5': (4.0, 20.0), 'claude-fable-5-1': (10.0, 50.0)}
 DEFAULT_MONTHLY_USD = 50.0
 DEFAULT_REQUEST_USD = 0.50
-MIXTE_MODEL = 'mistral-large-4'
+MIXTE_MODEL = 'mistral-large-4'   # référence documentaire (tarif relevé) ; 5.6.109 : jamais retenu sans figurer au catalogue de la clé
+MIXTE_FAMILLE, MIXTE_NIVEAU = 'mistral-large', 'avance'   # 5.6.109 (lot E) : préréglage Mixte choisi DANS le catalogue (catalogue5682)
 CACHE_SECONDS = 3600
 NOT_CHAT = re.compile(r'embed|whisper|tts|transcri|moderation|dall-e|image|audio|realtime|speech|rerank|ocr', re.I)
 SAFE_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,159}$')
@@ -122,14 +123,20 @@ def list_models(desk, provider_id, refresh=False, fetch=None):
 
 
 def _resolve_mixte(rows):
-    """Identifiant exact proposé par Mistral pour Mistral Large 4 (nom court, sinon sa version la plus récente)."""
-    ids = [r['id'] for r in rows]
-    if MIXTE_MODEL in ids:
-        return MIXTE_MODEL
-    dated = sorted(i for i in ids if i.startswith(MIXTE_MODEL + '-'))
-    if dated:
-        return dated[-1]
-    raise Stop('modele_ou_route_fournisseur_absent')
+    """5.6.109 (lot E) : modèle « Mistral Large » DU catalogue de la clé (famille et niveau avancé) : alias « -latest » s'il est listé, sinon la
+    version la plus récente. Plus aucun nom écrit en dur n'est retenu sans figurer au catalogue ; aucun : refus clair, liste jointe."""
+    from .modeles_catalogue56109 import choisir
+    return choisir('mistral', [r['id'] if isinstance(r, dict) and 'id' in r else str((r or {}).get('slug') or '') for r in rows], MIXTE_FAMILLE, MIXTE_NIVEAU)
+
+
+def _prix_mixte(current, model):
+    """Tarif du modèle retenu : relevé officiel de CE modèle, sinon tarif déjà saisi pour ce même modèle ; sinon non renseigné (coût inconnu)."""
+    known = tariff(model)
+    if known:
+        return known
+    if current.get('model') == model and (current.get('input_usd_per_million') or current.get('output_usd_per_million')):
+        return float(current.get('input_usd_per_million') or 0), float(current.get('output_usd_per_million') or 0)
+    return 0, 0
 
 
 def apply_mixte(desk, api_key='', consent=False, local_model='', fetch=None, revision=None):
@@ -141,7 +148,6 @@ def apply_mixte(desk, api_key='', consent=False, local_model='', fetch=None, rev
     current = provider_registry(desk.c).get('mistral') or {}
     monthly = float(current.get('monthly_budget_usd') or 0) or DEFAULT_MONTHLY_USD
     per_request = float(current.get('per_request_budget_usd') or 0) or DEFAULT_REQUEST_USD
-    price_in, price_out = TARIFS[MIXTE_MODEL]
     key = str(api_key or '').strip()
     if key:
         # 5.6.96 (A02) : même service que le formulaire du mode : la clé est testée, le modèle Mixte choisi dans SON catalogue, puis la
@@ -150,15 +156,19 @@ def apply_mixte(desk, api_key='', consent=False, local_model='', fetch=None, rev
         transport = (lambda methode, chemin, cle, corps=None: fetch({**current, 'type': 'mistral'})) if fetch else None
         model = mistral5696.enregistrer(desk, key, revision, 'profil_mixte', transport=transport, provider_id='mistral', choisir=_resolve_mixte)['modele']
         current = provider_registry(desk.c).get('mistral') or current
+        price_in, price_out = _prix_mixte(current, model)
         save_provider(desk, 'mistral', 'mistral', current.get('url') or '', model, '', True, True, bool(current.get('zdr_required')),
                       monthly, per_request, price_in, price_out)
     else:
-        save_provider(desk, 'mistral', 'mistral', current.get('url') or '', MIXTE_MODEL, '', True, True,
-                      bool(current.get('zdr_required')), monthly, per_request, price_in, price_out)
-        model = _resolve_mixte(list_models(desk, 'mistral', True, fetch)['modeles'])
-        if model != MIXTE_MODEL:
-            save_provider(desk, 'mistral', 'mistral', current.get('url') or '', model, '', True, True, bool(current.get('zdr_required')),
-                          monthly, per_request, price_in, price_out)
+        # 5.6.109 (lot E) : défaut de la 5.6.108 : ``MIXTE_MODEL`` était écrit sur la connexion AVANT la lecture du catalogue. Désormais le
+        # catalogue de la clé enregistrée est relu et conservé, le modèle y est choisi, puis seulement la connexion est enregistrée.
+        if not current.get('secret_file'):
+            raise Stop('cle_api_fournisseur_absente')
+        from .modeles_catalogue56109 import relire
+        model = _resolve_mixte([{'id': s} for s in relire(desk, 'mistral', fetch)])
+        price_in, price_out = _prix_mixte(current, model)
+        save_provider(desk, 'mistral', 'mistral', current.get('url') or '', model, '', True, True, bool(current.get('zdr_required')),
+                      monthly, per_request, price_in, price_out)
     out = ia540.apply_mixed(desk, 'mistral', model, local_model, test=fetch is None and not key)   # clé neuve : déjà vérifiée deux fois
     return {**out, 'modele': model, 'plafond_mensuel_usd': monthly, 'plafond_requete_usd': per_request,
             'message': out['message'] + ' Plafonds : %s $ par mois, %s $ par requête.' % (_fr(monthly), _fr(per_request))}
@@ -183,9 +193,9 @@ def form_html(desk):
            '<label class="m5-field">Clé API Mistral<input type="password" name="api_key" required maxlength="4096" autocomplete="new-password"></label>'
            '<input type="hidden" name="revision_cle" value="%d">' % _revision(desk))      # 5.6.96 (A03) : révision lue à l'ouverture
     return ('<section class="m81-profil" id="m81-profil"><h3>Profil Mixte recommandé</h3>'
-            '<p><strong>Ollama en local</strong> (%s) pour le tri des courriels, la lecture des pièces et le contrôle ; <strong>Mistral Large 4</strong> pour la '
+            '<p><strong>Ollama en local</strong> (%s) pour le tri des courriels, la lecture des pièces et le contrôle ; <strong>Mistral Large</strong> (modèle choisi dans le catalogue de votre clé) pour la '
             'rédaction, l’analyse juridique, l’assistant et la conversation vocale. Tout ce qui part est pseudonymisé.</p>'
-            '<p class="ax-muted">Coût : 0,70 $ par million de jetons en entrée, 2,10 $ en sortie. Plafonds préréglés : %s $ par mois et %s $ par requête, '
+            '<p class="ax-muted">Coût : selon le tarif du modèle retenu (non renseigné : aucun envoi). Plafonds préréglés : %s $ par mois et %s $ par requête, '
             'modifiables dans Fournisseurs. Plafond atteint, le modèle local prend le relais.</p>'
             '<form class="m5-form" data-api="m5681/profil-mixte" data-reload="1">%s'
             '<label class="r52-day"><input type="checkbox" name="consent" required> J’autorise l’envoi à Mistral des données pseudonymisées nécessaires à ces fonctions</label>'

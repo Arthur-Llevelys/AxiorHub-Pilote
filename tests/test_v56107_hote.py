@@ -690,7 +690,8 @@ class Livrables(unittest.TestCase):
         class Silencieux(WSGIRequestHandler):
             def log_message(self, *a):
                 pass
-        serveur = make_server('127.0.0.1', 0, app, handler_class=Silencieux)
+        from test_v56108_demo import corps_lu   # 5.6.109 : corps lu avant la réponse (connexion coupée par moments sous Windows sinon)
+        serveur = make_server('127.0.0.1', 0, corps_lu(app), handler_class=Silencieux)
         threading.Thread(target=serveur.serve_forever, daemon=True).start()
         self.addCleanup(serveur.server_close)
         self.addCleanup(serveur.shutdown)

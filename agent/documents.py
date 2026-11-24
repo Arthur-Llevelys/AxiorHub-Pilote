@@ -21,6 +21,44 @@ from .mailbox import body_text
 
 SUPPORTED = {'.pdf', '.docx', '.odt', '.xlsx', '.txt', '.md', '.csv', '.eml', '.png', '.jpg', '.jpeg', '.tif', '.tiff'}
 
+# 5.6.109 (lot Q, G22) : options locales d'extraction et de détection, NON imposées et désactivées. Aucune n'est livrée ni téléchargée : une
+# option ne devient « disponible » que si le cabinet l'a installée lui-même sur le poste (module importable localement), l'a qualifiée par
+# ``scripts/mesure-qualite56109.py`` ET l'a activée (``documents.options56109``). Sinon l'extracteur natif ci-dessous reste seul employé,
+# sans erreur ni repli externe. Le contrat reste le même (pages, originaux conservés) ; la signature entre dans la clé du cache de qualité.
+EXTRACTEUR_VERSION = 'natif-5.6.109'
+OPTIONS56109 = {
+    'iscc_tika': {'libelle': 'Extraction iscc-tika (formats mal lus)', 'nature': 'extraction', 'module': 'iscc_tika'},
+    'paddleocr': {'libelle': 'OCR PaddleOCR (scans et tableaux, processeur)', 'nature': 'ocr', 'module': 'paddleocr'},
+    'gliner': {'libelle': 'Détecteur local GLiNER (zones sensibles)', 'nature': 'detection', 'module': 'gliner'},
+    'privacy_filter': {'libelle': 'Détecteur local privacy-filter (comparaison)', 'nature': 'detection', 'module': 'privacy_filter'},
+}
+
+
+def options_locales(cfg):
+    """État de chaque option : ``desactivee`` (défaut), ``non_installee`` (demandée mais absente du poste : rien n'est téléchargé),
+    ``a_qualifier`` (installée, activée, sans mesure enregistrée) ou ``adaptateur_non_livre``. Aucune importation du module ici."""
+    import importlib.util
+    demandees = (cfg or {}).get('options56109') or {}
+    out = {}
+    for oid, spec in OPTIONS56109.items():
+        choix = demandees.get(oid) if isinstance(demandees, dict) else None
+        if not isinstance(choix, dict) or choix.get('active') is not True:
+            out[oid] = 'desactivee'
+            continue
+        try:
+            present = importlib.util.find_spec(spec['module']) is not None
+        except (ImportError, ValueError):
+            present = False
+        # aucun adaptateur n'est livré dans cette version : même installée et qualifiée, l'option n'est pas employée (jamais « active »)
+        out[oid] = 'non_installee' if not present else ('adaptateur_non_livre' if choix.get('qualifiee') is True else 'a_qualifier')
+    return out
+
+
+def signature_extraction(cfg):
+    """Version de l'extracteur et des options effectivement actives (clé du cache de qualité) ; OCR natif compris."""
+    actives = sorted(o for o, etat in options_locales(cfg).items() if etat == 'active')
+    return '%s|ocr=%s|%s' % (EXTRACTEUR_VERSION, 'oui' if (cfg or {}).get('ocr', True) else 'non', ','.join(actives) or 'aucune_option')
+
 
 def _pdf_pages(raw, cfg):
     """Extract every PDF page independently so citations cannot drift."""

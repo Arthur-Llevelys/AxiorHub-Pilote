@@ -59,7 +59,7 @@ PARENT = {
     'modeles_word': 'mon_style', 'modeles_actes': 'mon_style', 'savoir_faire': 'mon_style', 'securite_ia': 'parametres', 'progres': 'mon_style', 'apprentissage': 'mon_style', 'memoire': 'mon_style',
     # Décisions et travaux : Aujourd'hui / Courriels
     'initiatives': 'aujourdhui', 'engagements': 'aujourdhui', 'mobile': 'aujourdhui','associations': 'courriels', 'orchestrateur': 'courriels',
-    'accueil_administratif': 'courriels',
+    'accueil_administratif': 'courriels', 'telephonie_bland': 'courriels',   # 5.6.109 (I2) : téléphonie par IA (Bland), à côté de l'accueil administratif
     # Paramètres de l'agent, Diagnostic et suivi, Connexions et intégrations
     'agents': 'parametres', 'regles': 'parametres', 'autonomie': 'parametres', 'competences': 'parametres', 'preparation': 'parametres',
     'diagnostic': 'parametres', 'etat_systeme': 'parametres', 'qualite': 'parametres', 'evaluations': 'parametres', 'tracabilite': 'parametres',

@@ -587,7 +587,11 @@ class SourceLocale(Source):
     def _entree(self, chemin, st):
         dossier = statmod.S_ISDIR(st.st_mode)
         quand = lambda t: datetime.fromtimestamp(t, timezone.utc).isoformat(timespec='seconds')
-        return entree(chemin, dossier, 0 if dossier else st.st_size, quand(st.st_mtime), quand(getattr(st, 'st_birthtime', st.st_ctime)),
+        # 5.6.109 (C09) : « Créé le » = date de naissance du fichier si le système la donne, sinon vide (affichée « — ») ; ``st_ctime``
+        # (changement des métadonnées sous Unix) n'est plus présenté comme une création.
+        naissance = getattr(st, 'st_birthtime', None)
+        naissance = naissance if isinstance(naissance, (int, float)) and not isinstance(naissance, bool) and naissance > 0 else None
+        return entree(chemin, dossier, 0 if dossier else st.st_size, quand(st.st_mtime), quand(naissance) if naissance is not None else '',
                       self.etag_de(st))
 
     def lister(self, chemin):
@@ -629,6 +633,7 @@ class SourceLocale(Source):
         reel = self.reel(chemin)
         if not os.path.isfile(reel):
             raise Stop('introuvable')
+        _refuser_base(reel)
         if os.path.getsize(reel) > limite:
             raise Stop('fichier_trop_volumineux')
         with open(reel, 'rb') as f:
@@ -691,9 +696,13 @@ class SourceLocale(Source):
         if os.path.isdir(src):
             if os.path.commonpath([os.path.normcase(dst), os.path.normcase(src)]) == os.path.normcase(src):
                 raise Stop('destination_dans_la_source')
+            for _d, _sous, noms in os.walk(src):   # 5.6.109 : une base SQLite du dossier ne serait copiée qu'en l'ouvrant : refus dit
+                for n in noms:
+                    _refuser_base(n)
             # les liens symboliques ne sont jamais suivis ni recopiés (un lien pourrait désigner un fichier hors du dossier choisi)
             shutil.copytree(src, dst, symlinks=False, ignore=lambda d, noms: [n for n in noms if os.path.islink(os.path.join(d, n))])
             return
+        _refuser_base(src)
         with open(src, 'rb') as a, open(dst, 'xb') as b:
             shutil.copyfileobj(a, b, 1 << 20)
 
@@ -1060,7 +1069,10 @@ def proprietes(desk, auth, acteur, ident, chemin, empreinte=False, sources_=None
     if empreinte:
         if out['dossier']:
             raise Stop('chemin_est_un_dossier')
-        if isinstance(s, SourceLocale):
+        if isinstance(s, SourceLocale) and _base_sqlite(s.reel(chemin)):   # 5.6.109 : empreinte d'état (taille, date), jamais une lecture
+            out['sha256'] = ''
+            out['empreinte_etat'] = _empreinte_etat(os.stat(s.reel(chemin)))
+        elif isinstance(s, SourceLocale):
             h = hashlib.sha256()
             with open(s.reel(chemin), 'rb') as f:
                 for bloc in iter(lambda: f.read(1 << 20), b''):
@@ -1693,10 +1705,28 @@ def _blob(desk, sha):
     return Path(desk.c['state_dir']) / SERVICE / 'versions' / sha[:2] / sha
 
 
+def _base_sqlite(chemin):
+    """5.6.109 (règle du lot Q, ``dav.fichier_sqlite``) : base SQLite ou l'un de ses journaux, d'après le nom seulement."""
+    from .dav import fichier_sqlite
+    return fichier_sqlite(os.path.basename(str(chemin)))
+
+
+def _refuser_base(chemin):
+    """Une base SQLite d'un dossier du poste n'est jamais ouverte par un descripteur (ouvrir puis refermer le fichier d'une base vivante
+    peut annuler les verrous de l'application qui l'utilise et l'endommager) : même code que ``dav.LocalFolder``."""
+    if _base_sqlite(chemin):
+        raise Stop('fichier_base_sqlite_non_lu')
+
+
+def _empreinte_etat(st):
+    return 'stat-' + hashlib.sha256(('%d|%d' % (st.st_size, st.st_mtime_ns)).encode()).hexdigest()[:26]
+
+
 def _garder(desk, reel, racine, rel, st, origine='changement', plafond=None):
     """Copie du fichier dans la réserve des versions (empreinte calculée pendant la copie : une seule lecture) ; renvoie l'empreinte."""
     dossier = Path(desk.c['state_dir']) / SERVICE / 'versions' / 'tmp'
     dossier.mkdir(parents=True, exist_ok=True)
+    _refuser_base(reel)
     tmp = dossier / ('%s.part' % secrets.token_hex(8))
     h, n = hashlib.sha256(), 0
     try:
@@ -1746,7 +1776,7 @@ def scruter(desk, maintenant=None):
     temporaires ignorés ; un fichier encore en cours d'écriture est repris au passage suivant). Puis plafond et durée de conservation."""
     maintenant = time.time() if maintenant is None else maintenant
     plafond = reglages_locaux(desk)['plafond_mo'] * 1_000_000
-    bilan = {'examines': 0, 'versions': 0, 'trop_gros': 0, 'erreurs': 0, 'en_cours': 0}
+    bilan = {'examines': 0, 'versions': 0, 'trop_gros': 0, 'erreurs': 0, 'en_cours': 0, 'bases_non_lues': 0}
     for d in dossiers_locaux(desk):
         if not d.get('surveille'):
             continue
@@ -1787,6 +1817,11 @@ def scruter(desk, maintenant=None):
                     continue
                 if maintenant - st.st_mtime < STABLE_SECONDES:
                     bilan['en_cours'] += 1
+                    continue
+                if _base_sqlite(x.name):   # 5.6.109 : base SQLite ou journal : relevé sur taille et date, jamais ouvert ni versionné
+                    bilan['bases_non_lues'] += 1
+                    desk.db.execute('INSERT OR REPLACE INTO fichiers56103_local_etat VALUES(?,?,?,?,?,?)',
+                                    (d['id'], rel, st.st_mtime_ns, st.st_size, _empreinte_etat(st), _maintenant()))
                     continue
                 if st.st_size > plafond:
                     bilan['trop_gros'] += 1

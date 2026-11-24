@@ -27,6 +27,9 @@ class DAV:
     # 5.6.93 : vrai seulement pour Nextcloud, qui propage l'ETag d'un dossier à chaque changement de sa sous-arborescence ; un dossier local,
     # un serveur WebDAV quelconque ou un stockage cloud ne le garantissent pas : leur surveillance relit tout, comme avant.
     etag_propage = False
+    # 5.6.109 (C09) : provenance de la date de création rendue par ``list_folder`` et ``stat`` (champ ``created``) : la propriété
+    # ``creationdate`` du serveur WebDAV. Un champ vide reste vide : jamais de repli sur une date d'import, d'analyse ou d'indexation.
+    ORIGINE_CREATION = 'webdav'
 
     def __new__(cls, cfg=None, *args, **kwargs):
         # 5.6.22 : un dossier de travail local (client Nextcloud de bureau, partage monté) prend la place de WebDAV pour les
@@ -634,6 +637,15 @@ def document_sources(dav, matter, terms, cfg):
 
 
 EXCLUDED_NAMES = {'secrets', 'mots de passe'}
+# 5.6.109 (lot Q) : fichiers de base SQLite (et leurs journaux) jamais ouverts autrement que par ``sqlite3.connect`` : ouvrir puis refermer un
+# tel fichier par un descripteur, dans un processus qui l'a ouvert par SQLite, peut annuler ses verrous (POSIX) et endommager la base.
+SQLITE_SUFFIXES = ('.sqlite3', '.sqlite', '.db', '.sqlite3-wal', '.sqlite3-shm', '.sqlite3-journal', '.db-wal', '.db-shm', '.db-journal',
+                   '.sqlite-wal', '.sqlite-shm', '.sqlite-journal')
+
+
+def fichier_sqlite(nom):
+    """Vrai pour une base SQLite ou l'un de ses journaux (d'après le nom : son contenu n'est jamais lu pour le savoir)."""
+    return str(nom or '').lower().endswith(SQLITE_SUFFIXES)
 
 
 class LocalFolder(DAV):
@@ -655,7 +667,13 @@ class LocalFolder(DAV):
     - le remplacement se fait sous verrou, après relecture de la version attendue ; chaque version précédente reçoit un nom unique
       (horodatage à la microseconde, empreinte, jeton) publié exclusivement ; la rétention ``local_versions_keep`` (défaut 100,
       0 = illimitée) est administrable dans la configuration ``nextcloud``.
+
+    5.6.109 (C09) : la date de création (``created``) est la date de naissance du fichier (``st_birthtime``) quand le système la donne ;
+    sinon elle est vide, dite « non disponible » à l'écran. ``st_ctime`` n'est jamais présenté comme une création : sous Unix c'est la
+    date du dernier changement des métadonnées (droits, renommage), pas celle de la création. Les relevés déjà faits (surveillance,
+    charge) reprennent cette valeur à leur passage suivant, sans réécriture du journal.
     """
+    ORIGINE_CREATION = 'naissance'   # ``st_birthtime`` du système de fichiers, sinon inconnue
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -719,6 +737,7 @@ class LocalFolder(DAV):
 
     def _read(self, target, limit):
         """Octets d'un fichier lus par descripteur ; l'état (taille, date) est comparé avant et après la lecture (F13)."""
+        if fichier_sqlite(target.name): raise Stop('fichier_base_sqlite_non_lu')   # 5.6.109 (lot Q) : jamais par un descripteur
         fd = self._open_read(target)
         try:
             before = os.fstat(fd)
@@ -738,6 +757,8 @@ class LocalFolder(DAV):
     def _etag(self, target, st=None):
         """Empreinte SHA-256 du contenu, en cache par identité de fichier, date en nanosecondes et taille (F13)."""
         st = st or target.stat()
+        if fichier_sqlite(target.name):   # 5.6.109 (lot Q) : base SQLite : empreinte d'état, jamais de lecture par descripteur
+            return '"stat-%s"' % hashlib.sha256(('%d|%d' % (st.st_size, self._mtime_ns(st))).encode()).hexdigest()[:26]
         key = (str(target), getattr(st, 'st_ino', 0), self._mtime_ns(st), st.st_size)
         if key not in self._hashes:
             fd = self._open_read(target)
@@ -755,8 +776,11 @@ class LocalFolder(DAV):
 
     def _item(self, path, target):
         st = target.stat()
+        naissance = getattr(st, 'st_birthtime', None)   # 5.6.109 (C09) : jamais ``st_ctime`` (changement des métadonnées sous Unix)
+        if isinstance(naissance, bool) or not isinstance(naissance, (int, float)) or naissance <= 0:
+            naissance = None                            # attribut présent mais vide (système de fichiers sans date de naissance)
         return {'path': path, 'directory': target.is_dir(), 'etag': self._etag(target, st) if target.is_file() else '',
-                'modified': self._stamp(st.st_mtime), 'created': self._stamp(getattr(st, 'st_birthtime', None) or st.st_ctime), 'size': st.st_size if target.is_file() else 0}
+                'modified': self._stamp(st.st_mtime), 'created': self._stamp(naissance) if naissance is not None else '', 'size': st.st_size if target.is_file() else 0}
 
     # ----- lecture
     def list_folder(self, path):
@@ -970,3 +994,20 @@ class LocalFolder(DAV):
 
     def delete_event(self, *args, **kwargs):
         self._caldav(); return DAV.delete_event(self, *args, **kwargs)
+
+
+class LectureSeule(LocalFolder):
+    """5.6.109 (lot Q, F13) : répertoire autorisé du poste interrogé en LECTURE SEULE. Mêmes contrôles que ``LocalFolder`` (racine, liens
+    symboliques refusés, empreinte des octets lus, fichier modifié pendant la lecture) ; toute écriture (création, remplacement, dossier,
+    corbeille, archive, agenda) est refusée avant d'atteindre le disque : les originaux ne sont jamais modifiés ni accompagnés d'un fichier
+    temporaire, de versions ou d'un verrou dans le répertoire interrogé."""
+
+    def _refus(self, *args, **kwargs):
+        raise Stop('ecriture_interdite_emplacement_local')
+
+    replace_file = create_folder = ensure_folder = trash_file = put_file = put_archive = _refus
+    _publish = _tmp = _lock = _prune_versions = _refus
+    put_todo = put_event = delete_event = _refus
+
+    def file_web_url(self, path):   # jamais une URL ``file://`` donnée à l'interface ou au modèle
+        raise Stop('lien_local_non_expose')

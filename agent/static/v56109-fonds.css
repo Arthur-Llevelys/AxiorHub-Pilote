@@ -1,0 +1,25 @@
+/* AxiorHub 5.6.109 (lot Q) : « Fonds juridique local » (G23) et « Fichiers de ce poste » (F13) dans les Paramètres. Contraste clair et sombre. */
+.f56109 form, .l56109 form { display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: flex-end; margin: .6rem 0; }
+.f56109 form label, .l56109 form label { flex-basis: 100%; font-weight: 600; }
+.f56109 form input[type="text"], .f56109 form input[type="search"], .l56109 form input[type="text"], .l56109 form input[type="search"] { min-width: 18rem; flex: 1 1 18rem; }
+.f56109-fonds { border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; padding: .5rem .75rem; margin: .5rem 0; }
+.f56109-fonds h3 { margin: 0 0 .3rem; font-size: 1rem; }
+.f56109-fonds ul { margin: 0; padding-left: 1.1rem; }
+.f56109-actions, .l56109 td:last-child { display: flex; flex-wrap: wrap; gap: .35rem; }
+.f56109-echec { color: #8a1f11; }
+.f56109-resultats article, .l56109-resultats article { border-left: 4px solid #2f5d8a; padding: .35rem .6rem; margin: .45rem 0; background: #f2f6fb; color: #13253a; }
+.f56109-resultats .a-verifier, .l56109-resultats .a-verifier { border-left-color: #8a5a00; background: #fff6e0; color: #3d2a00; }
+.f56109-resultats .verifiee, .l56109-resultats .verifiee { border-left-color: #1d6b35; background: #e8f5ec; color: #0f3b1d; }
+.f56109-resultats small, .l56109-resultats small { display: block; opacity: .85; }
+.f56109 button:focus-visible, .l56109 button:focus-visible, .f56109 input:focus-visible, .l56109 input:focus-visible { outline: 3px solid #2f5d8a; outline-offset: 2px; }
+@media (prefers-color-scheme: dark) {
+  .f56109-echec { color: #ffb4a8; }
+  .f56109-resultats article, .l56109-resultats article { background: #14263a; color: #d8e6f5; border-left-color: #7fb0e0; }
+  .f56109-resultats .a-verifier, .l56109-resultats .a-verifier { background: #3a2c08; color: #ffe7b0; border-left-color: #f0b84a; }
+  .f56109-resultats .verifiee, .l56109-resultats .verifiee { background: #12301c; color: #c9f0d5; border-left-color: #5fd18a; }
+  .f56109 button:focus-visible, .l56109 button:focus-visible, .f56109 input:focus-visible, .l56109 input:focus-visible { outline-color: #9cc7f0; }
+}
+[data-theme="dark"] .f56109-echec { color: #ffb4a8; }
+[data-theme="dark"] .f56109-resultats article, [data-theme="dark"] .l56109-resultats article { background: #14263a; color: #d8e6f5; border-left-color: #7fb0e0; }
+[data-theme="dark"] .f56109-resultats .a-verifier, [data-theme="dark"] .l56109-resultats .a-verifier { background: #3a2c08; color: #ffe7b0; border-left-color: #f0b84a; }
+[data-theme="dark"] .f56109-resultats .verifiee, [data-theme="dark"] .l56109-resultats .verifiee { background: #12301c; color: #c9f0d5; border-left-color: #5fd18a; }

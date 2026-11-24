@@ -1,0 +1,62 @@
+/* AxiorHub 5.6.109 (lot V, F08 et F16) — Produire en trois vues (Créer, Livrables, Modèles), livrables structurés dans le lecteur commun,
+   modèles Word du cabinet, éditeurs Craft facultatifs (page dédiée et cadre). Couleurs par les variables communes (clair et sombre) ;
+   focus visible ; commandes hors de la zone défilante ; une colonne sous 720 px. */
+.v109-vues { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--ax-gap, 16px); }
+.v109-vues a { padding: 6px 14px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; color: var(--ax-text, #1b1f24);
+  background: var(--ax-surface, #fff); text-decoration: none; }
+.v109-vues a[aria-current="page"] { border-color: var(--ax-focus, #0b57d0); background: var(--ax-surface-2, #f3f4f6); font-weight: 600; }
+.v109-vues a:focus-visible, .v109-panneau a:focus-visible, .v109-panneau button:focus-visible, .v109-panneau input:focus-visible, .v109-panneau select:focus-visible,
+.v109-panneau textarea:focus-visible, .v109-edition button:focus-visible, .v109-edition input:focus-visible, .v109-edition select:focus-visible,
+.v109-edition textarea:focus-visible, .v109-panneau summary:focus-visible, .v109-edition summary:focus-visible, .c109 button:focus-visible, .c109 a:focus-visible,
+.c109 textarea:focus-visible, .c109-reglages input:focus-visible, .c109-reglages button:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+.v109-panneau { margin: 0 0 var(--ax-gap, 16px); }
+.v109-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; list-style: none; margin: 0 0 14px; padding: 0; }
+.v109-carte { display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px;
+  color: var(--ax-text, #1b1f24); background: var(--ax-surface, #fff); text-decoration: none; }
+.v109-carte span, .v109-meta, .v109-question { color: var(--ax-text-muted, #59636e); font-size: .9em; }
+.v109-question { display: block; }
+.v109-form { display: grid; gap: 8px; max-width: 640px; margin: 10px 0 0; padding: 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px;
+  background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.v109-form h3 { margin: 0; font-size: 1em; }
+.v109-form label { display: grid; gap: 4px; }
+.v109-form textarea, .v109-form input, .v109-form select { max-width: 100%; }
+.v109-etat { min-height: 1.2em; margin: 4px 0 0; }
+.v109-erreur, .c109-erreur { color: var(--ax-danger, #b42318); }
+.v109-note { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--ax-warning, #9a6700); background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.v109-trames { margin: 0; padding-left: 20px; }
+.v109-trames li { margin: 6px 0; }
+.v109-modele { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; }
+.v109-modele h3 { margin: 0 0 6px; font-size: 1em; }
+.v109-fixes { max-height: 14em; overflow: auto; }
+.v109-edition { margin: 0 0 var(--ax-gap, 16px); }
+.v109-editeur { max-height: 60vh; overflow: auto; }
+.v109-table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+.v109-table th, .v109-table td { padding: 6px 8px; border-bottom: 1px solid var(--ax-border, #c9ced6); text-align: left; vertical-align: top; }
+.v109-table th { background: var(--ax-surface-2, #f3f4f6); font-size: .9em; }
+.v109-table input, .v109-table select { width: 100%; min-width: 7em; }
+.v109-texte { display: block; width: 100%; margin: 6px 0; }
+.v109-exports { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.v109-recents { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--ax-border, #c9ced6); }
+.v109-recents h3 { margin: 0 0 4px; font-size: .95em; }
+.v109-recents ul { margin: 0; padding-left: 18px; }
+.v109-source { display: inline-block; margin: 0 4px 0 0; padding: 0 6px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 999px; font-size: .8em; }
+/* éditeurs Craft : page dédiée, zone utile pleine hauteur, barre et commandes hors de la zone défilante */
+.c109 { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; min-height: calc(100dvh - 140px); }
+.c109-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.c109-barre h1 { margin: 0; font-size: 1.2em; }
+.c109-badge { display: inline-block; padding: 1px 8px; border: 1px solid var(--ax-warning, #9a6700); border-radius: 999px; font-size: .75em; font-weight: 400; }
+.c109-stockage { margin: 0; }
+.c109-zone { min-height: 0; }
+.c109-iframe { width: 100%; height: 100%; min-height: 60vh; border: 1px solid var(--ax-border, #c9ced6); background: var(--ax-surface, #fff); }
+.c109-controle, .c109-ia { padding: 10px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; }
+.c109-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.c109-alerte { padding: 8px 10px; border-left: 3px solid var(--ax-danger, #b42318); }
+.c109-attention { color: var(--ax-warning, #9a6700); }
+.c109-cadre-corps { margin: 0; height: 100vh; overflow: hidden; }
+.c109-toile { display: block; width: 100%; height: 100%; }
+.c109-chargement { position: absolute; top: 12px; left: 12px; margin: 0; }
+@media (max-width: 720px) {
+  .v109-cartes { grid-template-columns: minmax(0, 1fr); }
+  .v109-table { display: block; overflow-x: auto; }
+  .c109-iframe { min-height: 50vh; }
+}

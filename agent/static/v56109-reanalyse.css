@@ -1,0 +1,46 @@
+/* AxiorHub 5.6.109 (lot A, F03) — bloc « Analyse du dossier » de la fiche : état, dialogue de lancement, étapes, couverture, comparaison.
+   Couleurs par les variables communes (clair et sombre) ; focus visible ; colonnes repliées sous 720 px. */
+.a109 { margin: 0 0 var(--ax-gap, 16px); }
+.a109 .d79-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.a109-etat, .a109-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--ax-border, #c9ced6); font-size: .875em;
+  background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.a109-e-a_jour, .a109-s-ok .a109-badge { border-color: var(--ax-success-text, #1a7f37); }
+.a109-e-partielle, .a109-e-perimee, .a109-s-partielle .a109-badge, .a109-s-interrompue .a109-badge, .a109-b-perimee, .a109-b-precision { border-color: var(--ax-warning, #9a6700); }
+.a109-s-erreur .a109-badge { border-color: var(--ax-danger, #b42318); }
+.a109-resume { margin: 6px 0 10px; }
+.a109-bandeau { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--ax-border, #c9ced6);
+  border-radius: 8px; background: var(--ax-surface-2, #f3f4f6); }
+.a109-lancer > summary { display: inline-block; cursor: pointer; list-style: none; }
+.a109-lancer > summary::-webkit-details-marker { display: none; }
+.a109-lancer > summary:focus-visible, .a109 details > summary:focus-visible, .a109 button:focus-visible, .a109 a:focus-visible, .a109 input:focus-visible,
+.a109 textarea:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+.a109-form { margin: 10px 0 0; padding: 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.a109-form h3 { margin: 0 0 8px; font-size: 1em; }
+.a109-avant { margin: 0; }
+.a109-avant > div { margin: 0 0 8px; }
+.a109-avant dt, .a109-compare dt { font-weight: 600; }
+.a109-avant dd, .a109-compare dd { margin: 2px 0 0; }
+.a109-mode { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; }
+.a109-mode label { display: block; margin: 4px 0; }
+.a109-avis { margin: 8px 0; padding: 8px 10px; border-left: 3px solid var(--ax-warning, #9a6700); background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.a109-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.a109-suivi, .a109-couverture { margin: 10px 0 0; }
+.a109-etapes { margin: 8px 0 0; padding-left: 20px; }
+.a109-etape { margin: 4px 0; }
+.a109-compteurs { display: flex; flex-wrap: wrap; gap: 6px 14px; list-style: none; margin: 8px 0; padding: 0; }
+.a109-liste { margin: 6px 0 8px; padding-left: 20px; }
+.a109-liste-etat { margin: 4px 0; }
+.a109-nom { overflow-wrap: anywhere; }
+.a109-comparaison { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--ax-border, #c9ced6); }
+.a109-comparaison h3 { margin: 0 0 6px; font-size: 1.05em; }
+.a109-compte { display: inline-block; min-width: 1.6em; padding: 0 6px; border-radius: 999px; text-align: center; background: var(--ax-warning-bg, #fff4d6); color: var(--ax-warning-text, #5c3d00); border: 1px solid var(--ax-warning, #9a6700); font-size: .85em; }
+.a109-prop { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.a109-prop h4 { margin: 0 0 8px; font-size: 1em; }
+.a109-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 0; }
+.a109-compare p { margin: 2px 0; overflow-wrap: anywhere; }
+.a109-decision { margin: 10px 0 0; }
+.a109-champ { display: block; margin: 6px 0; }
+.a109-champ input, .a109-champ textarea { display: block; width: 100%; max-width: 640px; margin-top: 2px; }
+@media (max-width: 720px) {
+  .a109-compare { grid-template-columns: 1fr; }
+}

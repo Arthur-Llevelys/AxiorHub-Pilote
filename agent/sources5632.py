@@ -30,8 +30,11 @@ PROVIDERS = {
         'coverage': 'Cour de cassation, cours d’appel, tribunaux judiciaires et de commerce ; Conseil d’État, CAA, TA ; Conseil constitutionnel ; '
                     'CEDH ; CJUE ; articles de codes et de lois à une date donnée ; Journal officiel ; conventions collectives ; CNIL.',
         'territories': ('FR', 'UE', 'CEDH'),
-        'note': 'Recherche publique sans compte ni clé. Gratuit pour un usage personnel, de recherche ou associatif ; usage commercial '
-                'soumis à accord écrit du fournisseur. Un compte facultatif (jeton) donne accès aux dossiers du compte.',
+        # 5.6.109 (lot S, F11) : note corrigée d'après les conditions d'utilisation du 9 octobre 2026 (article 4) : la consultation par un
+        # cabinet pour ses propres dossiers n'est pas une intégration de l'accès dans une offre commerciale payante.
+        'note': 'Recherche publique sans compte ni clé. Consulter le service pour les dossiers du cabinet est permis ; intégrer cet accès dans '
+                'une offre commerciale payante demande un accord écrit préalable de l’association (conditions du 9 octobre 2026). Les outils '
+                'du compte facultatif (dossiers du compte) restent séparés et ne sont jamais activés avec la recherche publique.',
         'tools': {'search': 'search', 'text': 'get_decision', 'law': 'get_law_article', 'citation': 'check_citations', 'resolve': 'resolve_reference',
                   'case_search': 'search_case_law'},
     },
@@ -141,7 +144,16 @@ PROVIDERS.update({
     'datagouv': _fiche('data.gouv.fr', 'https://mcp.data.gouv.fr/mcp', 'donnees_publiques', 'streamable_http', ('FR',), ('donnees_publiques',),
                        'ENTREPRISES', True, access_url='https://www.data.gouv.fr/', help_url='https://www.data.gouv.fr/',
                        terms_url='https://www.data.gouv.fr/', coverage='Jeux de données publiques et leurs métadonnées.',
-                       note='Sans clé. Aucun résultat n’est une autorité juridique par lui-même.', liens_a_confirmer=True),
+                       note='Sans clé. Aucun résultat n’est une autorité juridique par lui-même.', liens_a_confirmer=True,
+                       # 5.6.109 (lot S, F11) : outils revus (dépôt officiel datagouv/datagouv-mcp) ; ``tools`` reste vide : data.gouv.fr ne
+                       # devient jamais une source de recherche juridique (contrôle des références, recherche juridique) ; ses opérations
+                       # passent par ``sources_publiques56109.consulter`` et son normaliseur propre, jamais par le parseur de décisions.
+                       outils_revus={'donnees_publiques': ('search_datasets', 'get_dataset_info', 'list_dataset_resources', 'get_resource_info')},
+                       operations_donnees={'datasets.search': 'search_datasets', 'datasets.read': 'get_dataset_info',
+                                           'resources.list': 'list_dataset_resources', 'resources.read': 'get_resource_info'},
+                       # à activer après qualification de ses filtres, plafonds et formats : jamais proposée d'ici là
+                       operations_a_qualifier={'resources.query': 'query_resource_data'},
+                       question_sonde='DVF'),
     'pappers_mcp': _fiche('Pappers', 'https://mcp.pappers.fr', 'entreprises', 'streamable_http', ('FR',), ('entreprise', 'justice'), 'ENTREPRISES', True,
                           auth=('bearer',), default_auth='bearer', access_url='https://moncompte.pappers.fr/api',
                           help_url='https://www.pappers.fr/mcp-documentation', coverage='Informations d’entreprises ; Pappers Justice selon les droits du compte.',
@@ -168,7 +180,8 @@ PROVIDERS.update({
                      access_url='https://www.canlii.org/en/feedback/feedback.html', help_url='https://github.com/canlii/API_documentation/blob/master/EN.md',
                      coverage='Métadonnées de décisions (pas le texte des décisions).',
                      note='Fiche conditionnelle : l’API documente une clé passée dans l’adresse ; conditions, fonds et transport du secret à '
-                          'vérifier avant tout usage. Le lien renvoie toujours à la décision ou à la juridiction source.',
+                          'vérifier avant tout usage. Le lien renvoie toujours à la décision ou à la juridiction source. La clé CanLII '
+                          's’enregistre une seule fois, dans Paramètres › Connexions API (métadonnées seulement, pas le texte intégral).',
                      acces_libelle='src97.ask_canlii'),
     # J04, J05, J08 : adaptateurs AxiorHub sur index SQLite local par fonds (mcp_internationaux5697) ; aucun réseau à la recherche.
     'de_bund': _fiche('Droit fédéral allemand', '', 'droit', 'integre', ('DE-BUND',), ('textes',), 'DE-BUND', True,
@@ -272,6 +285,12 @@ def catalogue(desk):
             from . import mcp_internationaux5697 as mi
             row['index'] = mi.etat_index(_index_racine(desk), pid)
             row['synchronisation'] = mi.etat_synchronisation(desk, pid)
+        # 5.6.109 (lot S, F11) : intention d'activation (distincte de l'activation effective) et état explicite, calculés sans écriture
+        row['activation_demandee'] = bool(item.get('activation_demandee'))
+        row['activation_origine'] = str(item.get('activation_origine') or '')
+        row['qualification'] = dict(item.get('qualification56109') or {})
+        from .sources_publiques56109 import etat_source
+        row['etat_source'] = etat_source(desk, pid, p, item, row)
         out.append(row)
     return out
 
@@ -312,10 +331,13 @@ def _save(desk, item):
     return item
 
 
-def connect(desk, pid, token='', auth='', allow_external=False, revision=None):
+def connect(desk, pid, token='', auth='', allow_external=False, revision=None, origine_activation=''):
     """Enregistre (ou met à jour) le connecteur d'un fournisseur du catalogue ; l'adresse reste celle du catalogue.
     5.6.97 (J06) : une nouvelle clé devient une clé CANDIDATE au coffre (fichier versionné) ; la clé active reste en service tant que
-    le test de la candidate n'a pas réussi (verify). ``revision`` : contrôle de la révision de la fiche (409 si elle a changé)."""
+    le test de la candidate n'a pas réussi (verify). ``revision`` : contrôle de la révision de la fiche (409 si elle a changé).
+    5.6.109 (lot S, F11) : une NOUVELLE source sans clé enregistrée avec l'accord d'usage porte la demande d'activation (``origine_activation`` :
+    « catalogue109 » pour la préconfiguration, « utilisateur » sinon) ; l'activation effective attend la qualification automatique
+    (``sources_publiques56109``). Une entrée existante garde sa demande, son retrait et leur origine."""
     from . import extensions364 as ext
     p = provider(pid)
     if not p.get('qualified'):
@@ -358,6 +380,13 @@ def connect(desk, pid, token='', auth='', allow_external=False, revision=None):
             'catalogue_verified_on': VERIFIED_ON_5697, 'oauth': previous.get('oauth') or {}, 'cabinet': _cabinet(desk)}
     if integre:
         item['index_racine'] = _index_racine(desk)
+    for cle in ('activation_demandee', 'activation_origine', 'activation_revision', 'qualification56109'):   # 5.6.109 (lot S, F11)
+        if cle in previous:
+            item[cle] = previous[cle]
+    if not previous and auth == 'none' and allow_external:
+        item.update(activation_demandee=True, activation_origine=origine_activation or 'utilisateur', activation_revision=1)
+    if p.get('category') != 'droit' and not previous.get('purposes'):
+        item['purposes'] = [p['category']]   # 5.6.109 : une source de données publiques n'est jamais une source de recherche juridique
     _save(desk, item)
     desk.audit('source_juridique_5632_enregistree', {'provider': pid, 'auth': auth, 'secret_candidate': bool(token),
                                                      'external_data_allowed': bool(allow_external)})
@@ -423,8 +452,9 @@ def _essai(p, item, profondeur, appel):
         revus = tuple((p.get('outils_revus') or {}).get(cap) or ())
         capacites[cap] = 'outil_non_revu' if not revus else ('outil_present' if all(n in names for n in revus) else 'outil_absent')
     levels = {'connection': 'ok', 'search': 'untested', 'text': 'untested'}
+    normalisation = {}
     if profondeur == 'complet':
-        question = QUESTIONS_FICTIVES.get(p.get('zone_guide', ''), 'question fictive')
+        question = p.get('question_sonde') or QUESTIONS_FICTIVES.get(p.get('zone_guide', ''), 'question fictive')
         for cap, etat in list(capacites.items()):
             if etat != 'outil_present':
                 continue
@@ -434,18 +464,55 @@ def _essai(p, item, profondeur, appel):
                 result = appel(item, 'tools/call', {'name': tool['name'], 'arguments': args}) or {}
                 if isinstance(result, dict) and result.get('isError'):
                     raise Stop('outil_mcp_en_erreur')
-                capacites[cap] = 'ok' if mcp5614.rows_from(result) else 'vide'
+                capacites[cap], normalisation[cap] = _classer_resultat(cap, result)
             except Stop as ex:
                 capacites[cap] = 'refuse' if str(ex).split(':')[0] in _REFUS else 'erreur'
-        tested = [v for v in capacites.values() if v in ('ok', 'vide', 'refuse', 'erreur')]
-        levels['search'] = 'ok' if 'ok' in tested else ('empty' if 'vide' in tested else ('error' if tested else 'tool_missing'))
+        tested = [v for v in capacites.values() if v in ('ok', 'vide', 'refuse', 'erreur', 'indetermine', 'corpus_absent')]
+        levels['search'] = ('ok' if 'ok' in tested else 'empty' if 'vide' in tested else 'corpus_absent' if 'corpus_absent' in tested
+                            else 'undetermined' if 'indetermine' in tested else 'error' if tested else 'tool_missing')
     return {'status': 'ok', 'message': 'Connexion établie (initialize, puis liste des outils) ; aucune donnée de dossier envoyée.',
             'protocol_version': str(init.get('protocolVersion', ''))[:20], 'server': init.get('serverInfo', {}) if isinstance(init.get('serverInfo'), dict) else {},
             'tools_count': len(tools), 'tools': [str(t.get('name', ''))[:100] for t in tools[:100]],
             'tool_specs': [{'name': str(t.get('name', ''))[:100], 'description': str(t.get('description', ''))[:500],
                             'inputSchema': t.get('inputSchema', {}) if isinstance(t.get('inputSchema', {}), dict) else {}} for t in tools[:100]],
             'schema_sha256': _empreinte(tools), 'capacites': capacites, 'levels': levels, 'profondeur': profondeur,
-            'latency_ms': round((datetime.now(timezone.utc) - started).total_seconds() * 1000)}
+            'normalisation': normalisation, 'latency_ms': round((datetime.now(timezone.utc) - started).total_seconds() * 1000)}
+
+
+def _classer_resultat(cap, result):
+    """5.6.109 (lot S, F11) : (état de la capacité, détail) d'après une VRAIE réponse de recherche. Données publiques : normaliseur
+    data.gouv.fr (texte documentaire, JSON ou contenu structuré), jamais le parseur des décisions. Droit : liste structurée reconnue
+    (« ok » ou « vide »), index local absent (« corpus_absent ») ; une réponse non reconnue est « indetermine », jamais un zéro."""
+    from . import mcp5614
+    if cap == 'donnees_publiques':
+        from .sources_publiques56109 import normaliser_datagouv
+        n = normaliser_datagouv(result)
+        return {'ok': 'ok', 'partiel': 'ok', 'vide': 'vide'}.get(n['etat'], 'indetermine'), {'etat': n['etat'], 'jeux': len(n['jeux'])}
+    structure = result.get('structuredContent') if isinstance(result, dict) else None
+    if isinstance(structure, dict) and structure.get('statut') == 'index_absent':
+        return 'corpus_absent', {'etat': 'corpus_absent'}
+    rows = mcp5614.rows_from(result)
+    if rows:
+        return 'ok', {'etat': 'ok', 'lignes': len(rows)}
+    if isinstance(structure, (dict, list)) or _liste_vide_reconnue(result):
+        return 'vide', {'etat': 'vide'}
+    return 'indetermine', {'etat': 'indetermine'}
+
+
+def _liste_vide_reconnue(result):
+    """Réponse JSON explicitement vide (liste, ou objet portant une liste de résultats vide) ; un texte libre n'en est jamais une."""
+    import json
+    from . import mcp5614
+    texte = mcp5614.text_from(result).strip()
+    if not texte:
+        return isinstance(result, dict) and isinstance(result.get('content'), list)   # aucun contenu, réponse bien formée : vide
+    try:
+        value = json.loads(texte)
+    except ValueError:
+        return False
+    if isinstance(value, list):
+        return not value
+    return isinstance(value, dict) and any(isinstance(value.get(k), list) and not value[k] for k in ('results', 'items', 'decisions'))
 
 
 def verify(desk, pid, profondeur='connexion', appel=None):
@@ -515,7 +582,7 @@ def verify(desk, pid, profondeur='connexion', appel=None):
     return out
 
 
-def enable(desk, pid, on=True, purposes=None):
+def enable(desk, pid, on=True, purposes=None, revision_demande=None):
     """Activation explicite (J06) : choisit l'usage et le droit d'envoyer une requête ; le test seul n'active rien. Exige un test
     réussi avec la version actuelle du secret ; fige l'empreinte du schéma testé (comparée à chaque test suivant)."""
     from . import extensions364 as ext
@@ -531,10 +598,23 @@ def enable(desk, pid, on=True, purposes=None):
             raise Stop('cle_candidate_a_tester')
         if test.get('status') != 'ok' or int(test.get('secret_version') or 0) != int(item.get('secret_version') or 0):
             raise Stop('test_extension_requis')
-        usages = [u for u in (purposes or item.get('purposes') or ['legal_analysis', 'hearing']) if u in ('legal_analysis', 'hearing', 'veille')]
-        item['purposes'] = usages or ['legal_analysis']
+        if revision_demande is not None and (not item.get('activation_demandee') or int(item.get('activation_revision') or 0) != int(revision_demande)):
+            raise Stop('demande_activation_retiree')   # 5.6.109 : activation automatique : la demande relue doit être celle qui a été qualifiée
+        if p.get('category', 'droit') == 'droit':
+            usages = [u for u in (purposes or item.get('purposes') or ['legal_analysis', 'hearing']) if u in ('legal_analysis', 'hearing', 'veille')]
+            item['purposes'] = usages or ['legal_analysis']
+        else:   # 5.6.109 (lot S, F11) : données publiques, entreprises : jamais une source de recherche juridique, même activées
+            item['purposes'] = [p['category']]
         item['schema_valide'] = test.get('schema_sha256', '')
+        if not item.get('activation_demandee'):   # 5.6.109 : activer à la main vaut demande d'activation de l'utilisateur
+            item.update(activation_demandee=True, activation_origine=item.get('activation_origine') or 'utilisateur',
+                        activation_revision=int(item.get('activation_revision') or 0) + 1)
         _save(desk, item)
+    else:
+        item = _item(desk, pid)
+        if item:   # 5.6.109 (lot S, F11) : désactiver retire la demande d'activation (choix de l'utilisateur, conservé par toute mise à jour)
+            item.update(activation_demandee=False, activation_origine='utilisateur', activation_revision=int(item.get('activation_revision') or 0) + 1)
+            _save(desk, item)   # la révision change : une qualification en cours ne peut plus activer
     return ext.set_enabled(desk, item_id(pid), on, reviewed=True)
 
 

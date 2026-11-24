@@ -1,0 +1,24 @@
+/* AxiorHub 5.6.109 (lot L, F02) — onglet Fichiers › Par répertoire : en-têtes triables, dates sur dix caractères, métadonnées inconnues en mots,
+   ligne choisie. Texte et fond fixés ensemble par jetons (Carbon clair et sombre, sinon jetons d'origine --ws-*). Une règle par ligne. */
+#d98-fichiers .r109-etat { background: transparent; color: var(--cds-text-secondary, var(--ws-muted, #525252)); margin: .25rem 0 .5rem; }
+#d98-fichiers .r109-tri { display: inline; margin: 0; }
+#d98-fichiers .r109-tri-bouton { align-items: center; background: transparent; border: 0; border-radius: 4px; color: var(--cds-text-primary, var(--ws-ink, #161616)); cursor: pointer; display: inline-flex; font: inherit; font-size: .875rem; font-weight: 600; gap: .25rem; min-height: 2rem; padding: .125rem .375rem; text-align: left; }
+#d98-fichiers .r109-tri-bouton:hover { background: var(--cds-layer-hover-01, var(--ws-surface-alt, #e8e8e8)); color: var(--cds-text-primary, var(--ws-ink, #161616)); }
+#d98-fichiers .r109-tri-bouton:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+#d98-fichiers th[aria-sort] .r109-tri-bouton { background: transparent; color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); text-decoration: underline; }
+#d98-fichiers th[aria-sort] .r109-tri-bouton:hover { background: var(--cds-layer-hover-01, var(--ws-surface-alt, #e8e8e8)); color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); }
+#d98-fichiers .r109-fleche { font-size: .75rem; }
+#d98-fichiers .d98-arbre .r109-date, #d98-fichiers .d98-arbre .r109-taille { white-space: nowrap; }
+#d98-fichiers .d98-arbre .r109-inconnu { background: transparent; color: var(--cds-text-secondary, var(--ws-muted, #525252)); font-style: italic; }
+#d98-fichiers .d98-arbre .r109-compte { background: transparent; color: var(--cds-text-secondary, var(--ws-muted, #525252)); }
+#d98-fichiers .d98-arbre tbody tr.r109-choisi th, #d98-fichiers .d98-arbre tbody tr.r109-choisi td { background: var(--cds-layer-selected-01, var(--ws-accent-soft, #e0e0e0)); color: var(--cds-text-primary, var(--ws-ink, #161616)); }
+#d98-fichiers .d98-arbre tbody tr.r109-choisi th a { background: transparent; color: var(--cds-text-primary, var(--ws-ink, #161616)); text-decoration: underline; }
+#d98-fichiers .d98-arbre tbody tr.r109-choisi th { box-shadow: inset 4px 0 0 var(--cds-border-interactive, var(--ws-accent, #0f62fe)); font-weight: 600; }
+.d79-preview .r109-resume { margin: 6px 10px 0; }
+@media (max-width: 720px) {
+  /* petit écran : l'en-tête devient une barre de tri ; type, dates et taille restent lisibles sous le nom */
+  #d98-fichiers .d98-arbre thead { display: block; }
+  #d98-fichiers .d98-arbre thead tr { border: 0; display: flex; flex-wrap: wrap; gap: .25rem; padding: 0 0 .5rem; }
+  #d98-fichiers .d98-arbre thead th { border: 0; display: inline-block; padding: 0; width: auto; }
+  #d98-fichiers .d98-arbre tbody td[data-label] { display: inline-block; margin-right: .75rem; width: auto; }
+}

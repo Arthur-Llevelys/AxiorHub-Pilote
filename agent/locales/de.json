@@ -755,6 +755,8 @@
  "fn.securite_serveur.desc": "Sicherheitsüberwachung des Rechners: Eindringversuche, verdächtige Programme, zu aktualisierende Versionen",
  "fn.fichiers.label": "Dateien",
  "fn.fichiers.desc": "Zweispaltiger Explorer für Nextcloud-Dateien (und diesen Arbeitsplatz): Stapelumbenennung, Versionen, ZIP, Notizen",
+ "fn.telephonie_bland.label": "KI-Telefonie (Bland)",
+ "fn.telephonie_bland.desc": "Sprachagenten, Anrufe und SMS über Bland, jede Aktion vom Anwalt bestätigt; Terminvereinbarungsagent, Erinnerung an den Mandanten",
  "f101.guide.famille": "Gruppe „{famille}“",
  "f101.guide.autres": "Die anderen Reiter dieser Gruppe:",
  "f101.usage.titre": "Selten genutzte Funktionen",

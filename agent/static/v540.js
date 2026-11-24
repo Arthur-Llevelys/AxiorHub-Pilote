@@ -27,7 +27,9 @@
           [r.token, r.original, r.category].forEach(function (v) { var td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
           tbody.appendChild(tr);
         });
-        $('#p540-check').textContent = res.restored_ok ? 'Contrôle : la réponse peut être rétablie à l’identique sur le serveur.' : 'Attention : rétablissement incomplet.';
+        // 5.6.109 (lot P) : l'aperçu dit aussi ce qu'il ne prouve pas (texte du serveur, déjà dans la langue de l'écran)
+        $('#p540-check').textContent = (res.restored_ok ? 'Contrôle : la réponse peut être rétablie à l’identique sur le serveur.' : 'Attention : rétablissement incomplet.') +
+          (res.note ? ' ' + res.note : '');
       }).catch(function (err) { alert(err.message); }).then(function () { btn.disabled = false; });
     });
   }

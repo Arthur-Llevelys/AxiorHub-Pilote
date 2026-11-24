@@ -1,0 +1,45 @@
+/* AxiorHub 5.6.109 (lot N, F14) — onglet « Simulation de décision » du dossier : bandeau, quatre actions, résultat, tiroir Sources.
+   Couleurs par les variables communes (clair et sombre) ; focus visible ; commandes visibles à 1920 × 1080 (seuls les contenus longs
+   défilent) ; une colonne sous 60rem, le tiroir Sources reste accessible au clavier (élément <details> natif, jamais masqué). */
+.s109-onglet { display: grid; gap: 12px; min-height: 0; }
+.s109-onglet h2 { margin: 0; }
+.s109-bandeau { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px 16px; padding: 10px 12px;
+  border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.s109-bandeau p { margin: 2px 0; }
+.s109-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.s109-form { display: inline-grid; gap: 6px; margin: 0; }
+.s109-cadrage { flex-basis: 100%; }
+.s109-cadrage > summary, .s109-corriger > summary { display: inline-block; cursor: pointer; list-style: none; }
+.s109-cadrage > summary::-webkit-details-marker, .s109-corriger > summary::-webkit-details-marker { display: none; }
+.s109-cadrage[open] .s109-form { display: grid; width: 100%; max-width: 60rem; margin-top: 8px; }
+.s109-cadrage textarea, .s109-cadrage select, .s109-lancer textarea, .s109-lancer input, .s109-corriger textarea { width: 100%; box-sizing: border-box; }
+.s109-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 8px; }
+.s109-onglet fieldset { border: 1px solid var(--ax-border, #c9ced6); border-radius: 6px; margin: 4px 0; padding: 6px 10px; }
+.s109-case { display: block; margin: 2px 0; }
+.s109-nav { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--ax-border, #c9ced6); }
+.s109-nav a { padding: 6px 10px; border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; color: var(--ax-link, #0b57d0); text-decoration: none; }
+.s109-nav a[aria-current="page"] { border-color: var(--ax-border, #c9ced6); background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); font-weight: 600; }
+.s109-corps { display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); gap: 1rem; min-height: 0; }
+.s109-resultat, .s109-sources { min-height: 0; overflow: auto; max-height: calc(100dvh - var(--ax-header-height, 8rem)); }
+.s109-bloc { margin: 0 0 12px; }
+.s109-bloc h3 { margin: 0 0 4px; font-size: 1.05em; }
+.s109-interne { font-weight: 600; color: var(--ax-warning, #9a6700); }
+.s109-defile { overflow-x: auto; }
+.s109-table { border-collapse: collapse; width: 100%; font-size: .95em; }
+.s109-table th, .s109-table td { border: 1px solid var(--ax-border, #c9ced6); padding: 4px 6px; vertical-align: top; text-align: left; }
+.s109-table caption { text-align: left; font-weight: 600; }
+.s109-niveau, .s109-statut, .s109-etat, .s109-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--ax-border, #c9ced6);
+  font-size: .875em; background: var(--ax-surface-2, #f3f4f6); color: var(--ax-text, #1b1f24); }
+.s109-n-etayee, .s109-verifiee, .s109-e-completed { border-color: var(--ax-success-text, #1a7f37); }
+.s109-n-discutee, .s109-piste, .s109-perime, .s109-e-partial, .s109-e-needs_information, .s109-e-queued, .s109-e-running { border-color: var(--ax-warning, #9a6700); }
+.s109-n-insuffisant, .s109-e-blocked, .s109-e-failed { border-color: var(--ax-danger, #b42318); }
+.s109-alerte, .s109-prepa, .s109-pause { padding: 6px 10px; border-left: 4px solid var(--ax-warning, #9a6700); background: var(--ax-surface-2, #f3f4f6); }
+.s109-stat { font-size: .9em; color: var(--ax-muted, #57606a); }
+.s109-liste { margin: 4px 0; padding-left: 1.2em; }
+.s109-technique pre { white-space: pre-wrap; max-height: 20rem; overflow: auto; }
+.s109-onglet a:focus-visible, .s109-onglet button:focus-visible, .s109-onglet summary:focus-visible, .s109-onglet input:focus-visible,
+.s109-onglet select:focus-visible, .s109-onglet textarea:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+@media (max-width: 60rem) {
+  .s109-corps { grid-template-columns: minmax(0, 1fr); }
+  .s109-resultat, .s109-sources { max-height: none; }
+}

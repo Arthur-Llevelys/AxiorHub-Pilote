@@ -331,8 +331,13 @@ def child_config(parent_cfg, decision, config):
     """Configuration du transport retenu : le fournisseur réellement appelé est celui de la décision enregistrée."""
     from .ai_gateway import provider_registry
     provider = provider_registry(config)[decision['fournisseur']]
+    pin = parent_cfg.get('browser_pin109')
+    if pin and (decision['fournisseur'] != pin.get('provider') or decision['modele'] != pin.get('model')):
+        raise Stop('navigateur_modele_modifie')   # 5.6.109 (lot O, G24) : une configuration enfant n'affaiblit jamais le verrou du navigateur
     keep = {k: v for k, v in parent_cfg.items() if k in ('purpose', 'temperature', 'sampling', 'profile', 'profile_version', 'subprofile', 'state_dir', 'pseudo',
-                                                         'skill_instructions', 'external_policy_config', 'external_context', 'timeout_seconds', 'max_context_chars')}
+                                                         'skill_instructions', 'external_policy_config', 'external_context', 'timeout_seconds', 'max_context_chars',
+                                                         # 5.6.109 (lot O, G24) : contexte et contraintes réellement consommés par le transport
+                                                         'browser_pin109', 'navigateur109', 'num_ctx', 'context_mode', 'disable_thinking')}
     cfg = {**dict(provider), **keep, 'provider_id': decision['fournisseur'], 'provider_type': decision['type_fournisseur'], 'model': decision['modele'],
            'effort5682': decision['effort'], 'decision5682': decision['uid'], 'mission5682': decision['mission'], 'prix5682': decision['prix'], 'sans_liste5682': True}
     if decision['type_fournisseur'] not in ('ollama', 'chatgpt') and decision['unite'] == 'usd':

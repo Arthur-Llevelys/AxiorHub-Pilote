@@ -1,0 +1,40 @@
+{
+  "id": "builtin.metier109.requete_speciale",
+  "name": "Préparation des requêtes spécialisées",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub adaptation méthodologique des fichiers transmis par le cabinet",
+  "license": "AGPL-3.0",
+  "description": "Complément court de méthode pour préparation des requêtes spécialisées",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "requête prud hom",
+    "requete prud hom",
+    "requête tutelle",
+    "requete tutelle",
+    "requête jcp",
+    "requete jcp"
+  ],
+  "enabled_default": false,
+  "activation_suggeree": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "source_note": "Archive outils prompts et skills.zip, 20 novembre 2026 ; méthode reformulée, aucun script tiers exécuté."
+}

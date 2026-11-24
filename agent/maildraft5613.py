@@ -270,7 +270,7 @@ def perform(desk, args, box=None):
         try:
             from .docrequest520 import context
             ctx, notes = context(desk, matter, instruction, None, [str(a) for a in (args.get('attachments') or [])][:3],
-                                 [str(p) for p in (args.get('selected_documents') or [])][:20])
+                                 [str(p) for p in (args.get('selected_documents') or [])][:20], fonction='mail_drafting')   # 5.6.109 (lot T) : niveau de contexte de la fonction
             from .pilote5613 import manifest
             ctx['manifeste'] = manifest(ctx)
         except Stop as ex:

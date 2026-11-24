@@ -1,0 +1,39 @@
+{
+  "id": "builtin.metier109.analyse_dossier",
+  "name": "Analyse des faits du dossier",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub adaptation méthodologique des fichiers transmis par le cabinet",
+  "license": "AGPL-3.0",
+  "description": "Complément court de méthode pour analyse des faits du dossier",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse"
+  ],
+  "target_kinds": [
+    "analyser_dossier5624",
+    "fiche_dossier5627"
+  ],
+  "situations": [],
+  "auto_select_tags": [
+    "rappel des faits",
+    "analyse du dossier",
+    "analyser le dossier",
+    "chronologie factuelle"
+  ],
+  "enabled_default": false,
+  "activation_suggeree": true,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "source_note": "Archive outils prompts et skills.zip, 20 novembre 2026 ; méthode reformulée, aucun script tiers exécuté."
+}

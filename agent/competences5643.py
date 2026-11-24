@@ -94,6 +94,8 @@ def real_instruction(desk, kind, args):
 
 def skill_phases(manifest):
     """Phases déclarées (champ ``phases``) ou déduites des situations d'emploi."""
+    if manifest.get('role') == 'specialisation':
+        return []  # un complément ne devient jamais la méthode générale par son titre
     declared = manifest.get('phases') or []
     if isinstance(declared, str):
         declared = [x.strip() for x in re.split(r'[,;]', declared) if x.strip()]
@@ -156,10 +158,16 @@ def select(desk, text, phase, owner='cabinet', manual=None, auto=None, kind=''):
         if complement:   # 5.6.108 : la compétence générale prime ; une méthode qui déclare cette phase peut la compléter (MAX_SELECTED = 2)
             s = next(x for x in rows if x['id'] == complement)
             chosen.append({'id': s['id'], 'version': s['version'], 'mode': 'phase', 'reason': 'Méthode de la phase « %s », en complément de la compétence générale' % PHASE_LABELS[phase]})
-    for extra in c.resolve(desk, text, owner, auto=True):
+    from .competences56109 import candidats, usage_admis
+    for extra in candidats(desk, text, phase, kind, rows) + c.resolve(desk, text, owner, auto=True):
         if extra['id'] in methods or any(x['id'] == extra['id'] for x in chosen):
             continue     # pas une deuxième méthode de phase
-        declarees = json.loads(c._row(desk, extra['id'], extra['version'])['manifest']).get('phases') or []
+        manifest = json.loads(c._row(desk, extra['id'], extra['version'])['manifest'])
+        if not usage_admis(manifest,text,phase):
+            continue  # Le repli par mots-clés ne doit pas contourner le filtre du parcours.
+        if manifest.get('role') == 'specialisation' and phase not in (manifest.get('allowed_phases') or []):
+            continue
+        declarees = manifest.get('phases') or []
         if phase and declarees and phase not in declarees:
             continue     # 5.6.89 : seules les compétences de l'étape sont chargées
         chosen.append({**extra, 'mode': 'specialisation'})

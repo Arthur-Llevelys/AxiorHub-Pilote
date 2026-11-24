@@ -246,7 +246,11 @@ def document_edited(desk, document_id):
     doc = desk.db.execute('SELECT path FROM office_documents5684 WHERE document_id=?', (document_id,)).fetchone()
     if not doc:
         return
-    row = desk.db.execute('SELECT id, dossier, state FROM deliverables5683 WHERE path=? ORDER BY at DESC LIMIT 1', (doc['path'],)).fetchone()
+    row = desk.db.execute('SELECT id, dossier, state, doc FROM deliverables5683 WHERE path=? ORDER BY at DESC LIMIT 1', (doc['path'],)).fetchone()
+    if row:   # 5.6.109 (lot G3, G04) : un acte modifié invalide les validations « À finaliser » qui portaient sur l'ancienne version
+        from .closing56109 import acte_modifie
+        if acte_modifie(desk, 'dossier5683', row['dossier'], row['doc'], 'edition_document'):
+            desk.db.commit()
     if row and row['state'] == DOC_READY:
         desk.db.execute("UPDATE deliverables5683 SET state='projet' WHERE id=?", (row['id'],))
         _decision(desk, row['dossier'], 'Document modifié après « prêt à signer »', doc['path'].rsplit('/', 1)[-1], 'documents')
@@ -282,6 +286,8 @@ def ready_to_sign_blockers(desk, dos):
         lacks.append('Conditions à vérifier')
     if dos['kind'] == 'droit_bail' and field_view(desk, dos, 'bail')['statut'] != 'confirme':
         lacks.append('Bail non lu')
+    from .closing56109 import libelles_blocages   # 5.6.109 (lot G3, G04) : aucune condition persistante non vérifiée avant « prêt à signer »
+    lacks.extend(libelles_blocages(desk, 'dossier5683', dos['id'], 'signature'))
     return lacks
 
 
@@ -525,6 +531,10 @@ def realize(desk, data, owner):
         raise Qualified('conditions_a_verifier', precision=', '.join(pending))
     if not dates.get('realisation'):
         raise Stop('date_realisation_requise')
+    from . import closing56109   # 5.6.109 (lot G3, G04) : conditions persistantes levées, ou décision qualifiée tracée sur ces blocages précis
+    closing56109.exiger_levee(desk, 'dossier5683', dos['id'], 'realisation', str(data.get('decision_closing') or ''))
+    if pending:   # l'ancienne case reste valable pour les conditions calculées, mais elle est tracée (auteur, conditions énumérées)
+        closing56109.tracer_decision_case(desk, owner, 'dossier5683', dos['id'], pending, str(data.get('motif') or ''))
     ops._step(desk, dos['id'], 'realisation', 'fait', owner, 'Réalisation constatée.')
     desk.db.commit()
     open_filings(desk, dos, owner)
@@ -638,7 +648,7 @@ def run(desk, args, model=None):
 
 
 # ------------------------------------------------------------------------------------------------ affichage
-VIEWS = (('ensemble', 'Vue d’ensemble'), ('informations', 'Informations'), ('documents', 'Documents'), ('formalites', 'Formalités et suivi'))
+VIEWS = (('ensemble', 'Vue d’ensemble'), ('informations', 'Informations'), ('documents', 'Documents'), ('finaliser', 'À finaliser'), ('formalites', 'Formalités et suivi'))   # 5.6.109 (lot G3) : « À finaliser »
 FIELD_STATES = {'propose': 'Proposé', 'confirme': 'Confirmé', 'contradictoire': 'Contradictoire', 'manquant': 'Manquant'}
 DOC_STATES = {'projet': 'Projet', 'perime': 'À réexaminer', 'signe': 'Signé', DOC_READY: 'Prêt à signer'}
 
@@ -734,7 +744,10 @@ def page_html(desk, prefix, args, hidden=()):
     view = str(args.get('vue') or 'ensemble')
     view = view if view in dict(VIEWS) else 'ensemble'
     subs = ''.join('<a href="?type=%s&operation=%s&vue=%s"%s>%s</a>' % (URLS[dos['kind']], e(did, quote=True), k, ' aria-current="page"' if k == view else '', e(v)) for k, v in VIEWS)
-    body = _overview(desk, dos) if view == 'ensemble' else _informations(desk, dos) if view == 'informations' else _documents(desk, prefix, dos) if view == 'documents' else _formalites(desk, dos)
+    from . import closing56109, formalites56109   # 5.6.109 (lot G3) : même opération ; « À finaliser » (G04) et formalités supervisées (G15)
+    body = (closing56109.resume_html(desk, 'dossier5683', did, hidden) + _overview(desk, dos) if view == 'ensemble' else _informations(desk, dos) if view == 'informations'
+            else _documents(desk, prefix, dos) if view == 'documents' else closing56109.section_html(desk, prefix, 'dossier5683', did, hidden) if view == 'finaliser'
+            else _formalites(desk, dos) + formalites56109.section_operation_html(desk, prefix, 'dossier5683', did, hidden))
     scope = '' if dos['perimetre'] == 'livre' else '<p class="c5637-alert" role="status"><strong>Qualification complémentaire.</strong> Préparation utile, sans conformité annoncée.</p>'
     status = dos['data'].get('statut')
     hero = ('<header class="o84-head"><div><h2>%s</h2><p class="ax-muted">%s · %s · %s · dernière activité %s</p></div><div class="o84-actions"><form class="m5-form m5-inline" data-api="m5684/cession/prendre" data-reload="1"><input type="hidden" name="id" value="%s"><button class="ax-btn" type="submit">Prendre en charge cette opération</button></form>'

@@ -151,6 +151,8 @@ def _save_app(desk, cfg, form, ai, notes):
                 if pid in TESTABLES and str(form.get('provider_key', '')).strip():
                     verifier_cle(pid, form.get('provider_key', ''))      # 5.6.96 : une clé refusée ne remplace jamais la clé en service
                 save_provider(desk, pid, pid, '', model, form.get('provider_key', ''), True, True)
+                from .modeles_catalogue56109 import exiger   # 5.6.109 (lot E) : le modèle proposé ou saisi doit être listé par la clé
+                exiger(desk, pid, model)
                 if ai == 'mixte':
                     ia540.apply_mixed(desk, pid, model, (cfg.get('ollama') or {}).get('model', ''), test=False)
                 else:
@@ -319,6 +321,15 @@ def page(auth, user, notes=(), result=''):
             desk.db.close()
     except Exception:   # noqa: BLE001 — la page d'installation reste utilisable sans ce bloc
         pass
+    try:   # 5.6.109 (lot S, F11 et G21) : sources publiques déjà préparées (état réel) et accès étrangers facultatifs (même registre que Paramètres)
+        from .sources_publiques56109 import installation_html
+        desk = _desk(auth)
+        try:
+            body += installation_html(desk, auth._csrf(user))
+        finally:
+            desk.db.close()
+    except Exception:   # noqa: BLE001 — la page d'installation reste utilisable sans ce bloc
+        pass
     return auth._page('Installation d’AxiorHub Pilote', body, wide=True)
 
 
@@ -339,6 +350,17 @@ def handle(auth, env, start, user):
             result = '<p class="ok">%s</p>' % escape(installation_action(desk, str(user.get('email') or 'cabinet'), form['op']))
         except Exception:   # noqa: BLE001
             result = '<p class="warn">Étape inconnue : rien n’a été modifié.</p>'
+        finally:
+            desk.db.close()
+        return auth._respond(start, '200 OK', page(auth, user, (), result))
+    if str(form.get('op', '')).startswith('acces56109_'):   # 5.6.109 (lot S, G21) : accès étranger facultatif, enregistré par le service des connexions
+        from .sources_publiques56109 import installation_action
+        desk = _desk(auth)
+        try:
+            result = '<p class="ok">%s</p>' % escape(installation_action(desk, str(user.get('email') or 'cabinet'), form))
+        except Exception as ex:   # noqa: BLE001
+            from .web440 import human
+            result = '<p class="warn">Accès non enregistré : %s</p>' % escape(human(str(ex)) if str(ex) else 'erreur')
         finally:
             desk.db.close()
         return auth._respond(start, '200 OK', page(auth, user, (), result))

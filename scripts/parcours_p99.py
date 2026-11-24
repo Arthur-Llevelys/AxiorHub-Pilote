@@ -60,8 +60,10 @@ def p99_aujourdhui(banc, s):
         return {comptes: s && s.getBoundingClientRect().height, bord: c && c.borderTopWidth, marge: c && c.marginTop,
                 largeurs: Array.from(document.querySelectorAll('.f96-rang .r99-routine')).map(e => Math.round(e.getBoundingClientRect().width)),
                 liste: Math.round(document.querySelector('.f96-rang .r99-liste').getBoundingClientRect().width)}; }'''))
-    verifier(hauts and len(set(hauts)) == 1, 'les routines ne tiennent pas sur une ligne : %s' % hauts)
-    verifier(boite['height'] <= 80, 'bandeau trop haut : %.0f px' % boite['height'])
+    # 5.6.109 : intitulé « Mes routines | Mes agents IA » (plus long) et routine de rappel de rendez-vous livrée désactivée : à 1920 px le
+    # bandeau tient désormais sur deux lignes au plus (une seule en 5.6.99, avec trois routines et l'intitulé court) ; il reste compact.
+    verifier(hauts and len(set(hauts)) <= 2, 'les routines débordent de deux lignes : %s' % hauts)
+    verifier(boite['height'] <= 110, 'bandeau trop haut : %.0f px' % boite['height'])
     decider = p.locator('#f96-decider').bounding_box()
     verifier(boite['y'] + boite['height'] <= decider['y'] + 1, 'le bandeau n’est pas au-dessus de « À décider »')
     premiere = p.locator('#f96-lignes-zone li.f96-ligne').first.bounding_box()

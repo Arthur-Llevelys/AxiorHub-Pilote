@@ -103,7 +103,9 @@ def tester_generation(desk, pid, provider, chemin, slug, base):
     try:
         texte = Model(cfg).complete([{'role': 'user', 'content': GENERATION_TEXTE}], 0, GENERATION_JETONS)
     except Stop as error:
-        raise Stop(_code_test(error) if classer(error)[0] else str(error).split(':')[0]) from None
+        if classer(error)[0]:
+            raise Stop(_code_test(error)) from None
+        raise      # 5.6.109 (lot E) : le motif lisible du refus (type, code, paramètre) reste attaché à l'erreur montrée par la carte
     if not isinstance(texte, str) or not texte.strip():
         raise Stop('mistral_generation_refusee')
     return True
@@ -275,6 +277,12 @@ def _generation(desk, pid, provider, chemin, base, utiles, inconnus, modele=''):
     if modele and modele not in ids:
         raise Stop('modele_non_teste')
     econome = [r['id'] for r in utiles if level_of('mistral', r['id']) == 'econome']
+    en_service = str((provider or {}).get('model') or '')
+    if not modele and en_service:   # 5.6.109 (lot E) : le test porte sur le modèle réellement choisi ; absent du catalogue : « Modèle à choisir »
+        if en_service not in ids:
+            from .erreurs5634 import Qualified
+            raise Qualified('modele_absent_du_catalogue', modele=en_service, proposes=sorted(ids, key=str.lower)[:40])
+        modele = en_service
     slug = modele or (inconnus[0]['id'] if inconnus and not utiles else (econome or ids)[0])
     tester_generation(desk, pid, provider, chemin, slug, base)
     confirme = [r for r in inconnus if r['id'] == slug]
@@ -323,6 +331,13 @@ def tester(desk, cle='', utiliser_existante=False, generation=False, modele='', 
     if utiliser_existante:
         from .ai_gateway import revision_of
         desk.setting(CONTROLE_KEY + pid, {'etat': etat, 'le': when, 'modeles': len(utiles), 'revision': revision_of(desk.settings('ai:provider:' + pid, {}))})
+        from . import catalogue5682   # 5.6.109 (lot E) : au contrôle de la clé, le catalogue est relu et conservé (« Modèle à choisir » s'en déduit)
+        lignes = []
+        for r in utiles:
+            ligne = catalogue5682._row('mistral', {'slug': r['id'], 'nom': r.get('label'), 'contexte': r.get('contexte')}, '', '', when)
+            ligne['capacites']['conversation'] = r['preuve']
+            lignes.append(ligne)
+        catalogue5682._store(desk, pid, '', '', lignes)
         _effacer_incident(desk.c['state_dir'], pid)
         liberer_travaux(desk.c['state_dir'])
     desk.audit('mistral_cle_testee', {'provider': pid, 'cle': 'enregistree' if utiliser_existante else 'candidate', 'resultat': etat,
@@ -369,6 +384,45 @@ def etat(desk):
             'actif': bool(provider and provider.get('enabled')), 'envoi': bool(provider and provider.get('external_data_allowed'))}
 
 
+def choisir_modele(desk, modele, revision, owner=''):
+    """5.6.109 (lot E) : « Modèle à choisir » : l'administrateur retient un modèle DU dernier catalogue de la clé. La connexion et les routes qui
+    visaient un modèle absent de ce catalogue passent à ce modèle (rien n'est changé sans ce choix explicite). 409 si la révision a changé."""
+    from .ai_gateway import revision_of
+    from .modeles5681 import tariff
+    from .modeles_catalogue56109 import a_choisir, connus
+    pid, provider = connexion(desk.c)
+    if not provider:
+        raise Stop('cle_api_fournisseur_absente')
+    modele = str(modele or '').strip()
+    slugs = connus(desk.c['state_dir'], pid)
+    if not slugs or modele not in slugs:
+        raise Stop('modele_non_teste')
+    reglage = dict(desk.settings('ai:provider:' + pid, {}) or {})
+    attendu = cles5696.revision_attendue(revision)
+    if attendu is not None and attendu != revision_of(reglage):
+        raise Stop('reglage_modifie_entre_temps')
+    ancien = str(reglage.get('model') or '')
+    prix = tariff(modele) or ((reglage.get('input_usd_per_million') or 0, reglage.get('output_usd_per_million') or 0) if ancien == modele else (0, 0))
+    reglage.update({'model': modele, 'revision': revision_of(reglage) + 1, 'input_usd_per_million': prix[0], 'output_usd_per_million': prix[1]})
+    desk.setting('ai:provider:' + pid, reglage)
+    desk.c.setdefault('ai_providers', {})[pid] = reglage
+    routes = 0
+    for (cle, valeur) in desk.db.execute("SELECT key, value FROM settings WHERE key LIKE 'ai:route:%'").fetchall():
+        try:
+            route = json.loads(valeur)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(route, dict) and route.get('provider') == pid and a_choisir(desk.c['state_dir'], pid, route.get('model')):
+            route['model'] = modele
+            desk.setting(cle, route)
+            desk.c.setdefault('model_routing', {})[cle.split(':', 2)[-1]] = route
+            routes += 1
+    desk.audit('mistral_modele_choisi', {'provider': pid, 'avant': ancien, 'modele': modele, 'routes': routes, 'tarif_connu': bool(prix[0] or prix[1])})
+    tarif = '' if (prix[0] or prix[1]) else ' Tarif de ce modèle non renseigné : indiquez-le dans Fournisseurs (sans tarif, aucun envoi n’est fait).'
+    return {'ok': True, 'modele': modele, 'routes': routes,
+            'message': 'Modèle retenu : %s (%d fonction(s) mise(s) à jour).%s' % (modele, routes, tarif)}
+
+
 def carte_guide(desk, env, prefix, admin=False):
     """5.6.96 (intégration I06) : même carte dans l'étape IA du guide d'installation ; réservée à l'administrateur."""
     return carte(desk) if admin else ''
@@ -404,6 +458,36 @@ def carte(desk):
         if st['configuree']:
             form += ('<form class="m5-form m82-inline" data-api="m5682/mistral/tester" data-reload="1"><input type="hidden" name="utiliser_existante" value="1">'
                      '<button class="ax-btn ghost" type="submit">Réexaminer la clé enregistrée</button><p role="status" class="m5-status"></p></form>')
+    if st['configuree']:
+        form = _choix_modele_html(desk, st) + form + _essai_html(st['provider'])
+    return _carte_html(head, form)
+
+
+def _choix_modele_html(desk, st):
+    """5.6.109 (lot E) : « Modèle à choisir » (lecture seule) : le modèle en service n'est pas dans le dernier catalogue lu pour la clé."""
+    from .modeles_catalogue56109 import a_choisir, connus
+    reglage = desk.settings('ai:provider:' + st['provider'], {}) or {}
+    modele = str(reglage.get('model') or '')
+    if not a_choisir(desk.c['state_dir'], st['provider'], modele):
+        return '<p>Modèle en service : <strong>%s</strong> (listé par la clé).</p>' % e(modele) if modele else ''
+    options = ''.join('<option value="%s">%s</option>' % (e(s, quote=True), e(s)) for s in sorted(connus(desk.c['state_dir'], st['provider']) or [], key=str.lower))
+    return ('<div class="ax-alert" role="status"><p><strong>Modèle à choisir</strong> : le modèle en service « %s » ne figure pas dans le dernier catalogue '
+            'renvoyé par votre clé. Il n’est plus envoyé tant qu’un modèle listé n’a pas été choisi ; rien n’a été modifié sans vous.</p>'
+            '<form class="m5-form" data-api="m5682/mistral/modele" data-reload="1"><input type="hidden" name="revision" value="%d">'
+            '<label class="m5-field">Modèle listé par la clé<select name="modele">%s</select></label>'
+            '<button class="ax-btn" type="submit">Utiliser ce modèle</button><p role="status" class="m5-status"></p></form></div>') % (
+        e(modele), st['revision'], options)
+
+
+def _essai_html(pid):
+    """5.6.109 (lot E, point 6) : essai d'une requête de la même forme que la rédaction (schéma JSON, réglages du profil), texte fictif."""
+    return ('<form class="m5-form m82-inline" data-api="m5682/essai-requete"><input type="hidden" name="provider" value="%s">'
+            '<button class="ax-btn ghost" type="submit">Essayer une requête réelle (texte fictif, même forme que la rédaction)</button>'
+            '<p role="status" class="m5-status"></p></form>') % e(pid, quote=True)
+
+
+def _carte_html(head, form):
+    from . import politique5682
     return ('<section class="ax-card m82" id="k96-mistral"><h2>Mistral · clé Studio</h2>%s%s'
             '<p class="ax-muted">Tester ou enregistrer la clé ne change ni le mode de l’IA, ni les routes, ni les automatismes, et ne lit aucun dossier. '
             'Pour l’utiliser, choisissez « %s » dans Mode de l’IA avec l’autorisation d’envoi.</p></section>') % (

@@ -24,7 +24,17 @@ REASONS = {
 }
 
 
-def page(desk, args, form):
+def _depense56109(desk, spent, prefix):
+    """5.6.109 (I2) : avec la nouvelle interface, la dépense du mois renvoie à la section unique « Consommation et coûts » (un seul calcul) ;
+    interrupteur éteint, l'ancien indicateur reste. ``prefix`` absent : adresse relative à la page (même niveau que /parametres)."""
+    from .consommation56109 import lien_section, renvoi_html
+    ancien = '<article><strong>'+e(round(spent, 4))+' $</strong><span>Dépense externe ce mois</span></article>'
+    lien = lien_section(prefix) if prefix is not None else '<a href="parametres?tab=ia#consommation-couts">Voir Consommation et coûts</a>'
+    nouveau = renvoi_html(desk, ancien, lien)
+    return nouveau if nouveau == ancien else '<article>'+nouveau+'</article>'
+
+
+def page(desk, args, form, prefix=None):
     data = snapshot(desk); rule = data['policy']
     providers = {x['id']: x for x in public_providers(desk.c)}
     external = providers.get(rule['external_provider'], {})
@@ -36,7 +46,7 @@ def page(desk, args, form):
     mode_label = {'local': 'Local uniquement', 'hybrid': 'Hybride local/OpenRouter',
                   'manual': 'Manuel par fonction'}[rule['mode']]
     out = '<section class="hybrid400-hero"><div><p class="eyebrow">VERSION 4.0.0 · ROUTAGE HYBRIDE</p><h1>Le local d’abord, l’externe seulement quand il apporte quelque chose</h1><p>Chaque choix est estimé avant exécution, expliqué et journalisé sans conserver la demande ni la réponse.</p></div><span class="hybrid400-mode">'+e(mode_label)+'</span></section>'
-    out += '<section class="hybrid400-kpis"><article><strong>'+str(local_count)+'</strong><span>Décisions locales</span></article><article><strong>'+str(external_count)+'</strong><span>Traitements OpenRouter</span></article><article><strong>'+str(fallback_count)+'</strong><span>Reprises et replis</span></article><article><strong>'+e(round(spent, 4))+' $</strong><span>Dépense externe ce mois</span></article></section>'
+    out += '<section class="hybrid400-kpis"><article><strong>'+str(local_count)+'</strong><span>Décisions locales</span></article><article><strong>'+str(external_count)+'</strong><span>Traitements OpenRouter</span></article><article><strong>'+str(fallback_count)+'</strong><span>Reprises et replis</span></article>'+_depense56109(desk, spent, prefix)+'</section>'
     out += '<section class="card hybrid400-flow"><h2>Décision avant tout envoi</h2><ol><li><strong>Dossier et fonction</strong><span>Un dossier exclu ou une fonction non autorisée reste local.</span></li><li><strong>Score de complexité</strong><span>Volume, sources et nature du travail sont évalués sans modèle.</span></li><li><strong>Anonymisation et budget</strong><span>Les identités sont masquées et les deux plafonds sont vérifiés.</span></li><li><strong>Contrôle</strong><span>Le second modèle peut contredire le premier sans être le même couple fournisseur/modèle.</span></li></ol></section>'
     mode_options = ''.join('<option value="'+key+'"'+(' selected' if rule['mode'] == key else '')+'>'+label+'</option>' for key, label in [('local', 'Local uniquement'), ('hybrid', 'Hybride automatique'), ('manual', 'Manuel par fonction (compatibilité 3.9)')])
     provider_options = ''.join('<option value="'+e(x['id'])+'"'+(' selected' if x['id'] == rule['external_provider'] else '')+'>'+e(x['id']+' · '+x['model'])+'</option>' for x in providers.values() if x['type'] == 'openrouter') or '<option value="openrouter">OpenRouter à configurer</option>'

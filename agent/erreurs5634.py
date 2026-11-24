@@ -50,9 +50,11 @@ def provider_error(body):
         data = json.loads(body or b'{}')
     except (ValueError, UnicodeError, TypeError):
         return {}
+    if isinstance(data, list) and data and isinstance(data[0], dict):   # 5.6.109 (lot E) : erreur enveloppée dans une liste (compatibilité OpenAI de Google)
+        data = data[0]
     error = data.get('error') if isinstance(data, dict) else None
     source = error if isinstance(error, dict) else (data if isinstance(data, dict) else {})
-    out = {k: str(source[k]) for k in ('type', 'code', 'param') if isinstance(source.get(k), (str, int)) and re.fullmatch(r'[A-Za-z0-9_.\[\]-]{1,60}', str(source[k]))}
+    out = {k: str(source[k]) for k in ('type', 'code', 'param', 'status') if isinstance(source.get(k), (str, int)) and re.fullmatch(r'[A-Za-z0-9_.\[\]-]{1,60}', str(source[k]))}
     if isinstance(error, str) and re.fullmatch(r'[a-z_]{3,40}', error):   # 5.6.97 (lot gmail) : code d'erreur OAuth (RFC 6749, « invalid_grant »)
         out['oauth'] = error
     return {k: v for k, v in out.items() if not v.startswith('sk-')}
@@ -157,6 +159,8 @@ MESSAGES = {
     'espace_disque_insuffisant': 'Espace disque insuffisant : rien n’a été écrit au-delà de la marge de sécurité.',
     'erreur_disque': 'Écriture ou lecture impossible sur le disque.',
     'base_principale_illisible': 'La base principale n’a pas pu être copiée : aucune archive n’a été créée.',
+    'copie_base_impossible': 'Une base n’a pas pu être copiée (détail dans les avertissements) : la sauvegarde est en échec, l’original n’a pas été touché et les anciennes archives sont conservées.',   # 5.6.109 (lot R)
+    'base_illisible': 'La base de travail du bureau est illisible : AxiorHub est arrêté par sécurité (procédure « Base illisible » du guide de réversibilité).',   # 5.6.109 (lot R)
     'retention_impossible': 'L’archive est bonne, mais les plus anciennes n’ont pas pu être retirées : vérifiez les droits du dossier.',
     'travail_interrompu': 'Le travail a été interrompu (redémarrage du service) : il sera refait.',
     'second_emplacement_absent': 'Aucun second emplacement n’est réglé.',
@@ -614,6 +618,14 @@ def explain(code, detail=None):
     if code == 'demonstration_hors_ligne':   # 5.6.107 (lot M) : mode Démo, aucune connexion extérieure
         from .demo56107 import MESSAGES as _messages107
         return _messages107[code]
+    if d.get('choix_fixe56109') or code.startswith('choix_modele_'):   # 5.6.109 (lot T) : modèle fixé dans Paramètres : la fonction et le modèle sont nommés
+        from .choix_modele56109 import MESSAGES as _m56109, expliquer_echec
+        return (expliquer_echec(code, d) if d.get('fonction') else _m56109.get(code, code)) + ref
+    if code in ('modele_absent_du_catalogue', 'modele_inconnu_du_fournisseur', 'parametre_refuse_par_fournisseur', 'echantillonnage_refuse_par_fournisseur',
+                'requete_refusee_par_fournisseur') or (
+            code == 'modele_ou_route_fournisseur_absent' and 'proposes' in d):   # 5.6.109 (lot E) : catalogue de la clé, refus lisible du fournisseur
+        from .modeles_catalogue56109 import expliquer
+        return expliquer(code, d) + ref
     if code == 'modele_ollama_absent':
         return 'Le modèle choisi n’est pas installé sur le moteur Ollama : installez-le ou choisissez un modèle présent (Paramètres › IA). Les dossiers ne sont pas en cause.' + ref
     if code in ('moteur_ollama_injoignable', 'fournisseur_ia_injoignable'):

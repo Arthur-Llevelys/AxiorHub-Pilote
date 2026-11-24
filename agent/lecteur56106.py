@@ -31,6 +31,14 @@ Demande du cabinet (16 novembre 2026, décidée avec l'avocat) :
   compte, copie distante vérifiée après coup). Le lien vers le courriel d'origine est gardé (``lecteur56106_liens``).
 
 Aucune écriture pendant une lecture (R05) ; schéma créé au démarrage (``Desk``). Aucune action externe n'est déclenchée par un modèle.
+
+5.6.109 (lot L) :
+- **C01** : le filtre du texte caché lit les tailles de police avec leur unité (``mailbox.taille_masquante``) : ``1em``, ``0.9em``, ``90 %``
+  restent lisibles, une taille nulle ou microscopique reste écartée et signalée. Un résumé fait avec l'ancienne extraction est dit « à
+  actualiser » (colonne ``extracteur``), jamais relancé d'office.
+- **F01** : barre des pièces jointes sous l'en-tête (``v56106-lecteur.js``), chaque pièce désignée par son index ET son empreinte ; routes
+  ``classement``, ``destinations``, ``lot`` (lectures) et ``classer/preparer``, ``classer/confirmer``, ``classer/reprendre`` (``pieces56109`` :
+  aperçu avant copie, classement par ``correspondances5643``, reçu par pièce, reprise sans doublon).
 """
 import base64
 from datetime import date, datetime, timedelta, timezone
@@ -51,8 +59,10 @@ from .common import Stop, fold
 PREFIXE = 'm56106/lecteur/'
 JOB = 'lecteur56106_resume'
 ROLES_COURRIEL = ('administrateur', 'avocat')
-ROUTES_GET = ('courriel', 'corps', 'imprimer', 'eml', 'eml-zip', 'pieces-zip', 'piece', 'fil', 'resume', 'formulaires', 'origine')
-ROUTES_POST = ('affichage', 'resumer', 'resume/note', 'tache', 'evenement', 'enregistrer')
+ROUTES_GET = ('courriel', 'corps', 'imprimer', 'eml', 'eml-zip', 'pieces-zip', 'piece', 'fil', 'resume', 'formulaires', 'origine',
+              'classement', 'destinations', 'lot')   # 5.6.109 (lot L, F01) : état du classement des pièces, emplacements d'un dossier, état d'un lot
+ROUTES_POST = ('affichage', 'resumer', 'resume/note', 'tache', 'evenement', 'enregistrer',
+               'classer/preparer', 'classer/confirmer', 'classer/reprendre')   # 5.6.109 (lot L, F01) : aperçu avant copie, classement, reprise (``pieces56109``)
 DROITS = {'tache': 'agenda', 'evenement': 'agenda'}      # droit réglable en jeu (``membres5650.category``) ; les autres : aucun
 MAX_RESUME = 25
 MAX_FORMULAIRES = 10
@@ -78,6 +88,7 @@ NEUTRES = ('introuvable', 'dossier_reserve', 'dossier_absent', 'piece_jointe_abs
            'message_imap_disparu', 'uidvalidity_modifiee', 'lecture_imap_echouee')
 STATUTS = {'role_insuffisant': '403 Forbidden', 'origine_ou_csrf_refuse': '403 Forbidden', 'introuvable': '404 Not Found',
            'route_inconnue': '404 Not Found', 'cle_idempotence_deja_utilisee': '409 Conflict', 'resume_pas_pret': '409 Conflict',
+           'piece_modifiee': '409 Conflict', 'lot_non_confirme': '409 Conflict',   # 5.6.109 (F01) : la pièce désignée n'est plus ces octets ; lot pas encore confirmé
            'controle_indisponible': '503 Service Unavailable', 'methode_refusee': '405 Method Not Allowed'}
 
 
@@ -86,8 +97,17 @@ def _now():
 
 
 def ensure_schema(desk):
-    """Création idempotente au démarrage (``Desk``) ; aucune donnée écrite."""
+    """Création idempotente au démarrage (``Desk``) ; aucune donnée écrite. 5.6.109 (lot L) : colonne ``extracteur`` des résumés (version
+    de l'extraction du corps qui a servi : ``PRAGMA table_info`` puis ``ALTER TABLE``), table des lots de pièces (``pieces56109``)."""
     desk.db.executescript(SCHEMA)
+    if 'extracteur' not in {r[1] for r in desk.db.execute('PRAGMA table_info(lecteur56106_resumes)')}:
+        try:
+            desk.db.execute('ALTER TABLE lecteur56106_resumes ADD COLUMN extracteur INTEGER NOT NULL DEFAULT 1')
+        except sqlite3.OperationalError as ex:   # autre processus plus rapide : la colonne existe
+            if 'duplicate column' not in str(ex).lower():
+                raise
+    from .pieces56109 import ensure_schema as ensure_pieces56109
+    ensure_pieces56109(desk)
 
 
 def _table(desk, nom):
@@ -739,14 +759,11 @@ def _preference(desk, compte):
     return r['affichage'] if r and r['affichage'] in AFFICHAGES else 'html'
 
 
-def _pieces(msg):
-    from . import boite5625
-    from .apercu5679 import kind_of
-    out = []
-    for p in boite5625._attachments(msg):
-        genre = kind_of(p['name'])
-        out.append({**p, 'apercu': {'pdf': 'pdf', 'image': 'image', 'docx': 'html'}.get(genre, '')})
-    return out
+def _pieces(msg, cfg=None):
+    """Pièces du lecteur, dans l'ordre de ``iter_attachments()`` (index des routes ``piece``). 5.6.109 (F01) : chaque pièce porte son
+    empreinte et sa clé d'archive (``pieces56109.identites``) pour que l'aperçu, le téléchargement et le classement visent les mêmes octets."""
+    from .pieces56109 import pieces_du_lecteur
+    return pieces_du_lecteur(msg, cfg)
 
 
 def informations(desk, acteur, args, box=None):
@@ -780,7 +797,7 @@ def informations(desk, acteur, args, box=None):
             'html': bool(html), 'preference': preference, 'affichage': 'html' if html and preference == 'html' else 'texte',
             'images_externes': stats['externes'], 'images_integrees': stats['integrees'], 'liens': stats.get('liens', 0),
             'texte_masque': masque, 'entetes': entetes, 'entetes_complets': len(entetes) == len(mail.msg.items()),
-            'pieces': _pieces(mail.msg), 'dossier_reconnu': dossier, 'fil': bool(mail.mid),
+            'pieces': _pieces(mail.msg, desk.c), 'dossier_reconnu': dossier, 'fil': bool(mail.mid),
             'confidentiel': is_confidential(subject=mail.subject, text=mail.text[:4000]),
             'proposition': proposition(desk, acteur[0], mail, dossier)}
 
@@ -970,9 +987,11 @@ def _unique(nom, pris):
 def _pieces_brutes(msg):
     """[(nom sûr, octets)] des pièces jointes, noms dédoublonnés (jamais de chemin dans l'archive)."""
     pris, out = set(), []
+    from .pieces56109 import octets_de
     for n, part in enumerate(msg.iter_attachments()):
-        nom = nom_propre(str(part.get_filename() or 'piece-%d' % (n + 1)).replace('\\', '/').rsplit('/', 1)[-1], 150)
-        out.append((_unique(nom, pris), part.get_payload(decode=True) or b''))
+        defaut = 'piece-%d%s' % (n + 1, '.eml' if part.get_content_type() == 'message/rfc822' else '')
+        nom = nom_propre(str(part.get_filename() or defaut).replace('\\', '/').rsplit('/', 1)[-1], 150)
+        out.append((_unique(nom, pris), octets_de(part)))   # 5.6.109 (F01) : un courriel joint est enregistré entier, pas un fichier vide
     return out
 
 
@@ -1135,8 +1154,14 @@ def piece(desk, acteur, args, box=None):
         part = None
     if part is None:
         raise Stop('piece_jointe_absente')
-    nom = str(part.get_filename() or 'piece-%d' % (index + 1))[:200]
-    octets = part.get_payload(decode=True) or b''
+    from .pieces56109 import octets_de
+    nom = str(part.get_filename() or 'piece-%d%s' % (index + 1, '.eml' if part.get_content_type() == 'message/rfc822' else ''))[:200]
+    octets = octets_de(part)
+    # 5.6.109 (F01) : l'écran désigne la pièce par son index ET son empreinte ; un index qui ne désigne plus ces octets (autre message du
+    # fil, message changé) n'est jamais servi à sa place
+    attendue = str(args.get('empreinte') or '')
+    if attendue and (not re.fullmatch(r'[0-9a-f]{64}', attendue) or hashlib.sha256(octets).hexdigest() != attendue):
+        raise Stop('piece_jointe_absente')
     entetes = [('X-Content-Type-Options', 'nosniff'), ('Cache-Control', 'private, no-store')]
     if str(args.get('dl') or '') == '1':
         return {'status': '200 OK', 'kind': 'application/octet-stream', 'body': octets,
@@ -1303,9 +1328,19 @@ def _dossier_visible(desk, acteur, matter):
     matter = str(matter or '').strip()
     if not matter:
         return ''
-    from .acces5697 import peut_lire_dossier
+    from .acces5697 import masques
     from .common import load_matters
-    if not peut_lire_dossier(desk, acteur, matter) or not any(str(m['id']) == matter for m in load_matters(desk.c)):
+    # 5.6.109 (intégration I1) : ``acces5697.peut_lire_dossier`` avale toute erreur (refus) ; ici une PANNE du contrôle remonte en
+    # ``controle_indisponible`` (503) au lieu d'un 404 trompeur. Refus et rôle inconnu : le même 404 neutre, jamais un accès élargi.
+    try:
+        lisible = matter not in masques(desk, acteur)
+    except Stop as ex:
+        if str(ex).split(':')[0] == 'controle_indisponible':
+            raise Stop('controle_indisponible') from None
+        lisible = False
+    except Exception:   # noqa: BLE001 — registre ou base en panne
+        raise Stop('controle_indisponible') from None
+    if not lisible or not any(str(m['id']) == matter for m in load_matters(desk.c)):
         raise Stop('introuvable')
     return matter
 
@@ -1479,8 +1514,12 @@ def _elements(valeur):
 
 def _public_resume(row):
     resultat = json.loads(row['resultat']) if row['resultat'] else None
+    from .mailbox import EXTRACTEUR_VERSION
+    ancien = row['etat'] == 'fait' and 'extracteur' in row.keys() and int(row['extracteur'] or 1) < EXTRACTEUR_VERSION
     return {'id': row['id'], 'etat': row['etat'], 'motif': row['motif'], 'nombre': len(json.loads(row['elements'])), 'resultat': resultat,
             'cree': row['created'], 'maj': row['updated'],
+            # 5.6.109 (C01) : résumé fait avec l'ancienne lecture des courriels (texte en 1em écarté, HTML ignoré) : à actualiser, jamais relancé d'office
+            'a_actualiser': ancien, 'avis': ('Ce résumé a été fait avec une ancienne lecture des courriels : relancez-le pour l’actualiser.' if ancien else ''),
             'message': {'en_file': 'Demande enregistrée : l’IA va lire les courriels choisis.', 'en_cours': 'L’IA lit les courriels choisis…',
                         'fait': 'Résumé prêt.'}.get(row['etat'], row['motif'])}
 
@@ -1559,8 +1598,9 @@ def lire_resume(desk, acteur, ident):
 def _clore(desk, ident, etat, motif='', resultat=None):
     if desk.db.in_transaction:
         desk.db.rollback()
-    desk.db.execute('UPDATE lecteur56106_resumes SET etat=?, motif=?, resultat=?, updated=? WHERE id=?',
-                    (etat, motif, json.dumps(resultat, ensure_ascii=False) if resultat is not None else '', _now(), ident))
+    from .mailbox import EXTRACTEUR_VERSION
+    desk.db.execute('UPDATE lecteur56106_resumes SET etat=?, motif=?, resultat=?, updated=?, extracteur=? WHERE id=?',
+                    (etat, motif, json.dumps(resultat, ensure_ascii=False) if resultat is not None else '', _now(), EXTRACTEUR_VERSION, ident))
     desk.db.commit()
     return {'resume': ident, 'etat': etat}
 
@@ -1647,7 +1687,7 @@ def job(desk, args):
                             'date': _date_locale(desk, compte, mail.timestamp), 'objet': mail.subject[:300] or '(sans objet)',
                             'confidentiel': is_confidential(subject=mail.subject, text=mail.text[:4000]), 'dossier_reconnu': dossier,
                             'echeance': reperer_date(mail.subject + '\n' + mail.text[:20000], jour)['date'],
-                            'pieces': [p['name'] for p in _pieces(mail.msg)][:10], '_texte': texte})
+                            'pieces': [p['name'] for p in _pieces(mail.msg, desk.c)][:10], '_texte': texte})
             from .fraude56106 import pour_resume as _resume106; _resume106(desk, mail, entrees[-1])   # 5.6.106 (lot F) : courriel « Suspect » ou « Danger » : avertissement en tête du texte transmis
         _fermer(box)
         box = None
@@ -1773,7 +1813,8 @@ def tete_html(prefix, desk=None, owner='cabinet'):
         from .interface56100 import active
         if not active(desk, owner):
             return ''
-    return '<script defer src="%s/static/v56106-lecteur.js"></script>' % e(prefix, quote=True)
+    return ('<script defer src="%s/static/v56106-lecteur.js"></script>'
+            '<script defer src="%s/static/v56109-pieces.js"></script>') % (e(prefix, quote=True), e(prefix, quote=True))   # 5.6.109 (lot L, F01) : classer une pièce ou un lot
 
 
 def api(env, desk, auth, prefix, name, args, method):
@@ -1787,7 +1828,18 @@ def api(env, desk, auth, prefix, name, args, method):
         message = {'introuvable': 'Élément introuvable.', 'cle_idempotence_deja_utilisee': 'Cette clé a déjà servi pour une autre demande : rechargez la page.',
                    'resume_pas_pret': 'Le résumé n’est pas encore prêt.', 'controle_indisponible': 'Contrôle des droits indisponible : réessayez dans un instant.',
                    'dossier_non_reconnu_dans_le_resume': 'Ce dossier n’a pas été reconnu dans les courriels résumés.',
-                   'date_evenement_a_choisir': 'Indiquez la date de l’événement.'}.get(code)
+                   'date_evenement_a_choisir': 'Indiquez la date de l’événement.',
+                   # 5.6.109 (lot L, F01) : classement des pièces jointes
+                   'dossier_a_choisir': 'Choisissez le dossier où classer les pièces.',
+                   'dossier_sans_repertoire': 'Ce dossier n’a pas encore de répertoire : le classement des pièces y est impossible pour le moment.',
+                   'destination_inconnue': 'Cet emplacement n’existe pas pour ce dossier : choisissez-en un dans la liste.',
+                   'aucune_piece_selectionnee': 'Cochez au moins une pièce à classer.', 'trop_de_pieces': 'Soixante pièces au plus par classement.',
+                   'piece_invalide': 'Pièce mal désignée : rouvrez le courriel.',
+                   'piece_modifiee': 'Le courriel a changé depuis son affichage : rouvrez-le avant de classer ses pièces. Rien n’a été copié.',
+                   'piece_non_classable': 'Cette pièce ne peut pas être classée d’ici : téléchargez-la.',
+                   'lot_non_confirme': 'Ce classement n’a pas encore été confirmé.',
+                   'octets_imap_incomplets': 'Le courriel n’a pas pu être lu en entier : réessayez dans un instant. Rien n’a été copié.',
+                   'aucune_piece_jointe_a_enregistrer': 'Aucune pièce à classer dans cette sélection.'}.get(code)
         if not message:
             from .erreurs5634 import explain
             message = explain(code)
@@ -1826,6 +1878,13 @@ def _api(env, desk, auth, prefix, route, args, method):
             return _out(lire_resume(desk, acteur, args.get('id')))
         if route == 'formulaires':
             return _out(formulaires(desk, acteur, auth))
+        if route in ('classement', 'destinations', 'lot'):   # 5.6.109 (lot L, F01) : lectures seules, droits relus par ``pieces56109``
+            from . import pieces56109
+            if route == 'classement':
+                return _out(pieces56109.classement(desk, acteur, args))
+            if route == 'destinations':
+                return _out(pieces56109.destinations(desk, acteur, args.get('affaire')))
+            return _out(pieces56109.lire_lot(desk, acteur, args.get('id')))
         return _out(origine(desk, acteur, args.get('cle')))
     if method != 'POST':
         raise Stop('methode_refusee')
@@ -1843,6 +1902,13 @@ def _api(env, desk, auth, prefix, route, args, method):
         return _out(enregistrer_note(desk, acteur, data))
     if route == 'enregistrer':
         return _out(enregistrer(desk, acteur, data))
+    if route.startswith('classer/'):   # 5.6.109 (lot L, F01) : aperçu avant copie (201), classement et reprise (202 : travail en file, jamais un succès annoncé)
+        from . import pieces56109
+        if route == 'classer/preparer':
+            out = pieces56109.preparer(desk, acteur, data)
+            return _out(out, '200 OK' if out.get('rejeu') else '201 Created')
+        out = pieces56109.confirmer(desk, acteur, data) if route == 'classer/confirmer' else pieces56109.reprendre(desk, acteur, data)
+        return _out(out, '200 OK' if out.get('rejeu') or out.get('termine') else '202 Accepted')
     if route == 'tache':
         out = creer_tache(desk, acteur, data, auth)
         return _out(out, '200 OK' if out.get('rejeu') else '201 Created')

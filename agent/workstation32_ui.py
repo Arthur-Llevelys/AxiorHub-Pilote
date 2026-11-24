@@ -210,8 +210,10 @@ def settings_page(desk,args,form,link):
             out+='</article>'
         from .ai_gateway import usage_snapshot
         usage=usage_snapshot(desk)
-        out+='</div><h3>Consommation externe du mois</h3>'
-        out+=('<p class="empty">Aucune requête externe comptabilisée ce mois.</p>' if not usage else '<div class="table"><table><thead><tr><th>Fournisseur</th><th>Requêtes</th><th>Jetons entrée</th><th>Jetons sortie</th><th>Coût estimé USD</th></tr></thead><tbody>'+''.join('<tr><td>'+e(x['provider'])+'</td><td>'+e(x['requests'])+'</td><td>'+e(x['input_tokens'])+'</td><td>'+e(x['output_tokens'])+'</td><td>'+e(x['cost_usd'])+'</td></tr>' for x in usage)+'</tbody></table></div>')
+        out+='</div>'
+        ancien=('<h3>Consommation externe du mois</h3>'+('<p class="empty">Aucune requête externe comptabilisée ce mois.</p>' if not usage else '<div class="table"><table><thead><tr><th>Fournisseur</th><th>Requêtes</th><th>Jetons entrée</th><th>Jetons sortie</th><th>Coût estimé USD</th></tr></thead><tbody>'+''.join('<tr><td>'+e(x['provider'])+'</td><td>'+e(x['requests'])+'</td><td>'+e(x['input_tokens'])+'</td><td>'+e(x['output_tokens'])+'</td><td>'+e(x['cost_usd'])+'</td></tr>' for x in usage)+'</tbody></table></div>'))
+        from .consommation56109 import renvoi_html as _renvoi56109   # 5.6.109 (I2) : nouvelle interface : renvoi à la section unique « Consommation et coûts »
+        out+=_renvoi56109(desk,ancien,link('/parametres','Voir Consommation et coûts',tab='ia'))
         from .budget5668 import settings_html as _budget5668   # 5.6.68 : plafond, dépensé, réservé incertain, reste
         from .i18n5631 import role as _role5668
         out+=_budget5668(desk,'',_role5668())
@@ -224,14 +226,22 @@ def settings_page(desk,args,form,link):
             provider_id=saved.get('provider') or routing.get(role+'_provider') or 'ollama'
             model=saved.get('model') or routing.get(role+'_model') or c.get('ollama',{}).get('model','')
             selected_options=options.replace('value="'+e(provider_id)+'"','value="'+e(provider_id)+'" selected',1)
+            from .modeles_catalogue56109 import a_choisir,connus   # 5.6.109 (lot E) : modèle absent du catalogue de la clé : « Modèle à choisir » (lecture seule)
+            choix=''
+            if provider_id!='ollama' and a_choisir(c.get('state_dir',''),provider_id,model):
+                liste='ws109-'+e(purpose)
+                choix=('<p class="notice" role="status"><strong>Modèle à choisir</strong> : « '+e(model)+' » ne figure pas dans le catalogue de la clé de cette connexion ; il n’est pas envoyé. Choisissez un modèle listé, puis « Tester et utiliser ».</p>'
+                       '<datalist id="'+liste+'">'+''.join('<option value="'+e(s)+'">' for s in sorted(connus(c.get('state_dir',''),provider_id) or [],key=str.lower))+'</datalist>')
             out+=form('save_ai_route','Tester et utiliser',{'purpose':purpose},
                 '<label>'+e(label)+' — fournisseur<select name="provider_id">'+selected_options+'</select></label>'
-                '<label>Nom exact du modèle<input name="model" required maxlength="160" value="'+e(model)+'"></label>')
+                '<label>Nom exact du modèle<input name="model" required maxlength="160" value="'+e(model)+'"'+(' list="ws109-'+e(purpose)+'"' if choix else '')+'></label>'+choix)
         out+='<p>Le contrôle indépendant peut utiliser un autre fournisseur et un autre modèle. Les contenus envoyés, les clés et les réponses complètes ne sont jamais inscrits dans le journal technique.</p>'
     elif selected=='extensions':
         from .ai_gateway import PURPOSES
         from .extensions364 import list_items
-        items=list_items(desk)
+        # 5.6.109 (lot S, F11) : les sources publiques préconfigurées par le catalogue ne sont pas des extensions installées par l'utilisateur :
+        # elles se règlent dans Sources juridiques (même registre), jamais ici.
+        items=[i for i in list_items(desk) if i.get('activation_origine')!='catalogue109']
         out+='<p>Référencez une fiche Lawve.ai, puis configurez son endpoint ou importez son archive. AxiorHub ne télécharge et n’exécute jamais automatiquement du code depuis le catalogue. Les connecteurs MCP sont testés sans donnée client ; les compétences et plugins restent en quarantaine jusqu’à votre revue.</p>'
         out+='<p><a rel="noopener noreferrer" target="_blank" href="https://lawve.ai/fr/connectors">Catalogue des connecteurs</a> · <a rel="noopener noreferrer" target="_blank" href="https://lawve.ai/fr/skills">Catalogue des compétences</a> · <a rel="noopener noreferrer" target="_blank" href="https://lawve.ai/fr/plugins">Catalogue des plugins</a></p>'
         purpose_checks='<fieldset><legend>Fonctions autorisées pour les instructions du skill/plugin</legend>'+''.join(

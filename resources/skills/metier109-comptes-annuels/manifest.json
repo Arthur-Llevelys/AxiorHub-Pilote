@@ -1,0 +1,38 @@
+{
+  "id": "builtin.metier109.comptes_annuels",
+  "name": "Contrôle des documents de comptes annuels",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub adaptation méthodologique des fichiers transmis par le cabinet",
+  "license": "AGPL-3.0",
+  "description": "Complément court de méthode pour contrôle des documents de comptes annuels",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "approbation des comptes",
+    "comptes annuels",
+    "affectation du résultat",
+    "affectation du resultat"
+  ],
+  "enabled_default": false,
+  "activation_suggeree": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "source_note": "Archive outils prompts et skills.zip, 20 novembre 2026 ; méthode reformulée, aucun script tiers exécuté."
+}

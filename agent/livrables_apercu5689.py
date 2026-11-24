@@ -315,6 +315,11 @@ def apercu(desk, row, prefix='', client=None, version_demandee=''):
     out = {'preview_kind': kind, 'html': '', 'url': '', 'note': '', 'row': row}
     base = prefix + '/api440/m5689/livrables/' + row['document_id']
     if not row.get('path'):
+        if row.get('source_service') == 'artefacts56109':     # 5.6.109 (lot V, F08) : livrable structuré, rendu déclaratif de CETTE version (droits des sources relus)
+            from .artefacts56109 import apercu_html
+            out['html'] = apercu_html(desk, row)
+            out['note'] = 'Livrable structuré, version %d : affiché par les composants du logiciel (aucun code généré) ; exportable en JSON, Markdown ou CSV.' % row['version_number']
+            return out
         if row.get('deposit_ref'):
             out['html'], out['note'] = _brouillon(desk, row)
             return out

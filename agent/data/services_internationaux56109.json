@@ -1,0 +1,649 @@
+{
+  "schema_version": 1,
+  "services": [
+    {
+      "id": "uk_companies_house",
+      "label": "Companies House données et documents",
+      "territoires": [
+        "GB"
+      ],
+      "famille": "entreprises",
+      "transport": "api",
+      "auth": "cle_basic",
+      "capacites": [
+        "societe.rechercher",
+        "societe.lire",
+        "documents.lister",
+        "documents.telecharger"
+      ],
+      "docs_url": "https://developer-specs.company-information.service.gov.uk/",
+      "acces_url": "https://developer.company-information.service.gov.uk/how-to-create-an-application",
+      "limite": "Lecture Public Data et Document API ; formalités et OAuth distincts ; company_number conservé comme texte.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "pappers_international",
+      "label": "Pappers International",
+      "territoires": [
+        "GB",
+        "DE",
+        "ES"
+      ],
+      "famille": "entreprises",
+      "transport": "api",
+      "auth": "cle_fournisseur",
+      "capacites": [
+        "societe.rechercher",
+        "societe.lire",
+        "documents.lister",
+        "documents.telecharger"
+      ],
+      "docs_url": "https://www.pappers.in/api",
+      "acces_url": "https://www.pappers.in/api",
+      "limite": "Capacités et documents selon pays et offre ; couverture de ces pays annoncée, Canada et États-Unis non promis ; aucun repli de scraping.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "opencorporates",
+      "label": "OpenCorporates",
+      "territoires": [
+        "GB",
+        "CA",
+        "CA-QC",
+        "CA-ON",
+        "DE",
+        "ES",
+        "US"
+      ],
+      "famille": "entreprises",
+      "transport": "api",
+      "auth": "cle_x_api_token",
+      "capacites": [
+        "societe.rechercher",
+        "societe.lire"
+      ],
+      "docs_url": "https://api.opencorporates.com/documentation/API-Reference",
+      "acces_url": "https://knowledge.opencorporates.com/knowledge-base/api-authentication-authorisation/",
+      "limite": "Couverture par registre et contrat à tester ; métadonnées, pas une garantie d’actes officiels téléchargeables.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "uk_companies_filing",
+      "label": "Companies House formalités",
+      "territoires": [
+        "GB"
+      ],
+      "famille": "formalites",
+      "transport": "navigateur",
+      "auth": "compte",
+      "capacites": [
+        "formalites.preparer"
+      ],
+      "docs_url": "https://developer.company-information.service.gov.uk/authentication",
+      "acces_url": "https://www.gov.uk/file-your-company-accounts-and-tax-return",
+      "limite": "Identifier la formalité, le mandat et les exigences d’identité ; profil de dépôt non qualifié ; API Filing OAuth séparée.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "uk_myhmcts",
+      "label": "MyHMCTS money claims",
+      "territoires": [
+        "GB-EAW"
+      ],
+      "famille": "procedure",
+      "transport": "navigateur",
+      "auth": "compte_professionnel",
+      "capacites": [
+        "procedure.consulter",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://www.gov.uk/government/publications/myhmcts-how-to-issue-and-manage-a-money-claim-online/issue-an-online-money-claim-as-a-legal-professional",
+      "acces_url": "https://www.gov.uk/guidance/myhmcts-online-case-management-for-legal-professionals",
+      "limite": "Profil money claims en Angleterre et au pays de Galles seulement ; organisation et compte habilités ; préparer localement si brouillon non sauvegardable.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "uk_legislation",
+      "label": "Legislation UK",
+      "territoires": [
+        "GB",
+        "GB-EAW",
+        "GB-SCT",
+        "GB-NIR"
+      ],
+      "famille": "droit",
+      "transport": "formats_publics",
+      "auth": "aucune",
+      "capacites": [
+        "textes.rechercher",
+        "textes.lire"
+      ],
+      "docs_url": "https://www.legislation.gov.uk/developer/formats/xml",
+      "acces_url": "https://www.legislation.gov.uk/",
+      "limite": "Vérifier version, date et portée territoriale de chaque disposition ; respecter fair use.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": true,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23",
+      "registre_existant": "gb_legislation"
+    },
+    {
+      "id": "uk_find_case_law",
+      "label": "Find Case Law",
+      "territoires": [
+        "GB",
+        "GB-EAW",
+        "GB-SCT",
+        "GB-NIR"
+      ],
+      "famille": "droit",
+      "transport": "formats_publics",
+      "auth": "aucune",
+      "capacites": [
+        "decisions.rechercher",
+        "decisions.lire"
+      ],
+      "docs_url": "https://caselaw.nationalarchives.gov.uk/when-you-need-permission",
+      "acces_url": "https://caselaw.nationalarchives.gov.uk/when-you-need-permission",
+      "limite": "Couverture publiée à contrôler ; analyse computationnelle, indexation et réutilisation nécessitent la qualification de licence appropriée.",
+      "licence_analyse_a_verifier": true,
+      "definition_active_par_defaut": true,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "ca_corporations",
+      "label": "Corporations Canada",
+      "territoires": [
+        "CA"
+      ],
+      "famille": "entreprises",
+      "transport": "navigateur",
+      "auth": "compte",
+      "capacites": [
+        "societe.rechercher",
+        "documents.lister",
+        "documents.telecharger",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://ised-isde.canada.ca/site/corporations-canada/en/order-copies-corporate-documents",
+      "acces_url": "https://ised-isde.canada.ca/site/corporations-canada/en",
+      "limite": "Sociétés fédérales ; copies ordinaires et certifiées distinctes ; pas de promesse sur toutes les sociétés provinciales ou leurs comptes.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "qc_req",
+      "label": "Registraire des entreprises Québec",
+      "territoires": [
+        "CA-QC"
+      ],
+      "famille": "entreprises",
+      "transport": "navigateur",
+      "auth": "compte",
+      "capacites": [
+        "societe.rechercher",
+        "documents.lister",
+        "documents.telecharger",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://www.quebec.ca/entreprises-et-travailleurs-autonomes/obtenir-renseignements-entreprise/copie-document-certificat-registraire-entreprises",
+      "acces_url": "https://www.quebec.ca/entreprises-et-travailleurs-autonomes",
+      "limite": "NEQ distinct des autres numéros canadiens ; accès et prix propres au produit ; API publique de téléchargement non confirmée.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "on_registry",
+      "label": "Ontario Business Registry",
+      "territoires": [
+        "CA-ON"
+      ],
+      "famille": "entreprises",
+      "transport": "navigateur",
+      "auth": "compte",
+      "capacites": [
+        "societe.rechercher",
+        "documents.lister",
+        "documents.telecharger",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://www.ontario.ca/page/ontario-business-registry",
+      "acces_url": "https://www.ontario.ca/page/ontario-business-registry",
+      "limite": "Province Ontario uniquement ; produits payants, company key et éventuel accès intermédiaire distincts.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "ca_canlii",
+      "label": "CanLII API métadonnées",
+      "territoires": [
+        "CA",
+        "CA-QC",
+        "CA-ON"
+      ],
+      "famille": "droit",
+      "transport": "api",
+      "auth": "cle_query",
+      "capacites": [
+        "decisions.metadonnees",
+        "textes.metadonnees"
+      ],
+      "docs_url": "https://github.com/canlii/API_documentation/blob/master/EN.md",
+      "acces_url": "https://www.canlii.org/en/feedback/feedback.html",
+      "limite": "Demande de clé via formulaire officiel ; API de métadonnées en lecture, pas un accès intégral aux textes de toutes les décisions.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23",
+      "registre_existant": "canlii"
+    },
+    {
+      "id": "ca_laws",
+      "label": "Justice Laws Canada",
+      "territoires": [
+        "CA"
+      ],
+      "famille": "droit",
+      "transport": "formats_publics",
+      "auth": "aucune",
+      "capacites": [
+        "textes.rechercher",
+        "textes.lire"
+      ],
+      "docs_url": "https://laws-lois.justice.gc.ca/eng/acts/",
+      "acces_url": "https://laws-lois.justice.gc.ca/",
+      "limite": "Lois et règlements fédéraux ; conserver date de consolidation, version linguistique et entrée en vigueur.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": true,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23",
+      "registre_existant": "ca_federal"
+    },
+    {
+      "id": "qc_soquij",
+      "label": "SOQUIJ",
+      "territoires": [
+        "CA-QC"
+      ],
+      "famille": "droit",
+      "transport": "a_qualifier",
+      "auth": "contrat",
+      "capacites": [
+        "decisions.rechercher"
+      ],
+      "docs_url": "https://soquij.qc.ca/portail",
+      "acces_url": "https://soquij.qc.ca/portail",
+      "limite": "Compte, offre et intégration à qualifier auprès de SOQUIJ ; aucune API publique avec clé promise.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "ca_federal_court",
+      "label": "Cour fédérale e-Filing",
+      "territoires": [
+        "CA"
+      ],
+      "famille": "procedure",
+      "transport": "navigateur",
+      "auth": "compte_professionnel",
+      "capacites": [
+        "formalites.preparer"
+      ],
+      "docs_url": "https://www.fct-cf.ca/en/pages/online-access/e-filing",
+      "acces_url": "https://www.fct-cf.ca/en/pages/online-access/e-filing",
+      "limite": "Pas la Cour d’appel fédérale ; pas de brouillon partiel à présumer, un seul onglet ; réception et acceptation par le greffe distinctes.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "qc_judicial",
+      "label": "Services judiciaires Québec GNJQ ou Lexius",
+      "territoires": [
+        "CA-QC"
+      ],
+      "famille": "procedure",
+      "transport": "navigateur",
+      "auth": "compte_professionnel",
+      "capacites": [
+        "procedure.consulter",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://www.quebec.ca/justice-et-etat-civil/systeme-judiciaire/processus-judiciaire/action-collective",
+      "acces_url": "https://www.quebec.ca/justice-et-etat-civil/systeme-judiciaire",
+      "limite": "Portail selon tribunal, matière et date d’ouverture ; exemple actions collectives, ne pas généraliser la bascule Lexius à toutes les procédures.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "es_registradores",
+      "label": "Registradores Registro Mercantil",
+      "territoires": [
+        "ES"
+      ],
+      "famille": "entreprises",
+      "transport": "navigateur",
+      "auth": "compte_certificat",
+      "capacites": [
+        "societe.rechercher",
+        "documents.lister",
+        "documents.telecharger",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://sede.registradores.org/site/mercantil?lang=es",
+      "acces_url": "https://sede.registradores.org/site/mercantil?lang=es",
+      "limite": "Nota simple informative et certificación distinctes ; comptes et statuts selon publicité disponible ; signature et représentation à vérifier.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "es_boe",
+      "label": "BOE et BORME données ouvertes",
+      "territoires": [
+        "ES"
+      ],
+      "famille": "droit",
+      "transport": "api",
+      "auth": "aucune",
+      "capacites": [
+        "textes.rechercher",
+        "textes.lire",
+        "publications.rechercher"
+      ],
+      "docs_url": "https://www.boe.es/datosabiertos/api/api.php",
+      "acces_url": "https://www.boe.es/datosabiertos/api/api.php",
+      "limite": "API GET publique ; BORME est une publication et ne remplace pas un extrait complet du registre mercantile.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": true,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23",
+      "registre_existant": "es_boe"
+    },
+    {
+      "id": "es_cendoj",
+      "label": "CENDOJ jurisprudence",
+      "territoires": [
+        "ES"
+      ],
+      "famille": "droit",
+      "transport": "a_qualifier",
+      "auth": "aucune",
+      "capacites": [
+        "decisions.rechercher"
+      ],
+      "docs_url": "https://www.poderjudicial.es/search/indexAN.jsp",
+      "acces_url": "https://www.poderjudicial.es/",
+      "limite": "Consultation publique ; API, collecte automatisée et réutilisation non confirmées dans cette étude, ne pas afficher Prêt pour le RAG.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": true,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "es_lexnet",
+      "label": "LexNET",
+      "territoires": [
+        "ES"
+      ],
+      "famille": "procedure",
+      "transport": "navigateur",
+      "auth": "certificat_professionnel",
+      "capacites": [
+        "procedure.consulter",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://sedejudicial.justicia.es/-/lexnet",
+      "acces_url": "https://sedejudicial.justicia.es/",
+      "limite": "Certificat, rôle abogado ou procurador et couverture du tribunal/région à qualifier ; pas un e-Barreau universel.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "de_handelsregister",
+      "label": "Handelsregister",
+      "territoires": [
+        "DE"
+      ],
+      "famille": "entreprises",
+      "transport": "navigateur",
+      "auth": "aucune",
+      "capacites": [
+        "societe.rechercher",
+        "documents.lister",
+        "documents.telecharger"
+      ],
+      "docs_url": "https://www.handelsregister.de/rp_web/information/welcome.xhtml",
+      "acces_url": "https://www.handelsregister.de/",
+      "limite": "Extraits AD CD HD et documents du registre ; identifiant inclut tribunal et HRB/HRA ; collecte individuelle, pas constitution d’un registre parallèle.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "de_bea",
+      "label": "beA",
+      "territoires": [
+        "DE"
+      ],
+      "famille": "procedure",
+      "transport": "navigateur",
+      "auth": "certificat_professionnel",
+      "capacites": [
+        "procedure.consulter",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://portal.beasupport.de/fragen-antworten/kategorie/wichtige-grundlagen/erste-schritte-im-bea",
+      "acces_url": "https://www.bea-brak.de/",
+      "limite": "Client Security, carte ou jeton et PIN humains ; accès professionnel et délégation vérifiés ; navigateur seul insuffisant à garantir l’usage.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "de_notar",
+      "label": "Portail notarial allemand",
+      "territoires": [
+        "DE"
+      ],
+      "famille": "formalites",
+      "transport": "navigateur",
+      "auth": "compte_certificat",
+      "capacites": [
+        "formalites.preparer"
+      ],
+      "docs_url": "https://www.notar.de/themen/unternehmen/handelsregister",
+      "acces_url": "https://online.notar.de/",
+      "limite": "Préparer les informations et documents pour le notaire ; aucun remplacement de l’authentification et de l’intervention notariale requises.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "de_laws",
+      "label": "Gesetze im Internet",
+      "territoires": [
+        "DE"
+      ],
+      "famille": "droit",
+      "transport": "formats_publics",
+      "auth": "aucune",
+      "capacites": [
+        "textes.rechercher",
+        "textes.lire"
+      ],
+      "docs_url": "https://www.gesetze-im-internet.de/",
+      "acces_url": "https://www.gesetze-im-internet.de/",
+      "limite": "Droit fédéral consolidé ; ne couvre pas tous les Länder ; version de promulgation authentique à distinguer de la consolidation.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": true,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23",
+      "registre_existant": "de_bund"
+    },
+    {
+      "id": "de_decisions",
+      "label": "Rechtsprechung im Internet",
+      "territoires": [
+        "DE"
+      ],
+      "famille": "droit",
+      "transport": "formats_publics",
+      "auth": "aucune",
+      "capacites": [
+        "decisions.rechercher",
+        "decisions.lire"
+      ],
+      "docs_url": "https://www.rechtsprechung-im-internet.de/",
+      "acces_url": "https://www.rechtsprechung-im-internet.de/",
+      "limite": "Sélection de juridictions fédérales, pas toute la jurisprudence allemande ; pas d’API clé inventée.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": true,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "us_sec",
+      "label": "SEC EDGAR",
+      "territoires": [
+        "US"
+      ],
+      "famille": "entreprises",
+      "transport": "api",
+      "auth": "aucune",
+      "capacites": [
+        "societe.lire",
+        "documents.lister",
+        "documents.telecharger"
+      ],
+      "docs_url": "https://www.sec.gov/search-filings/edgar-application-programming-interfaces",
+      "acces_url": "https://www.sec.gov/search-filings/edgar-application-programming-interfaces",
+      "limite": "CIK, déposants couverts par EDGAR ; pas toutes les sociétés privées ni les registres de chaque État ; User-Agent et fair access requis.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "us_courtlistener",
+      "label": "CourtListener REST",
+      "territoires": [
+        "US"
+      ],
+      "famille": "droit",
+      "transport": "api",
+      "auth": "cle_token",
+      "capacites": [
+        "decisions.rechercher",
+        "decisions.lire",
+        "decisions.metadonnees"
+      ],
+      "docs_url": "https://wiki.free.law/c/courtlistener/help/api/rest/v4/rest-api-v47",
+      "acces_url": "https://www.courtlistener.com/profile/api-token/",
+      "limite": "Token du profil ; droits, quotas et offre commerciale ou adhésion selon capacité ; RECAP ne couvre pas tous les documents PACER.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "us_pacer",
+      "label": "PACER et CM ECF",
+      "territoires": [
+        "US"
+      ],
+      "famille": "procedure",
+      "transport": "navigateur",
+      "auth": "compte_professionnel",
+      "capacites": [
+        "procedure.consulter",
+        "documents.telecharger",
+        "formalites.preparer"
+      ],
+      "docs_url": "https://pacer.uscourts.gov/register-account/attorney-filers-cmecf",
+      "acces_url": "https://pacer.uscourts.gov/",
+      "limite": "Consultation payante selon règles et droits ; compte PACER distinct de l’habilitation à déposer dans chaque juridiction ; accès automatisé encadré.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "de_unternehmensregister",
+      "label": "Unternehmensregister comptes et publications",
+      "territoires": [
+        "DE"
+      ],
+      "famille": "entreprises",
+      "transport": "navigateur",
+      "auth": "compte",
+      "capacites": [
+        "societe.rechercher",
+        "documents.lister",
+        "documents.telecharger"
+      ],
+      "docs_url": "https://www.unternehmensregister.de/de",
+      "acces_url": "https://www.unternehmensregister.de/de",
+      "limite": "Comptes et publications ; certains produits exigent compte, frais ou droits. Publication via plateforme distincte, pas autorisée par une collecte.",
+      "licence_analyse_a_verifier": false,
+      "definition_active_par_defaut": false,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23"
+    },
+    {
+      "id": "qc_legis",
+      "label": "LégisQuébec",
+      "territoires": [
+        "CA-QC"
+      ],
+      "famille": "droit",
+      "transport": "a_qualifier",
+      "auth": "aucune",
+      "capacites": [
+        "textes.rechercher",
+        "textes.lire"
+      ],
+      "docs_url": "https://www.legisquebec.gouv.qc.ca/fr/",
+      "acces_url": "https://www.legisquebec.gouv.qc.ca/fr/",
+      "limite": "Réutiliser ca_quebec ; téléchargement et indexation restent soumis à qualification de licence et format. Ne pas lever SYNC_QUALIFIEE à partir de la seule consultation publique.",
+      "licence_analyse_a_verifier": true,
+      "definition_active_par_defaut": true,
+      "statut_adaptateur": "propose_a_raccorder",
+      "date_documentation": "2026-11-23",
+      "registre_existant": "ca_quebec"
+    }
+  ]
+}

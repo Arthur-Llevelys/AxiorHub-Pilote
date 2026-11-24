@@ -194,11 +194,16 @@ def find_matter(desk, text):
 
 
 # ---------------------------------------------------------------------------------------- contexte
-def context(desk, matter, request, dav=None, attachments=(), selected_documents=()):
+def context(desk, matter, request, dav=None, attachments=(), selected_documents=(), fonction=''):
     from .document_projects import _dav, _inventory
     ctx = {'dossier': matter_display(matter), 'client': matter.get('client_name', ''), 'fichiers': [], 'extraits': [], 'courriels': [],
            'agenda': [], 'faits': [], 'pieces_jointes': []}
     notes = []
+    # 5.6.109 (lot T) : niveau de contexte de la fonction (Paramètres › Modèles d'IA) : il règle les BORNES d'assemblage ci-dessous ;
+    # « normal » (défaut, et toute installation mise à jour) = bornes historiques. Pièces jointes et documents choisis : jamais retirés.
+    from .choix_modele56109 import bornes as _bornes56109
+    niveau56109, b56109 = _bornes56109(desk.c, fonction)
+    ecarts56109 = {}
     client = dav or _dav(desk)
     from .improvements36 import attachment_parts
     from .long_documents365 import pages_from_text, analyze_pages
@@ -231,13 +236,16 @@ def context(desk, matter, request, dav=None, attachments=(), selected_documents=
     try:
         items = [x for x in _inventory(client, matter['path']) if not x.get('directory')]
         items.sort(key=lambda x: str(x.get('modified', '')), reverse=True)
-        ctx['fichiers'] = [{'fichier': x['path'][len(matter['path']):].lstrip('/'), 'modifie': str(x.get('modified', ''))[:16]} for x in items[:80]]
+        ctx['fichiers'] = [{'fichier': x['path'][len(matter['path']):].lstrip('/'), 'modifie': str(x.get('modified', ''))[:16]} for x in items[:b56109['fichiers']]]
+        ecarts56109['fichiers'] = max(0, min(len(items), 80) - len(ctx['fichiers']))
     except Exception:
         notes.append('Liste des fichiers du dossier non lue.')
     try:
         from .index import DocumentIndex
         index = DocumentIndex(desk.c['state_dir'], desk.c.get('rag'), desk.c.get('ollama'))
         ranked, _ = index.ranked_chunks(matter, [request, matter.get('client_name', '')], limit=12, min_relative=0.3)   # 5.6.67 (point 3)
+        ecarts56109['extraits'] = max(0, len(ranked) - b56109['passages'])
+        ranked = ranked[:b56109['passages']]      # 5.6.109 (lot T) : les plus pertinents d'abord (classement de l'index inchangé)
         for n, (row, _score) in enumerate(ranked, 1):
             # 5.6.67 (point 3) : passage étiqueté (pièce, date, nature) ; les plus pertinents d'abord
             entry = {'source': 'P%d' % n, 'fichier': str(row[2]).rsplit('/', 1)[-1], 'date': str(row[4] or '')[:10],
@@ -249,17 +257,20 @@ def context(desk, matter, request, dav=None, attachments=(), selected_documents=
         notes.append('Index des pièces indisponible : seule la liste des fichiers est connue.')
     try:
         rows = desk.db.execute('SELECT folder,uid,sender,mail_date FROM portfolio_mail_links WHERE matter=? ORDER BY mail_date DESC LIMIT 12', (matter['id'],)).fetchall()
+        ecarts56109['courriels'] = max(0, len(rows) - b56109['courriels'])
+        ecarts56109['extraits_courriels'] = max(0, min(len(rows), 6) - min(len(rows), b56109['courriels'], b56109['extraits_courriels']))
+        rows = rows[:b56109['courriels']]          # 5.6.109 (lot T) : les plus récents d'abord
         if rows:
             from .mailbox import Mailbox
             box = Mailbox(desk.c['mail'])
             try:
                 for n, r in enumerate(rows, 1):
                     try:
-                        m = box.fetch(r['folder'], r['uid'], headers_only=n > 6)
+                        m = box.fetch(r['folder'], r['uid'], headers_only=n > b56109['extraits_courriels'])
                     except Stop:
                         continue
                     ctx['courriels'].append({'source': 'C%d' % n, 'de': m.sender, 'objet': m.subject[:200], 'date': str(r['mail_date'])[:10],
-                                             'extrait': '' if n > 6 else re.sub(r'\s+', ' ', m.text)[:1500]})
+                                             'extrait': '' if n > b56109['extraits_courriels'] else re.sub(r'\s+', ' ', m.text)[:1500]})
             finally:
                 box.close()
     except Exception:
@@ -267,14 +278,24 @@ def context(desk, matter, request, dav=None, attachments=(), selected_documents=
     try:
         start = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
         end = (datetime.now(timezone.utc) + timedelta(days=180)).isoformat()
-        for r in desk.db.execute('SELECT title,starts FROM calendar_cache WHERE matter=? AND starts>=? AND starts<=? ORDER BY starts LIMIT 20', (matter['id'], start, end)):
+        lignes56109 = desk.db.execute('SELECT title,starts FROM calendar_cache WHERE matter=? AND starts>=? AND starts<=? ORDER BY starts LIMIT 20', (matter['id'], start, end)).fetchall()
+        if niveau56109 == 'reduit':   # 5.6.109 (lot T) : prochaines dates d'abord, complétées par les plus récentes
+            from .choix_modele56109 import selection_agenda
+            ecarts56109['agenda'] = max(0, len(lignes56109) - b56109['agenda'])
+            lignes56109 = selection_agenda(lignes56109, b56109['agenda'], datetime.now(timezone.utc).isoformat())
+        for r in lignes56109:
             ctx['agenda'].append({'date': r['starts'][:16].replace('T', ' '), 'evenement': (r['title'] or '')[:160]})
     except Exception:
         pass
     try:
         # 5.6.65 (audit 5.6.64, R11) : la provenance des faits validés est gardée, pour que le contrôle d'usage s'y applique ; une
         # validation interne d'un fait ne lève pas les restrictions de sa source.
-        for r in desk.db.execute("SELECT title,content,sources FROM legal_memory_records WHERE matter=? AND status IN ('validated','pinned') ORDER BY updated DESC LIMIT 25", (matter['id'],)):
+        faits56109 = desk.db.execute("SELECT title,content,sources,status FROM legal_memory_records WHERE matter=? AND status IN ('validated','pinned') ORDER BY updated DESC LIMIT 25", (matter['id'],)).fetchall()
+        if niveau56109 == 'reduit':   # 5.6.109 (lot T) : épinglés d'abord, puis les plus récents ; provenance gardée pour le contrôle d'usage
+            from .choix_modele56109 import selection_faits
+            ecarts56109['faits'] = max(0, len(faits56109) - b56109['faits'])
+            faits56109 = selection_faits(faits56109, b56109['faits'])
+        for r in faits56109:
             try:
                 paths = [str(x.get('path', '') if isinstance(x, dict) else x) for x in json.loads(r['sources'] or '[]')]
             except (ValueError, TypeError):
@@ -287,6 +308,10 @@ def context(desk, matter, request, dav=None, attachments=(), selected_documents=
             ctx['faits'].append(fact)
     except Exception:
         pass
+    from .choix_modele56109 import mesurer as _mesurer56109   # tailles par catégorie (trace des appels) ; au niveau réduit, ce qui est écarté est dit
+    phrase56109 = _mesurer56109(ctx, niveau56109, fonction, ecarts56109)
+    if phrase56109:
+        notes.append(phrase56109)
     return ctx, notes
 
 
@@ -660,7 +685,7 @@ def run(desk, args, dav=None):
         attached = json.loads(row['attachments'] or '[]')
     except (ValueError, IndexError, KeyError):
         attached = []
-    ctx, notes = context(desk, matter, row['request'], client, attached,args.get('selected_documents',[]))
+    ctx, notes = context(desk, matter, row['request'], client, attached,args.get('selected_documents',[]), fonction='document_drafting')   # 5.6.109 (lot T)
     from . import pilote5613
     ctx['manifeste'] = pilote5613.manifest(ctx)        # 5.6.13 : ce que la rédaction a réellement reçu, et ce qui n'a pas été lu
     for piece in ctx.get('pieces_jointes', []):

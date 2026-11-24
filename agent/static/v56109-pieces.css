@@ -1,0 +1,54 @@
+/* AxiorHub 5.6.109 (lot L, F01) — lecteur des courriels : barre des pièces jointes sous l'en-tête, aperçu, classement d'une pièce ou d'un lot.
+   Couleurs par jetons du lecteur (--ax-*), valeurs du thème sombre posées à part ; un état est toujours écrit en mots, jamais porté par la
+   couleur seule. Les noms longs passent à la ligne (jamais coupés sans moyen de les lire : infobulle et texte entier). */
+.p109-barre{border:1px solid var(--ax-line,#c3cad5);border-radius:10px;padding:6px 8px;background:var(--ax-soft,#f7f9fd);color:var(--ax-ink,#16202e)}
+.p109-barre[hidden]{display:none}
+.p109-tete{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between}
+.p109-tete h3{margin:0}
+.p109-liste{display:grid;gap:4px;list-style:none;margin:0;padding:0}
+.p109-piece{background:var(--ax-surface,#fff);color:var(--ax-ink,#16202e)}
+.p109-identite{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;min-width:0;flex:1 1 14rem}
+.p109-nom{font-weight:600;overflow-wrap:anywhere}
+.p109-meta{color:var(--ax-muted,#4b5563);font-size:13px;overflow-wrap:anywhere}
+.p109-etat{display:inline-flex;flex-wrap:wrap;gap:4px}
+.p109-puce{border:1px solid var(--ax-line,#8d96a3);border-radius:10px;font-size:12px;font-weight:600;padding:1px 6px;background:var(--ax-surface,#fff);color:var(--ax-ink,#16202e)}
+.p109-puce.p109-verifiee{border-color:#198038;background:#defbe6;color:#0e3d1c}
+.p109-puce.p109-a_verifier{border-color:#8a6d00;background:#fff4ce;color:#3d2e00}
+.p109-puce.p109-refusee{border-color:#a2191f;background:#fff1f1;color:#750e13}
+.p109-indisponible{color:var(--ax-muted,#4b5563);font-size:13px;align-self:center}
+.p109-barre .ax-btn{min-height:32px;padding:4px 10px;font-size:14px}
+.p109-barre :focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.p109-integrees>summary{cursor:pointer;font-size:14px;color:var(--ax-muted,#4b5563);padding:2px 0}
+.p109-apercu{display:grid;gap:6px;border-top:1px solid var(--ax-line,#c3cad5);padding-top:6px}
+.p109-apercu[hidden]{display:none}
+.p109-apercu-tete{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.p109-apercu-tete strong{overflow-wrap:anywhere;min-width:0}
+.p109-choix{border:1px solid var(--ax-line,#c3cad5);border-radius:8px;display:grid;gap:4px;margin:0;padding:6px 8px}
+.p109-choix legend{font-size:14px;font-weight:600;padding:0 4px}
+.p109-case{display:flex;gap:6px;align-items:flex-start}
+.p109-case label{display:block;overflow-wrap:anywhere}
+.p109-avant h4{font-size:14px;margin:4px 0}
+.p109-lot{display:grid;gap:4px;border-top:1px solid var(--ax-line,#c3cad5);padding-top:6px}
+.p109-phrase{margin:0;font-size:14px;overflow-wrap:anywhere}
+:root[data-theme=dark] .p109-barre{background:#1b222c;color:#e8edf3;border-color:#465263}
+:root[data-theme=dark] .p109-piece,:root[data-theme=dark] .p109-puce{background:#161b22;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .p109-meta,:root[data-theme=dark] .p109-indisponible,:root[data-theme=dark] .p109-integrees>summary{color:#c1c9d4}
+:root[data-theme=dark] .p109-puce.p109-verifiee{background:#0e3d1c;color:#defbe6;border-color:#42be65}
+:root[data-theme=dark] .p109-puce.p109-a_verifier{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+:root[data-theme=dark] .p109-puce.p109-refusee{background:#520408;color:#ffd7d9;border-color:#ff8389}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]) .p109-barre{background:#1b222c;color:#e8edf3;border-color:#465263}
+  :root:not([data-theme=light]) .p109-piece,:root:not([data-theme=light]) .p109-puce{background:#161b22;color:#e8edf3;border-color:#6b7685}
+  :root:not([data-theme=light]) .p109-meta,:root:not([data-theme=light]) .p109-indisponible,:root:not([data-theme=light]) .p109-integrees>summary{color:#c1c9d4}
+  :root:not([data-theme=light]) .p109-puce.p109-verifiee{background:#0e3d1c;color:#defbe6;border-color:#42be65}
+  :root:not([data-theme=light]) .p109-puce.p109-a_verifier{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+  :root:not([data-theme=light]) .p109-puce.p109-refusee{background:#520408;color:#ffd7d9;border-color:#ff8389}
+}
+@media (max-width:48rem){
+  /* petit écran : l'aperçu passe en vue pleine, avec « Fermer l'aperçu » toujours visible en tête ; le retour rend le même message */
+  .p109-apercu:not([hidden]){position:fixed;inset:0;z-index:90;background:inherit;padding:8px;overflow:auto;grid-template-rows:auto 1fr;border:0}
+  .p109-apercu .lx56106-apercu{height:auto;min-height:0}
+  .p109-apercu-tete{position:sticky;top:0;background:inherit}
+  .p109-barre .ax-btn{flex:1 1 auto}
+}
+@media print{.p109-barre .lx56106-actions,.p109-apercu,.p109-classement{display:none}}

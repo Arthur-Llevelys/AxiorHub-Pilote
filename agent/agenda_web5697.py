@@ -121,6 +121,11 @@ def _route(env, desk, auth, prefix, name, args, method):
             detail = agenda5697.evenement(desk, acteur, ident)
             if detail.get('nature') == 'rendez_vous':   # § 16 (lot documents-mission) : « Nouvelle demande » depuis la fiche du rendez-vous
                 detail['nouvelle_demande'] = _lien_demande(prefix, detail['id'])
+            try:   # 5.6.109 (I2) : « Rappel envoyé au client le … » (lot B, Bland), lu après le contrôle des droits de la fiche
+                from .bland56109 import mention_rappel
+                detail['rappel_client'] = mention_rappel(desk, detail['id'])
+            except Exception:   # noqa: BLE001 — mention facultative : la fiche s'affiche sans elle
+                detail['rappel_client'] = ''
             return json_out(detail)
         if route == 'agenda/recu':
             r = calendriers5697.recu(desk, str(args.get('id') or ''))

@@ -79,3 +79,7 @@ Ne placez jamais le paquet dans une adresse, un courriel non chiffré ou une cap
 Avant la mise à jour, l'installateur sauvegarde la base et la configuration. Un retour à la 5.6.81 conserve dossiers, brouillons, documents et comptes : les nouvelles tables sont ignorées par l'ancienne version. Le réglage `ai:politique` est alors sans effet : les choix par fonction reprennent la main.
 
 Pour quitter un mode sans changer de version : choisissez un autre mode, ou activez le mode mixte. La politique cède alors la place aux choix par fonction.
+
+## Téléphonie par IA (Bland, 5.6.109)
+
+Agents vocaux, appels et SMS par le service Bland, avec la clé API réglée dans Paramètres › Connexions API ; chaque action est confirmée par l'avocat. Voir le guide dédié : [GUIDE-BLAND.md](GUIDE-BLAND.md) (compte et clé, test, ce que l'on peut demander, confirmations, agent de prise de rendez-vous, rappel de rendez-vous au client, coûts, points d'attention, désactivation).

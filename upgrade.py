@@ -17,13 +17,14 @@ import shutil
 import sqlite3
 import subprocess
 import tempfile
+import urllib.parse
 import uuid
 
 BASE = Path('/opt/axiorhub-mail-agent')
 CONFIG = Path('/etc/axiorhub-mail-agent/config.json')
 STATE = Path('/var/lib/axiorhub-mail-agent')
-VERSION = '5.6.108'
-SUPPORTED_PREVIOUS = ('3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33','5.6.34','5.6.35','5.6.36','5.6.37','5.6.38','5.6.39','5.6.40','5.6.41','5.6.42','5.6.43','5.6.44','5.6.45','5.6.46','5.6.47','5.6.48','5.6.49','5.6.50','5.6.51','5.6.52','5.6.53','5.6.54','5.6.55','5.6.56','5.6.57','5.6.58','5.6.59','5.6.60','5.6.61','5.6.62','5.6.63','5.6.64','5.6.65','5.6.66','5.6.67','5.6.68','5.6.69','5.6.70','5.6.71','5.6.72','5.6.73','5.6.74','5.6.75','5.6.76','5.6.77','5.6.78','5.6.79','5.6.80','5.6.81','5.6.82','5.6.83','5.6.84','5.6.85','5.6.86','5.6.87','5.6.88','5.6.89','5.6.90','5.6.91','5.6.92','5.6.93','5.6.94','5.6.95','5.6.96','5.6.97','5.6.98','5.6.99','5.6.100','5.6.101','5.6.102','5.6.103','5.6.104','5.6.105','5.6.106','5.6.107')
+VERSION = '5.6.109'
+SUPPORTED_PREVIOUS = ('3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33','5.6.34','5.6.35','5.6.36','5.6.37','5.6.38','5.6.39','5.6.40','5.6.41','5.6.42','5.6.43','5.6.44','5.6.45','5.6.46','5.6.47','5.6.48','5.6.49','5.6.50','5.6.51','5.6.52','5.6.53','5.6.54','5.6.55','5.6.56','5.6.57','5.6.58','5.6.59','5.6.60','5.6.61','5.6.62','5.6.63','5.6.64','5.6.65','5.6.66','5.6.67','5.6.68','5.6.69','5.6.70','5.6.71','5.6.72','5.6.73','5.6.74','5.6.75','5.6.76','5.6.77','5.6.78','5.6.79','5.6.80','5.6.81','5.6.82','5.6.83','5.6.84','5.6.85','5.6.86','5.6.87','5.6.88','5.6.89','5.6.90','5.6.91','5.6.92','5.6.93','5.6.94','5.6.95','5.6.96','5.6.97','5.6.98','5.6.99','5.6.100','5.6.101','5.6.102','5.6.103','5.6.104','5.6.105','5.6.106','5.6.107','5.6.108')
 
 
 def digest(data):
@@ -469,7 +470,7 @@ def locked(state):
         yield
 
 
-def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
+def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None, systemd=None):
     """Atomically switch an authenticated release to VERSION."""
     verify(source)
     if not (base/'current').is_symlink() or not config.is_file():
@@ -519,17 +520,61 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
         if removed:print('Anciennes sauvegardes de bases retirées : %d fichier(s), %.1f Go libérés.' % (removed,freed/1_000_000_000))
         databases=[]
         for path in state.glob('*.sqlite3'):
-            with path.open('rb') as handle:valid=handle.read(16)==b'SQLite format 3\x00'
-            if not valid:continue
+            if not est_base_sqlite(path):continue   # 5.6.109 : jamais d'open() sur une base (incident de production, verrous POSIX)
             dest=backup_dir/(path.stem+'-before-'+VERSION+'-'+uuid.uuid4().hex+'.sqlite3')
             source_db=sqlite3.connect(path);target_db=sqlite3.connect(dest)
             try:source_db.backup(target_db)
             finally:target_db.close();source_db.close()
             dest.chmod(0o600);databases.append(str(dest))
         receipt['database_backups']=databases
+        # 5.6.109 : les unités systemd déjà installées sont réécrites depuis la version livrée (redémarrage sans boucle, limites mémoire) ;
+        # l'ancien contenu est gardé dans backups/. Sans cela, une mise à jour gardait les unités de la première installation.
+        if systemd is None and Path(base)==BASE:systemd=SYSTEMD
+        receipt['unit_backups']=refresh_units(release,systemd,backup_dir) if systemd is not None else []
         atomic(receipt_path(base),json.dumps(receipt).encode(),0,0,0o600)
         switch(base,release)
         print('Mise à jour directe %s → %s terminée. Configuration, secrets, dossiers, index et état conservés.' % (old.name, VERSION))
+
+
+SYSTEMD = Path('/etc/systemd/system')
+# Unités livrées dans deploy/ et gérées par AxiorHub (même liste que installer.CORE_UNITS, vérifiée par test_v56109_integration_i1)
+MANAGED_UNITS = ('axiorhub-mail-agent.service','axiorhub-mail-agent.timer','axiorhub-mail-agent-cleanup.service','axiorhub-mail-agent-cleanup.timer',
+                 'axiorhub-mail-ui.service','axiorhub-mail-desk-worker.service','axiorhub-mail-watch.service','axiorhub-mail-desk-worker@.service')
+
+
+def refresh_units(release, systemd, backup_dir):
+    """5.6.109 : réécrit, depuis ``release/deploy``, les unités gérées DÉJÀ PRÉSENTES dans ``systemd`` dont le contenu diffère ; aucune unité
+    n'est ajoutée ni activée (l'installation de l'interface en reste maîtresse). L'ancien contenu est copié dans ``backup_dir`` (0600) ; un
+    lien symbolique n'est jamais suivi ni remplacé. Rend [{'unit', 'backup'}]. L'appelant recharge systemd (``daemon-reload``) avant de relancer
+    les services. Un retour arrière ne remet pas les anciennes unités : les nouvelles règlent seulement le redémarrage et la mémoire."""
+    stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ');done=[]
+    for unit in MANAGED_UNITS:
+        target=Path(systemd)/unit;shipped=Path(release)/'deploy'/unit
+        if target.is_symlink() or not target.is_file() or not shipped.is_file():continue
+        before=target.read_bytes();after=shipped.read_bytes()
+        if before==after:continue
+        st=target.stat()
+        backup=Path(backup_dir)/(unit+'-before-'+VERSION+'-'+stamp)
+        atomic(backup,before,st.st_uid,st.st_gid,0o600)
+        atomic(target,after,st.st_uid,st.st_gid,0o644)
+        done.append({'unit':unit,'backup':str(backup)})
+    return done
+
+
+def est_base_sqlite(path):
+    """5.6.109 : reconnaît une base SQLite SANS l'ouvrir par un descripteur Python. Sous Linux, ouvrir puis refermer directement un fichier de base
+    annule tous les verrous POSIX que le processus tient sur elle (incident d'un serveur de production en 5.6.108 ; essai
+    ``tests/essai_verrous56109.py``). La taille se lit par ``stat`` ; le contenu, par ``sqlite3`` en lecture seule (``mode=ro`` : rien n'est créé,
+    un fichier qui n'est pas une base reste intact). Fichier absent, vide ou illisible : False."""
+    try:
+        if not path.is_file() or path.stat().st_size<100:   # en-tête SQLite : 100 octets ; un fichier vide n'est pas une base à sauvegarder
+            return False
+        db=sqlite3.connect('file:'+urllib.parse.quote(Path(path).resolve().as_posix(),safe='/:')+'?mode=ro',uri=True)
+        try:db.execute('PRAGMA schema_version').fetchone()
+        finally:db.close()
+        return True
+    except (OSError,sqlite3.Error):
+        return False
 
 
 DB_BACKUP_GENERATIONS = 2
@@ -620,5 +665,6 @@ if __name__=='__main__':
     except Exception:
         raise SystemExit('Mise à jour interrompue : vérifier droits, espace et journal privé.') from None
     finally:
+        subprocess.run(['systemctl','daemon-reload'],check=False)   # 5.6.109 : unités réécrites par refresh_units avant la relance
         for unit in stopped:subprocess.run(['systemctl','start',unit],check=False)
         if timer_active:subprocess.run(['systemctl','start',timer],check=False)

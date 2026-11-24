@@ -1,0 +1,51 @@
+{
+  "id": "builtin.parcours109.international",
+  "name": "Registres et portails étrangers",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub proposition de développement",
+  "license": "AGPL-3.0",
+  "description": "Méthode opérationnelle neutre pour des sources et portails étrangers qualifiés.",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "GB",
+    "CA",
+    "CA-QC",
+    "ES",
+    "DE",
+    "US"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "redaction_courriel",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "companies house",
+    "registre québécois",
+    "corporations canada",
+    "registre ontarien",
+    "canlii",
+    "courtlistener",
+    "lexnet",
+    "handelsregister",
+    "registradores",
+    "myhmcts",
+    "portail bea",
+    "pappers international"
+  ],
+  "enabled_default": true,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "activation_note": "Méthode sans habilitation professionnelle ni pouvoir de transmission ; Assistant juridique reste la méthode générale par défaut."
+}

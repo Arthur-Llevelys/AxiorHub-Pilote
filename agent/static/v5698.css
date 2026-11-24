@@ -67,3 +67,22 @@ label.cfg98-case input { margin-top: .2rem; }
   .d98-grille { grid-template-columns: 1fr; }
   .d98-form-ligne { align-items: stretch; flex-direction: column; }
 }
+
+/* 5.6.109 (C03) : contraste de l'onglet Fichiers. Le fil d'Ariane et la pagination sont des <nav> : l'ancienne règle « nav a { color: #fff } »
+   (menu latéral d'origine) y rendait les liens blancs sur blanc ; les lignes du tableau héritaient d'anciennes couleurs de th. Texte ET fond
+   sont fixés ensemble, par jetons : Carbon (clair et sombre), sinon les jetons d'origine (--ws-*), sinon une valeur du thème clair. Une règle
+   par ligne, toutes sous l'identifiant du bloc. Survol, sélection et focus restent visibles ; aucun état n'est porté par la couleur seule. */
+#d98-fichiers .d98-fil { background: transparent; color: var(--cds-text-secondary, var(--ws-muted, #525252)); }
+#d98-fichiers .d98-fil a { color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); background: transparent; }
+#d98-fichiers .d51-pager a { color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); background: transparent; }
+#d98-fichiers .d51-pager span { background: transparent; color: var(--cds-text-primary, var(--ws-ink, #161616)); }
+#d98-fichiers .d98-fil a:hover, #d98-fichiers .d51-pager a:hover { background: transparent; color: var(--cds-link-primary-hover, var(--ws-accent-hover, #0043ce)); text-decoration: underline; }
+#d98-fichiers .d51-pager a:focus-visible, #d98-fichiers .d98-arbre a:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+#d98-fichiers .d98-arbre thead th { color: var(--cds-text-primary, var(--ws-ink, #161616)); background: var(--cds-layer-01, var(--ws-surface, #fff)); }
+#d98-fichiers .d98-arbre tbody th, #d98-fichiers .d98-arbre tbody td { color: var(--cds-text-primary, var(--ws-ink, #161616)); background: var(--cds-layer-01, var(--ws-surface, #fff)); }
+#d98-fichiers .d98-arbre tbody th a { color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); background: transparent; }
+#d98-fichiers .d98-arbre tbody tr:hover th, #d98-fichiers .d98-arbre tbody tr:hover td { color: var(--cds-text-primary, var(--ws-ink, #161616)); background: var(--cds-layer-hover-01, var(--ws-surface-alt, #e8e8e8)); }
+#d98-fichiers .d98-arbre tbody tr:hover th a { background: transparent; color: var(--cds-link-primary-hover, var(--ws-accent-hover, #0043ce)); }
+#d98-fichiers .d98-chemin { background: transparent; color: var(--cds-text-primary, var(--ws-ink, #161616)); font-size: .8125rem; margin: 0 0 .5rem; overflow-wrap: anywhere; }
+#d98-fichiers .d98-chemin > summary { background: transparent; color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); cursor: pointer; }
+#d98-fichiers .d98-chemin > summary:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }

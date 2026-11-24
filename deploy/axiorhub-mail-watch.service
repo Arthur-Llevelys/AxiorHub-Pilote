@@ -3,6 +3,9 @@ Description=AxiorHub Assistant vivant — IMAP IDLE et surveillance périodique
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/axiorhub-mail-agent/config.json
+# 5.6.109 : au-delà de 5 démarrages en 10 minutes, systemd cesse de relancer (plus de boucle de redémarrage)
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -11,7 +14,9 @@ Group=axiorhub-mail
 WorkingDirectory=/opt/axiorhub-mail-agent/current
 ExecStart=/usr/bin/python3 /opt/axiorhub-mail-agent/current/web.py watch
 Restart=on-failure
-RestartSec=10
+RestartSec=15
+# 5.6.109 : code 78 (base illisible, agent/secours56109.CODE_SORTIE) : arrêt voulu, jamais relancé automatiquement
+RestartPreventExitStatus=78
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true

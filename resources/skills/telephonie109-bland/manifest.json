@@ -1,0 +1,38 @@
+{
+  "id": "builtin.telephonie109.bland",
+  "name": "Téléphonie par IA (Bland)",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub 5.6.109",
+  "license": "AGPL-3.0",
+  "description": "Appels, SMS, agents vocaux et numéros par le service Bland : méthode et confirmations de l'avocat, sans aucun droit implicite.",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_courriel",
+    "redaction_document"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "agent vocal",
+    "agent de prise de rendez-vous",
+    "appel telephonique bland",
+    "sms bland",
+    "telephonie par ia"
+  ],
+  "enabled_default": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "activation_note": "Proposée désactivée ; activée avec le connecteur Bland (Paramètres › Connexions API). Elle décrit la méthode et les confirmations ; elle ne donne aucun droit."
+}

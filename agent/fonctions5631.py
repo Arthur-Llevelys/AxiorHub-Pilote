@@ -115,6 +115,8 @@ FUNCTIONS = (
     ('securite_serveur', 'regler', '/securite-serveur', ('Sécurité du serveur', 'Sécurité', 'Intrusion', 'Mineur', 'Serveur', 'Alerte', 'Veille de sécurité'), ()),   # 5.6.101 (lot S : page ; lot F : inscription)
     ('fichiers', 'dossier', '/fichiers', ('Explorateur de fichiers', 'Gestionnaire de fichiers', 'Fichiers Nextcloud', 'Disque local', 'Renommer par lot',
                                           'Numéroter les pièces', 'Versions d’un fichier', 'Archive ZIP', 'Empreinte SHA-256', 'Deux volets'), ('storage',)),   # 5.6.103 (lot F)
+    ('telephonie_bland', 'communiquer', '/accueil-administratif?vue=bland', ('Bland', 'Téléphonie par IA', 'Agent vocal', 'Agent de prise de rendez-vous',
+                                                                       'Rappel de rendez-vous', 'SMS'), ()),   # 5.6.109 (lot B, intégration I2) : onglet de la famille Accueil téléphonique (carte Bland)
 )
 INDEX = {row[0]: row for row in FUNCTIONS}
 # 5.6.101 (lot F, F01) : famille de chaque fonction (annexe A du cahier, décision D4 : regroupement tel quel), dans l'ordre des onglets de
@@ -138,7 +140,7 @@ FAMILLE = {
     'talk': 'talk',
     'contacts': 'contacts', 'contacts_crm': 'contacts', 'associations': 'contacts',
     'assistant': 'assistant_missions', 'missions': 'assistant_missions', 'initiatives': 'assistant_missions', 'orchestrateur': 'assistant_missions',
-    'accueil_administratif': 'accueil_telephonique',
+    'accueil_administratif': 'accueil_telephonique', 'telephonie_bland': 'accueil_telephonique',   # 5.6.109 (I2) : téléphonie par IA (Bland)
     'mobile': 'telephone',
     'cabinet': 'gestion_cabinet', 'pilotage_mensuel': 'gestion_cabinet', 'tableau_de_bord': 'gestion_cabinet', 'contribution': 'gestion_cabinet', 'conflits': 'gestion_cabinet',
     'facturation': 'facturation', 'honoraires': 'facturation', 'relances': 'facturation',

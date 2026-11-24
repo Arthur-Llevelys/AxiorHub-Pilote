@@ -1,0 +1,41 @@
+/* 5.6.109 (lot M, F18) : section « Consommation et coûts » de Paramètres › Modèles d'IA. Résumé compact, puis tableaux par mode (API,
+   abonnement, IA locale, services externes) et détail à ouvrir. Lisible à 1920 × 1080 et à 125 % : aucune largeur fixe, les tableaux
+   défilent dans leur propre cadre, jamais la page. Contraste clair et sombre par les jetons de la page ; focus visible ; cibles d'au
+   moins 2.5rem. Le choix « Prix et tokens », « Prix » ou « Tokens » masque des colonnes : il ne change rien à ce qui est enregistré. */
+.m109 { display: grid; gap: .7rem; min-inline-size: 0; }
+.m109 h3 { margin: .6rem 0 .1rem; font-size: 1rem; }
+.m109-filtres { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .5rem .7rem; align-items: end; }
+.m109-filtres label { display: grid; gap: .2rem; min-inline-size: 0; font-size: .875rem; }
+.m109-filtres select, .m109-filtres input { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.m109-filtres .ax-btn { min-block-size: 2.5rem; justify-self: start; }
+.m109-filtres [hidden] { display: none !important; }
+.m109-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; grid-column: 1 / -1; }
+.m109-affichage { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .3rem 1rem; align-items: center; min-inline-size: 0; }
+.m109-affichage legend { font-weight: 600; padding: 0; float: left; margin-inline-end: .8rem; }
+.m109-affichage label { display: inline-flex; gap: .35rem; align-items: center; min-block-size: 2.5rem; cursor: pointer; }
+.m109-affichage small { flex-basis: 100%; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.m109-resume { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .5rem; margin: 0; }
+.m109-resume > div { padding: .5rem .65rem; border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem;
+  background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit); min-inline-size: 0; overflow-wrap: anywhere; }
+.m109-resume dt { font-size: .8125rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.m109-resume dd { margin: .15rem 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.m109-resume dd small { display: block; font-weight: 400; margin-block-start: .15rem; }
+.m109-cadre { overflow-x: auto; max-inline-size: 100%; }
+.m109-table { inline-size: 100%; border-collapse: collapse; }
+.m109-table caption { text-align: start; }
+.m109-table th, .m109-table td { text-align: start; vertical-align: top; padding: .4rem .5rem; border-block-end: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); }
+.m109-table td.m109-n, .m109-table th.m109-n { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.m109-inconnu { color: var(--cds-text-secondary, var(--ax-muted, #525252)); font-style: italic; }
+.m109-partiel { border-block-end: 1px dashed var(--cds-support-warning, #8e6a00); }
+.m109-etat { display: inline-block; padding: .05rem .45rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.m109-etat.incomplet { border-color: var(--cds-support-warning, #8e6a00); border-style: dashed; }
+.m109-note { color: var(--cds-text-secondary, var(--ax-muted, #525252)); margin: .2rem 0 0; }
+.m109-detail > summary { cursor: pointer; min-block-size: 2.5rem; display: flex; align-items: center; font-weight: 600; }
+.m109-detail > summary:focus-visible, .m109-filtres select:focus-visible, .m109-filtres input:focus-visible, .m109-affichage input:focus-visible,
+.m109-pages button:focus-visible, .m109 a:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.m109-pages { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .4rem 0 0; }
+.m109-pages button { min-block-size: 2.5rem; }
+.m109-liens { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin: .2rem 0 0; padding: 0; list-style: none; }
+.m109-vue[aria-busy="true"] { opacity: .6; }
+/* « Prix » : les colonnes de jetons sont masquées ; « Tokens » : les colonnes de montants. Par défaut, tout est montré. */
+.m109[data-affichage="prix"] .m109-t, .m109[data-affichage="tokens"] .m109-p { display: none; }

@@ -2,6 +2,9 @@
 Description=Interface du cabinet AxiorHub Courriel
 After=network-online.target
 ConditionPathExists=/etc/axiorhub-mail-agent/ui-auth.json
+# 5.6.109 : au-delà de 5 démarrages en 10 minutes, systemd cesse de relancer (plus de boucle de redémarrage)
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -10,7 +13,9 @@ Group=axiorhub-mail
 WorkingDirectory=/opt/axiorhub-mail-agent/current
 ExecStart=/opt/axiorhub-mail-agent/ui-venv/bin/python /opt/axiorhub-mail-agent/current/web.py serve
 Restart=on-failure
-RestartSec=5
+RestartSec=15
+# 5.6.109 : code 78 (base illisible, agent/secours56109.CODE_SORTIE) : arrêt voulu, jamais relancé automatiquement
+RestartPreventExitStatus=78
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
@@ -22,7 +27,10 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 ReadWritePaths=/var/lib/axiorhub-mail-agent
-MemoryMax=512M
+# 5.6.109 : 512 Mo atteints en production (échange saturé) ; freinage à 450 Mo, plafond 768 Mo, échange borné
+MemoryHigh=450M
+MemoryMax=768M
+MemorySwapMax=256M
 
 [Install]
 WantedBy=multi-user.target

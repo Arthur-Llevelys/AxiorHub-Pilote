@@ -67,6 +67,21 @@ BUNDLE += ('v56108-editeur.css',)   # 5.6.108 (lot W) : éditeur intégré WordC
 BUNDLE += ('v56108-fichiers.css',)   # 5.6.108 (lot F) : onglet Fichiers du dossier, remplir un PDF, outils PDF
 BUNDLE += ('v56108-signaturepdf.css',)   # 5.6.108 (lot Z) : SignaturePDF, signature par lien (réglage, bouton, page d'un PDF)
 BUNDLE += ('v56108-ia-locale.css',)   # 5.6.108 (lot L) : assistant « Configurer l'IA locale » (Paramètres › IA, guide de démarrage)
+BUNDLE += ('v56109-repertoire.css', 'v56109-pieces.css')   # 5.6.109 (lot L) : répertoire du dossier trié (F02), barre des pièces jointes et classement du lecteur (F01)
+BUNDLE += ('v56109-fiche.css', 'v56109-honoraires.css')   # 5.6.109 (lot D) : fiche Conseil / Contentieux (F04), prestations et honoraires du cabinet (F05)
+BUNDLE += ('v56109-conso.css',)   # 5.6.109 (lot M) : section « Consommation et coûts » de Paramètres › Modèles d'IA (F18)
+BUNDLE += ('v56109-reanalyse.css',)   # 5.6.109 (lot A) : bloc « Analyse du dossier » de la fiche (F03)
+BUNDLE += ('v56109-sources.css',)   # 5.6.109 (lot S) : état des sources publiques (F11), services étrangers (G21), registre étranger et documents publics (G18-G19)
+BUNDLE += ('v56109-navigateur.css',)   # 5.6.109 (lot O) : modèle du navigateur, acquittement de la prise de main, accès à ce poste (G13, G24, F12)
+BUNDLE += ('v56109-historique.css', 'v56109-apparence.css')   # 5.6.109 (lot H) : Historique de l'assistant et discussions (F09), couleur du menu de gauche (F10, après Carbon)
+BUNDLE += ('v56109-bland.css',)   # 5.6.109 (lot B) : carte Bland, demande à confirmer, routines « Mes agents IA »
+BUNDLE += ('v56109-produire.css',)   # 5.6.109 (lot V) : Produire en trois vues, livrables structurés, modèles Word du cabinet (F08), éditeurs Craft facultatifs (F16)
+BUNDLE += ('v56109-simulation.css',)   # 5.6.109 (lot N) : onglet « Simulation de décision » du dossier (F14)
+BUNDLE += ('v56109-fonds.css',)   # 5.6.109 (lot Q) : « Fonds juridique local » (G23) et « Fichiers de ce poste » (F13) dans les Paramètres
+BUNDLE += ('v56109-relations.css',)   # 5.6.109 (lot G2) : partage client, appels, remplacements, kit d'audience (dossier et fiche contact)
+BUNDLE += ('v56109-gestion.css',)   # 5.6.109 (lot G1) : Préfacturation, Assistance régulière (fiche client), Fonds, frais et débours (dossier)
+BUNDLE += ('v56109-parcours.css',)   # 5.6.109 (lot G4) : cartes « Relever mes messages procéduraux », « Offre et PDF joint », « Documents publics des sociétés » (Mes routines | Mes agents IA)
+BUNDLE += ('v56109-operations.css',)   # 5.6.109 (lot G3) : « À finaliser » (Corporate, Cession), Suites et exécution (fiche), formalités supervisées, RIB CARPA (vue financière)
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -155,6 +170,13 @@ def nav_html(prefix, active_path):
     if relire_separe():   # 5.6.102 (lot N) : « À relire », accès principal distinct juste après « Aujourd'hui » (nouvelle interface)
         from .i18n5631 import t as _t102
         entries.insert(next((i + 1 for i, x in enumerate(entries) if x[0] == '/aujourdhui'), 0), ('/a-relire', '☑', _t102('fn.a_relire.label')))
+    try:   # 5.6.109 (lot H, F10) : « Discussions IA » épinglé par le compte (Paramètres › Apparence) ; ouvre la même vue que « Historique » de l'assistant
+        from .apparence56109 import epingle as _epingle109
+        from .i18n5631 import _ctx as _lang109
+        if _epingle109(context(), getattr(_lang109, 'owner', '') or 'cabinet'):
+            entries.append(('/assistant?vue=historique', '🕘', 'Discussions IA'))
+    except Exception:   # noqa: BLE001 — l'épingle facultative ne bloque jamais le menu
+        pass
     from .i18n5631 import t as _t82
     settings = ('<a class="m82-settings" href="' + e(prefix + '/parametres') + '"' + (' aria-current="page"' if active == '/parametres' else '') + '><span aria-hidden="true">⚙</span> ' +
                 e(_t82('fn.parametres.label')) + '</a>')     # 5.6.82 : hors des six entrées de travail, toujours à portée
@@ -253,9 +275,16 @@ def sidebar_html(prefix, active_path):
         _demo107 = _bandeau107(prefix, context()) + _essai107(prefix, context(), getattr(_ctx, 'chemin', '') or active_path, getattr(_ctx, 'args', {}))
     except Exception:   # noqa: BLE001 — un défaut du bandeau ne bloque jamais une page
         _demo107 = ''
-    return ('<aside id="ws-sidebar">' + marque + nav_html(prefix, active_path) + _demo107 +
+    try:   # 5.6.109 (lot H, F10) : couleurs du menu validées pour ce compte (attributs data-ax109-*, aucun style en ligne) ; sans réglage : rendu inchangé
+        from .apparence56109 import attributs_sidebar as _couleurs109
+        from .i18n5631 import _ctx as _lang109
+        _attributs109 = _couleurs109(context(), getattr(_lang109, 'owner', '') or 'cabinet')
+    except Exception:   # noqa: BLE001 — réglage illisible : le rendu du produit
+        _attributs109 = ''
+    return ('<aside id="ws-sidebar"' + _attributs109 + '>' + marque + nav_html(prefix, active_path) + _demo107 +
             '<p class="ws-about">' + th('side.version', version=_version()) + ' · ' + e(ATTRIBUTION) + '<br><a href="' + e(prefix) + '/a-propos">' + th('side.about') + '</a></p>'
-            '<script defer src="' + e(prefix) + '/static/v56106-densite.js"></script></aside>')
+            '<script defer src="' + e(prefix) + '/static/v56106-densite.js"></script>'
+            '<script defer src="' + e(prefix) + '/static/v56109-apparence.js"></script><script defer src="' + e(prefix) + '/static/v56109-historique.js"></script></aside>')   # 5.6.109 (lot H) : apparence du menu (F10), Historique dans l'assistant (F09)
 
 
 def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='', selected_matter='', toast='', page_title=True):

@@ -190,8 +190,8 @@ def chat_scope(c,args):
 
 
 def history(desk,scope):
-    cutoff=(datetime.now(timezone.utc)-timedelta(days=90)).isoformat()
-    desk.db.execute('DELETE FROM conversations WHERE created<?',(cutoff,));desk.db.commit()
+    # 5.6.109 (lot H, F09) : lecture pure — l'ancienne purge à 90 jours exécutée à chaque ouverture de /assistant est retirée (R05) ;
+    # la mémoire de contexte reste bornée par ``chat`` (100 derniers échanges par portée), jamais l'archive des discussions.
     return desk.db.execute('SELECT * FROM conversations WHERE scope=? ORDER BY id DESC LIMIT 20',(scope,)).fetchall()
 
 

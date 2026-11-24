@@ -741,6 +741,8 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
                           'code': str(result.get('erreur', '')) if job['status'] == 'error' else ''}   # 5.6.97 : code brut (le motif affiché est traduit)
             from .routage5682 import for_job
             row['choix_ia'] = for_job(desk.c['state_dir'], job['id'])   # 5.6.82 : modèle réel, effort, raison courte, consommation
+            from .choix_modele56109 import appels_mission as _appels56109
+            row['appels_ia'] = _appels56109(desk.c['state_dir'], job['id'])   # 5.6.109 (lot T) : par appel : modèle, choix fixé ou non, taille transmise, contexte écarté
             from .data_policy5689 import synthese_mission
             row['synthese_donnees'] = synthese_mission(desk, job['id'])   # 5.6.89 : Données utilisées, Services destinataires, Limites
             if state == 'suspended':   # 5.6.97 (B10) : projection seulement ; la mission reste « en attente » en base et reprend avec son travail

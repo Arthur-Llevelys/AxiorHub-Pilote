@@ -429,6 +429,29 @@ def propose_copy(desk, ident, owner='cabinet'):
     return propagation5688.follow_hearing(desk, hearing['id'])
 
 
+def ajouter_note(desk, ident, texte, owner):
+    """5.6.109 (lot G2, G08) : ajoute une note datée et signée à la fiche (notes rapprochées d'un kit hors ligne). Jamais un remplacement
+    des notes existantes : le texte est ajouté à la suite ; écriture conditionnelle à la version lue (une écriture concurrente : 409)."""
+    if owner in AGENT_ACTORS:
+        raise Stop('audience_reservee_aux_personnes')
+    schema(desk)
+    row = desk.db.execute('SELECT id, matter, notes, version FROM audiences5688 WHERE id=?', (str(ident or ''),)).fetchone()
+    if not row:
+        raise Stop('audience_absente')
+    guard(row['matter'])
+    texte = str(texte or '').strip()[:10000]
+    if not texte:
+        raise Stop('note_vide')
+    stamp = desk.now()
+    notes = ((row['notes'] + '\n\n') if row['notes'] else '') + '[%s — %s] %s' % (stamp[:16].replace('T', ' '), owner, texte)
+    n = desk.db.execute('UPDATE audiences5688 SET notes=?, version=version+1, updated=? WHERE id=? AND version=?', (notes[-40000:], stamp, row['id'], row['version'])).rowcount
+    if n != 1:
+        raise Stop('audience_modifiee_entre_temps')
+    desk.db.commit()
+    desk.audit('audience5688_note_ajoutee', {'id': row['id'], 'matter': row['matter'], 'par': owner})
+    return {'id': row['id'], 'version': row['version'] + 1}
+
+
 def linked_tasks(desk, ident):
     from . import taches5688
     return taches5688.of_origin(desk, 'audience', ident)

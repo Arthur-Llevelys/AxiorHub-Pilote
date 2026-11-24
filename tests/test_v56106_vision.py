@@ -396,7 +396,14 @@ class Confidentialite(Base):
         ``masquage_respecte`` de ces essais le détecte. Sans mutation, le même contrôle passe (essais précédents)."""
         cfg = self.externe('openai', 'gpt-5')
         with patch.object(V, '_locale', lambda model: True), patch.object(V, 'capacite', lambda *a, **k: {'vision': True, 'source': 'liste', 'libelle': ''}):
-            self.appel(cfg, self.lot())
+            # 5.6.109 (lot P, P05) : troisième verrou — le contrôle de l'enveloppe refuse une image sans reçu de masquage, même quand les deux
+            # premiers sont trompés ; la mutation doit donc le neutraliser aussi pour que l'image parte.
+            with self.assertRaises(Stop) as ctx:
+                self.appel(cfg, self.lot())
+            self.assertEqual(str(ctx.exception), 'pseudo_canal_binaire_non_qualifie')
+            self.assertFalse([p for p, _ in FakeHTTP.payloads if p == '/chat/completions'])
+            with patch('agent.transmission56109._images_admises', lambda model: {x for i in model._images56106 for x in (i.b64(), i.data_url())}):
+                self.appel(cfg, self.lot())
         (data,) = images_envoyees(dernier('/chat/completions'), 'openai')
         self.assertFalse(masquage_respecte(data))
 

@@ -80,6 +80,9 @@ def _etat_html(desk, data):
     rows = _ligne('État', ('Activée, chaque jour à partir de %d h' % data['config']['heure']) if data['config']['actif'] else 'Désactivée')
     rows += _ligne('Dernière sauvegarde', ('%s · %s' % (_quand(desk, d.get('fin') or d.get('debut')), STATUTS.get(d.get('statut'), d.get('statut')))) if d else 'Aucune pour l’instant')
     rows += _ligne('Dernière réussite', _quand(desk, data['reussite']) or 'Aucune')
+    if data.get('garde'):   # 5.6.109 (lot R) : après une restauration ou un arrêt pendant une sauvegarde, rien ne part avant l'heure planifiée suivante
+        rows += _ligne('Prochaine sauvegarde automatique', 'Pas avant le %s : %s.' % (_quand(desk, data['garde'].get('jusqu_a')),
+                                                                                 sv.MOTIFS_GARDE.get(data['garde'].get('motif'), 'reprise après un arrêt')))
     if d.get('taille'):
         rows += _ligne('Taille', '%s · %d fichiers' % (_taille(d['taille']), d.get('fichiers', 0)))
     rows += _ligne('Emplacement', d.get('emplacement') or data['dossier'])

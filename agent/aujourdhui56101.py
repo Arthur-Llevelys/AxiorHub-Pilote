@@ -61,7 +61,8 @@ def bandeau_securite(desk, prefix, owner, role):
 # ------------------------------------------------------------------------------------------------ fragments (lecture seule)
 def _travail(desk, prefix, owner, role, args):
     from .accueil5689 import travail_html
-    return travail_html(desk, prefix)
+    from .artefacts56109 import travaux_prets_html   # 5.6.109 (lot V, F08) : point de montage — trois livrables structurés récents, mêmes documents et même lecteur que Produire (lecture seule, aucun compteur)
+    return travail_html(desk, prefix) + travaux_prets_html(desk, prefix)
 
 
 def _file(desk, prefix, owner, role, args):

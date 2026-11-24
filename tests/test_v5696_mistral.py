@@ -199,7 +199,7 @@ class Tester(Base):
         self.assertEqual(len(posts), 1)
         self.assertEqual((posts[0][1], posts[0][2], posts[0][3]['max_tokens']), ('/chat/completions', CLE_NOUVELLE, 8))
         self.assertIn({'role': 'user', 'content': 'Réponds uniquement OK'}, posts[0][3]['messages'])     # texte fictif, aucun dossier
-        self.assertEqual(posts[0][3]['model'], 'mistral-small-latest')          # le plus économe
+        self.assertEqual(posts[0][3]['model'], 'mistral-large-4')               # 5.6.109 (lot E) : le modèle en service, réellement utilisé (avant : le plus économe)
         self.assertEqual(out['statut'], 'generation_reussie')
         self.assertEqual(sorted(p.name for p in ai_gateway._vault_dir(self.desk).iterdir()), vault)   # fichier temporaire effacé
 

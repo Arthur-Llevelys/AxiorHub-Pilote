@@ -19,6 +19,11 @@ Dans l'ordre :
 Aucun appel réseau, aucun appel à un modèle de langue : la recherche se fait sur la base locale. Les appelants existants (préparation de
 brouillon, réponse de l'assistant, outil ``chercher`` du connecteur Claude) passent par ce service sans changer leur format de sortie :
 ``classeur`` fournit à ``DocumentIndex.sources`` / ``fast_sources`` un classement compatible avec ``ranked_chunks``.
+
+5.6.109 (lot Q, G22) : chaque passage porte sa version (ETag indexé) et son localisateur ; ``relire_citations`` relit une citation contre
+le passage source actuel avant qu'elle soit dite vérifiée ; le classement est mis en cache par périmètre, droits, révisions (identités,
+politique, extracteur) et état de l'index (``qualite_sources56109.cle_cache``) — droits toujours relus avant ; ``chercher_corpus`` impose un
+corpus explicite (affaire, emplacement local autorisé, fonds public).
 """
 import json
 import re
@@ -143,12 +148,88 @@ def _index(desk, index):
     return source_index(desk.c), True
 
 
-def _candidats(desk, index, mid, question, kinds=None, recent=False, reclasseur=None, nombre=CANDIDATS, mode=None):
+# ------------------------------------------------------------------ 5.6.109 (lot Q, G22) : cache par périmètre, droits et révisions
+CACHE_MAX = 64
+_CACHE = {}          # clé de qualité -> (lignes classées, erreur sémantique) ; en mémoire du processus : aucune écriture pendant une lecture
+
+
+def _empreinte(valeur):
+    import hashlib
+    return hashlib.sha256(json.dumps(valeur, ensure_ascii=False, sort_keys=True, default=str).encode('utf-8')).hexdigest()
+
+
+def revisions(desk, acteur=None, role=None):
+    """Révisions qui invalident un résultat dérivé : droits (dossiers réservés vus par l'acteur), registre des identités (``pseudo540``,
+    lot P), politique des données (``politique5682``) et extracteur (``documents``). ``None`` pour une révision illisible : jamais de cache."""
+    from . import pseudo540
+    from .documents import signature_extraction
+    state_dir = desk.c.get('state_dir', '')
+    try:
+        droits = _empreinte(sorted(dossiers_masques(desk, acteur, role)))
+    except Exception:   # noqa: BLE001 — contrôle des droits illisible : pas de cache (et la recherche elle-même refusera)
+        droits = None
+    rev = pseudo540.revision(state_dir)
+    try:
+        from .politique5682 import read_fresh
+        politique = _empreinte(read_fresh(state_dir))
+    except Exception:   # noqa: BLE001
+        politique = None
+    return {'droits': droits, 'entites': None if rev is None else str(rev), 'politique': politique,
+            'extracteur': signature_extraction(desk.c.get('documents') or {})}
+
+
+def _etat_index(index, mid):
+    """Empreinte de l'état de l'index du dossier (nombre de passages, dernière indexation, versions) : une pièce ajoutée, retirée ou
+    réindexée change la clé."""
+    try:
+        row = index.db.execute('SELECT COUNT(*),MAX(indexed_at),group_concat(DISTINCT etag) FROM knowledge_chunks WHERE matter=?', (mid,)).fetchone()
+        vecteurs = index.db.execute('SELECT COUNT(*) FROM knowledge_embeddings WHERE matter=?', (mid,)).fetchone()
+    except sqlite3.Error:
+        return None
+    classeur = getattr(index.ranked_chunks, '__func__', index.ranked_chunks)   # classement remplacé (essai, option) : autre clé
+    return _empreinte(list(row) + list(vecteurs) + [id(classeur)])
+
+
+def cle_recherche(desk, index, mid, question, kinds, recent, nombre, acteur=None, role=None):
+    """Clé ``qualite_sources56109.cle_cache`` d'une recherche, ou ``None`` (révision absente : la recherche est refaite, jamais servie)."""
+    from .qualite_sources56109 import cle_cache
+    from .acces5683 import today_of
+    r = revisions(desk, acteur, role)
+    etat = _etat_index(index, mid)
+    if None in (r['droits'], r['entites'], r['politique'], etat):
+        return None
+    rag = getattr(index, 'rag', {}) or {}
+    try:
+        return cle_cache(perimetre_id=_empreinte([desk.c.get('cabinet_id') or 'cabinet', acteur, role, mid, question, kinds, recent, nombre]),
+                         source_sha=etat, version_extracteur=r['extracteur'], version_options=_empreinte([MODE, CANDIDATS]),
+                         revision_droits=r['droits'], revision_entites=r['entites'], revision_politique=r['politique'],
+                         modele_version=str(rag.get('embedding_model', '')) if rag.get('enabled') else 'fts', date_droit=str(today_of(desk)[0]))
+    except Stop:
+        return None
+
+
+def _classement(desk, index, mid, question, nombre, kinds, recent, acteur, role, etat):
+    """``ranked_chunks`` servi par le cache quand la clé (périmètre, droits, révisions, état de l'index) est identique ; une recherche
+    sémantique en erreur n'est jamais mise en cache. Les droits du dossier sont relus AVANT par l'appelant, cache ou non."""
+    cle = cle_recherche(desk, index, mid, question, kinds, recent, nombre, acteur, role) if hasattr(index, 'db') else None
+    if cle is not None and cle in _CACHE:
+        etat['cache'] = 'servi'
+        return _CACHE[cle]
+    ranked, erreur = index.ranked_chunks(mid, [question], limit=nombre, kinds=kinds, recent=recent)
+    etat['cache'] = 'calcule' if cle is not None else 'sans_cache'
+    if cle is not None and not erreur:
+        if len(_CACHE) >= CACHE_MAX:
+            _CACHE.pop(next(iter(_CACHE)))
+        _CACHE[cle] = (ranked, erreur)
+    return ranked, erreur
+
+
+def _candidats(desk, index, mid, question, kinds=None, recent=False, reclasseur=None, nombre=CANDIDATS, mode=None, acteur=None, role=None):
     """Lignes de l'index (format ``knowledge_chunks``) et scores, pièces écartées retirées, reclassées si un reclasseur est fourni.
     Retourne (liste de (ligne, score, provenance), état)."""
     mode = mode or MODE
     etat = {'candidats': 0, 'pieces_ecartees': 0, 'reclassement': 'desactive', 'erreur_semantique': ''}
-    ranked, erreur = index.ranked_chunks(mid, [question], limit=nombre, kinds=kinds, recent=recent)
+    ranked, erreur = _classement(desk, index, mid, question, nombre, kinds, recent, acteur, role, etat)
     etat['erreur_semantique'] = erreur or ''
     ecartees = pieces_ecartees(desk, mid)
     gardes = []
@@ -194,7 +275,7 @@ def chercher(desk, matter, question, limite=10, acteur=None, role=None, index=No
         return [], {'refus': 'dossier_reserve'}
     index, ferme = _index(desk, index)
     try:
-        gardes, etat = _candidats(desk, index, mid, question, kinds, recent, reclasseur, mode=mode)
+        gardes, etat = _candidats(desk, index, mid, question, kinds, recent, reclasseur, mode=mode, acteur=acteur, role=role)
         mots = _mots(question)
         sortie = []
         if memoire:
@@ -206,9 +287,11 @@ def chercher(desk, matter, question, limite=10, acteur=None, role=None, index=No
         for row, score, provenance in gardes:
             if len(sortie) >= limite:
                 break
+            # 5.6.109 (lot Q, G22) : version de la source (ETag indexé) et localisateur (section de l'index, jamais présentée comme une page)
             sortie.append({'dossier': mid, 'document': row[2], 'nom': str(row[2]).rsplit('/', 1)[-1], 'section': 'extrait %d' % (int(row[6]) + 1),
                            'extrait': _extrait(row[7], mots), 'score': score, 'provenance': provenance, 'valide_avocat': False,
-                           'source_id': row[1], 'nature': row[5], 'date': row[4], 'confidentiel': bool(index.source_confidential(mid, row[1]))})
+                           'source_id': row[1], 'nature': row[5], 'date': row[4], 'confidentiel': bool(index.source_confidential(mid, row[1])),
+                           'version': row[3] or '', 'localisateur': {'type': 'section_index', 'numero': int(row[6]) + 1}, 'corpus': 'affaire'})
         etat['rendus'] = len(sortie)
         return sortie[:limite], etat
     finally:
@@ -232,6 +315,66 @@ def classeur(desk, acteur=None, role=None, reclasseur=None):
             return [], ''
         question = ' '.join(str(t or '') for t in terms if t)
         nombre = max(CANDIDATS, int(limit)) if reclasseur is not None else int(limit)   # sans reclasseur : exactement le classement actuel
-        gardes, etat = _candidats(desk, index, mid, question, kinds, recent, reclasseur, nombre)
+        gardes, etat = _candidats(desk, index, mid, question, kinds, recent, reclasseur, nombre, acteur=acteur, role=role)
         return [(row, score) for row, score, _ in gardes][:max(1, int(limit))], etat.get('erreur_semantique', '')
     return classer
+
+
+# ------------------------------------------------------------------ 5.6.109 (lot Q, G22) : citations relues avant d'être dites vérifiées
+def relire_citations(desk, matter, citations, acteur=None, role=None, index=None):
+    """Relit chaque citation d'une réponse contre le passage source ACTUEL de l'index du dossier avant tout affichage « vérifiée ».
+
+    ``citations`` : liste de ``{'source_id', 'version', 'section' (numéro d'extrait, 1 = premier), 'passage'}`` reprise d'un résultat de
+    ``chercher``. Chaque citation reçoit ``etat`` : ``verifiee`` seulement si le dossier est lisible par l'acteur, que la pièce n'a pas été
+    retirée par l'avocat, que la version indexée est celle de l'extrait et que le passage cité figure dans le texte relu ; sinon
+    ``a_verifier`` et son motif. Dossier interdit : toutes « à vérifier » (acces_non_autorise), sans rien relire ni dire de la pièce."""
+    from .qualite_sources56109 import etat_citation
+    mid = _mid(matter)
+    out = []
+    items = [c for c in (citations or []) if isinstance(c, dict)][:100]
+    if not mid or mid in dossiers_masques(desk, acteur, role):
+        return [{**{k: c.get(k) for k in ('source_id', 'version', 'section', 'passage')}, 'etat': 'a_verifier', 'motif': 'acces_non_autorise'}
+                for c in items]
+    index, ferme = _index(desk, index)
+    try:
+        ecartees = pieces_ecartees(desk, mid)
+        for c in items:
+            sid, version = str(c.get('source_id') or ''), str(c.get('version') or '')
+            try:
+                numero = int(c.get('section') or 0)
+            except (TypeError, ValueError):
+                numero = 0
+            rows = index.db.execute('SELECT path,etag,text FROM knowledge_chunks WHERE matter=? AND source_id=? AND chunk_no BETWEEN ? AND ? '
+                                    'ORDER BY chunk_no', (mid, sid, max(0, numero - 2), numero)).fetchall() if sid and numero >= 1 else []
+            lisible = bool(rows) and rows[0][0] not in ecartees
+            courante = rows[0][1] if rows else ''
+            texte = '\n'.join(r[2] or '' for r in rows)       # l'extrait N et son voisin : un passage à cheval sur deux extraits est relu
+            out.append({'source_id': sid, 'version': version, 'section': numero, 'passage': str(c.get('passage') or '')[:2000],
+                        **etat_citation(c.get('passage'), texte, source_lisible=lisible, version_attendue=version, version_courante=courante)})
+        return out
+    finally:
+        if ferme:
+            index.db.close()
+
+
+def chercher_corpus(desk, corpus, question, limite=10, acteur=None, role=None, **options):
+    """5.6.109 (lot Q, F13 et G23) : point d'entrée commun avec un corpus EXPLICITE, jamais deviné ni élargi :
+
+    - ``{'type': 'affaire', 'id': dossier}`` → ``chercher`` (droits, pièces écartées, mémoire validée) ;
+    - ``{'type': 'emplacement_local', 'ids': [...]}`` → ``contexte56109.chercher`` (fichiers d'un répertoire autorisé du poste, hors affaire :
+      un répertoire n'est pas un dossier client) ;
+    - ``{'type': 'fonds_public', 'pays': ..., 'langue': ..., 'date': ...}`` → ``fonds_juridique56109.rechercher`` (fonds juridique local,
+      distinct des pièces privées).
+    Un corpus absent ou inconnu est refusé (``corpus_requis``) : pas de recherche globale sans filtre."""
+    corpus = corpus if isinstance(corpus, dict) else {}
+    nature = corpus.get('type')
+    if nature == 'affaire':
+        return chercher(desk, corpus.get('id'), question, limite, acteur, role, **options)
+    if nature == 'emplacement_local':
+        from . import contexte56109
+        return contexte56109.chercher(desk, (acteur, role), corpus.get('ids') or [], question, limite)
+    if nature == 'fonds_public':
+        from . import fonds_juridique56109
+        return fonds_juridique56109.rechercher(desk, question, pays=corpus.get('pays') or '', langue=corpus.get('langue') or '',
+                                               date_utile=corpus.get('date') or '', limite=limite)
+    raise Stop('corpus_requis')

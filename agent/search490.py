@@ -70,9 +70,11 @@ def _path(desk):
 def connect(desk):
     path = _path(desk)
     new = not path.exists()
-    if new:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o600)
-        os.close(fd)
+    if new:   # 5.6.109 (lot R) : O_EXCL : si un autre fil vient de créer (et d'ouvrir par SQLite) la base, aucun descripteur n'est ouvert puis fermé dessus
+        try:
+            os.close(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))   # lot R : hors service (création exclusive d'un fichier absent)
+        except FileExistsError:
+            pass
     db = sqlite3.connect(path, timeout=20)
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA journal_mode=WAL')
@@ -464,6 +466,27 @@ def _store_mail(db, desk, mail, folder, account):
     return _upsert(db, 'courriel', ref, matter, str(msg.get('Subject', '') or '(sans objet)')[:300], mail.timestamp.isoformat()[:19], body, meta)
 
 
+CLE_EXTRACTEUR = 'search490:extracteur_corps'
+
+
+def reprise_extracteur(desk, db):
+    """5.6.109 (C01) : l'index garde le corps extrait de chaque courriel (``mailbox.body_text``). Quand la règle d'extraction change
+    (``mailbox.EXTRACTEUR_VERSION`` : tailles de police relatives, repli sur la partie HTML), les curseurs de lecture repartent de zéro :
+    chaque message est relu depuis la messagerie (boîte, UIDVALIDITY, UID ; lecture seule) et son entrée remplacée (``_upsert``), par
+    passes bornées du travail d'indexation. Les entrées restent consultables entre-temps ; rien n'est fait pendant un affichage ; aucune
+    réponse ni analyse n'est relancée. Une seule fois par version (réglage ``search490:extracteur_corps``). Rend vrai si la reprise part."""
+    from .mailbox import EXTRACTEUR_VERSION
+    if desk.settings(CLE_EXTRACTEUR, None) == EXTRACTEUR_VERSION:
+        return False
+    restants = db.execute('SELECT COUNT(*) FROM mail_cursor490').fetchone()[0]
+    db.execute('DELETE FROM mail_cursor490')
+    db.commit()
+    desk.setting(CLE_EXTRACTEUR, EXTRACTEUR_VERSION)
+    if restants:
+        desk.audit('recherche_490_reprise_extraction', {'version': EXTRACTEUR_VERSION, 'boites': restants})
+    return bool(restants)
+
+
 def collect_mail(desk, batch=MAIL_BATCH, max_seconds=MAIL_TIME, box_factory=None):
     """Lit en LECTURE SEULE les messages récents puis, par passes successives, les plus anciens. Aucune écriture IMAP."""
     if not _mail_enabled(desk):
@@ -472,6 +495,7 @@ def collect_mail(desk, batch=MAIL_BATCH, max_seconds=MAIL_TIME, box_factory=None
     started = time.monotonic()
     box = (box_factory or Mailbox)(desk.c['mail'])
     db = connect(desk)
+    reprise_extracteur(desk, db)   # 5.6.109 (C01) : corps extraits avec une ancienne règle → relus depuis la messagerie, passe après passe
     indexed = errors = 0
     account = desk.c['mail']['username'] + '@' + desk.c['mail']['host']
     def read(folder, uid):

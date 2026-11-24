@@ -66,8 +66,38 @@ def _date_fr(value):
     return fr(value) if value else ''
 
 
-def _when(doc):
-    return (doc.get('doc_date') or str(doc.get('modified') or '')[:10] or '')[:10]
+def _when(doc, fuseau=None):
+    """Date utile d'un document, ``AAAA-MM-JJ`` (ou ``AAAA``, ``AAAA-MM`` si l'acte ne porte que cette précision) : la date de l'acte si
+    elle est connue, sinon la date de modification du stockage. 5.6.109 (C02) : la date de stockage, ISO ou HTTP (« Wed, 14 Oct 2026
+    10:00:00 GMT »), est convertie AVANT toute mise en forme, dans le fuseau du cabinet (``fuseau``, Europe/Paris par défaut) ; elle n'est
+    plus coupée à dix caractères. Illisible : ``''`` (dite « — » à l'écran), jamais un fragment d'anglais. La valeur d'origine du
+    document n'est pas modifiée ; la date de l'acte n'est jamais convertie (ce n'est pas un instant)."""
+    import re
+    from .tri56109 import jour_cabinet
+    valeur = str(doc.get('doc_date') or '')
+    if re.fullmatch(r'\d{4}(?:-(?:0[1-9]|1[0-2]))?', valeur):
+        return valeur  # precision annee ou mois explicite : ne pas inventer le jour
+    if re.match(r'\d{4}-\d{2}-\d{2}', valeur) and jour_cabinet(valeur[:10]):
+        return valeur[:10]
+    return jour_cabinet(doc.get('modified'), fuseau)
+
+
+def _fuseau(desk):
+    """Fuseau du compte affiché (``acces5683.today_of``) ; illisible : celui du cabinet par défaut (``tri56109``)."""
+    try:
+        from .acces5683 import today_of
+        return today_of(desk, _acteur5697()[0])[1]
+    except Exception:   # noqa: BLE001 — réglage illisible : fuseau par défaut
+        return None
+
+
+def _recents(docs):
+    """Documents du plus récemment modifié au plus ancien. 5.6.109 (C02) : l'instant complet de la date de stockage sert de clé (heure
+    et fuseau compris), jamais sa chaîne : une date HTTP triée comme un texte rangeait « Wed » avant « Fri ». Date inconnue : à la fin."""
+    from .tri56109 import instant
+    dates = [(instant(d.get('modified')), d) for d in docs]
+    connus = sorted((x for x in dates if x[0] is not None), key=lambda x: x[0], reverse=True)
+    return [d for _, d in connus] + [d for i, d in dates if i is None]
 
 
 def _doc_link(prefix, mid, doc, overview=None, cls='d79-doc'):
@@ -157,7 +187,12 @@ def header_html(desk, prefix, m, view):
     more += '<li><button type="button" class="d79-linkbtn" data-d27-prepare>Mettre à jour la fiche du dossier</button></li>'
     tabs = ''.join('<a href="%s"%s>%s</a>' % (e(prefix + _q(mid, key), quote=True), ' aria-current="page"' if key == view else '', e(label))
                    for key, label in TABS)
-    running = '<span class="d51-running" role="status">⏳ Analyse en cours</span>' if st['running'] else ''
+    from .simulation56109 import lien_onglet as _lien56109n; tabs += _lien56109n(desk, prefix, m, view)   # 5.6.109 (lot N, F14) : onglet « Simulation de décision » (contentieux, postulation ; vide sinon), rendu par simulation56109
+    running ='<span class="d51-running" role="status">⏳ Analyse en cours</span>' if st['running'] else ''
+    # 5.6.109 (I2) : bandeau court « Analyser le dossier » du lot A (état réel, lien vers le bloc complet de l'onglet Fichiers) ; derrière
+    # l'interrupteur de la nouvelle interface (``montage_fiche``) ; absent de l'onglet Fichiers, qui porte le bloc complet ; ne lève jamais.
+    from .reanalyse56109 import montage_fiche as _analyse56109
+    bandeau56109 = '' if view == 'fichiers' else _analyse56109(desk, _acteur5697(), prefix, m, complet=False)
     return ('<div class="d27 d51 d79" data-d27-matter="%s" data-d79-matter="%s"><nav class="d27-back"><a href="%s">← Tous les dossiers</a></nav>'
             '<header class="d79-head"><div class="d79-title"><h1>%s</h1><p class="d79-meta">%s</p>'
             '<p class="d79-state"><span class="d51-state d51-state-%s">%s</span> <span class="ax-muted">%s</span>%s</p>' + balance_html(desk, prefix, mid).replace('%', '%%') + '</div>'
@@ -170,7 +205,7 @@ def header_html(desk, prefix, m, view):
         e(mid, quote=True), e(mid, quote=True), e(prefix + '/dossiers', quote=True), e(matter_display(m)), ' · '.join(meta),
         e(st['state']), e(st['label']), e(('actualisé le ' + _date_fr(when[:10])) if when else ''), running,
         pause_btn + action_ia_html('dossiers', {'dossier': mid, 'titre': matter_display(m), 'page': True}), e(mid, quote=True), panel_html(mid, files, prefix), more, paused,
-        _fiche5697(desk, prefix, m), tabs)
+        _fiche5697(desk, prefix, m) + bandeau56109, tabs)
 
 
 def _fiche5697(desk, prefix, m):
@@ -189,6 +224,7 @@ PREVIEW = ('<section class="d79-preview" id="d79-preview" role="complementary" h
            '<a class="ax-btn ghost" data-f108-apercu-remplir hidden>Remplir ce formulaire</a><a class="ax-btn ghost" data-f108-apercu-outils hidden>Outils PDF</a>'   # 5.6.108 (lot F) : PDF seulement (v56108-fichiers.js)
            '<a class="ax-btn ghost" data-d79-dl>Télécharger</a>'
            '<button type="button" class="ax-btn ghost" data-d79-close aria-label="Fermer l’aperçu et revenir à la liste"><span class="m82-back">Retour à la liste</span><span class="m82-x" aria-hidden="true">×</span></button></span></div>'
+           '<p class="ax-muted r109-resume" data-r109-resume-volet hidden></p>'   # 5.6.109 (lot L, F02) : type, taille et date du fichier choisi dans le répertoire (v56109-repertoire.js), même sans aperçu possible
            '<p class="ax-muted" data-d79-note hidden></p><div class="d79-preview-body" data-d79-body tabindex="0"></div></section>')
 
 
@@ -240,15 +276,16 @@ def latest_documents_html(desk, prefix, m):
     docs = _documents(desk, mid)
     overview = digests_overview(desk, mid)
     names = {p['id']: p['display_name'] for p in modele5651.parties(desk, mid, include_merged=True)}
-    key = lambda d: _when(d)
+    fuseau = _fuseau(desk)
+    key = lambda d: _when(d, fuseau)
     writings = sorted((d for d in docs if d['nature'] in WRITINGS + DECISIONS), key=key, reverse=True)[:6]
-    recent = sorted((d for d in docs if d['nature'] not in WRITINGS + DECISIONS), key=lambda d: str(d.get('modified') or ''), reverse=True)[:8]
+    recent = _recents([d for d in docs if d['nature'] not in WRITINGS + DECISIONS])[:8]
 
     def li(d, badge=True):
         who = names.get(d.get('emitter') or '', '')
         label = modele5651.NATURES.get(d['nature'], '') if badge else ''
         return '<li><span class="d79-date">%s</span> %s%s%s</li>' % (
-            e(_date_fr(_when(d)) or '—'), ('<span class="d79-kind d79-kind-%s">%s</span> ' % (e(d['nature']), e(label))) if label else '',
+            e(_date_fr(_when(d, fuseau)) or '—'), ('<span class="d79-kind d79-kind-%s">%s</span> ' % (e(d['nature']), e(label))) if label else '',
             _doc_link(prefix, mid, d, overview), (' <span class="ax-muted">— %s</span>' % e(who)) if who else '')
     left = ('<ul class="d79-list d79-docs">%s</ul>' % ''.join(li(d) for d in writings)) if writings else \
         '<p class="ax-muted">Aucune conclusion, assignation ni décision identifiée. Vérifiez le classement dans l’onglet Fichiers.</p>'
@@ -330,6 +367,9 @@ def synthese_html(desk, auth, prefix, m, args):
         from .dossiers56100 import volet_fiche_html
         return volet_fiche_html(desk, _acteur5697(), prefix, m['id'], m.get('path', ''))
     out += _safe('Conseil ou contentieux', volet)
+    if _interface108(desk):   # 5.6.109 (lot D, F04) : fiche Conseil / Contentieux lue par la projection commune ; ancienne présentation derrière l'interrupteur
+        from .fiche_ui5698 import fiche_html as fiche56109
+        out += _safe('Fiche du dossier', fiche56109, desk, _acteur5697(), prefix, m, args)
     out += _safe('Derniers documents', latest_documents_html, desk, prefix, m)
     out += '<div class="d79-grid2">%s%s</div>' % (_safe('Travail de l’IA', ai_work_html, desk, prefix, m), _safe('À traiter', todo_html, desk, prefix, m))
 
@@ -371,7 +411,8 @@ def documents_html(desk, auth, prefix, m, args):
     if query:
         fq = fold_for_search(query)
         rows = [d for d in rows if fq in fold_for_search(d['name'] + ' ' + ' '.join(doc_title(d, overview)))]
-    rows.sort(key=(lambda d: doc_title(d, overview)[0].casefold()) if sort == 'nom' else (lambda d: _when(d)), reverse=sort == 'date')
+    fuseau = _fuseau(desk)   # 5.6.109 (C02) : date de stockage lue dans le fuseau du compte, avant le tri et l'affichage
+    rows.sort(key=(lambda d: doc_title(d, overview)[0].casefold()) if sort == 'nom' else (lambda d: _when(d, fuseau)), reverse=sort == 'date')
     page = int(args.get('page')) if str(args.get('page') or '').isdigit() and int(args.get('page')) > 0 else 1
     total = len(rows)
     rows = rows[(page - 1) * PAGE: page * PAGE]
@@ -410,7 +451,7 @@ def documents_html(desk, auth, prefix, m, args):
                     e(outils_pdf56108.lien(prefix, mid, [d['path']]), quote=True))
             pdf108 = ('<div class="f108-pdf-actions">%s%s</div>' % (pdf108, autres)) if (pdf108 or autres) else ''
         return '<li class="d79-docrow"><span class="d79-date">%s</span><div>%s%s<div class="ax-muted">%s</div>%s</div>%s</li>' % (
-            e(_date_fr(_when(d)) or '—'), _doc_link(prefix, mid, d, overview), reading, e(extra), pdf108, classify)
+            e(_date_fr(_when(d, fuseau)) or '—'), _doc_link(prefix, mid, d, overview), reading, e(extra), pdf108, classify)
     body = '<nav class="d79-chips" aria-label="Catégories">%s</nav>%s<ul class="d79-doclist">%s</ul>' % (
         chips, search, ''.join(row(d) for d in rows) or '<li class="ax-muted">Aucun document.</li>')
     pages = (total + PAGE - 1) // PAGE
@@ -598,7 +639,9 @@ def _acteur5697():
 
 def agenda_html(desk, auth, prefix, m, args):
     from .dossiers_ui5697 import agenda_html as agenda5697
-    return _safe('Agenda et tâches', agenda5697, desk, prefix, m['id'])
+    from . import kit_audience56109, remplacements56109   # 5.6.109 (lot G2) : remplacements et postulation de la même audience (G07) ; « Préparer mon audience » (G08)
+    return (_safe('Agenda et tâches', agenda5697, desk, prefix, m['id']) + _safe('Remplacements', remplacements56109.bloc_dossier, desk, prefix, m)
+            + _safe('Kit d’audience', kit_audience56109.bloc_dossier, desk, prefix, m))
 
 
 def gestion_html(desk, auth, prefix, m, args):
@@ -621,6 +664,8 @@ def echanges_html(desk, auth, prefix, m, args):
     from .gestion_ui5697 import correspondances_html as pieces5697   # 5.6.97 (lot gestion) : Pièces demandées, Remis au client
     out = '<section class="d97-section"><h2>Courriels classés à la main</h2>%s</section>' % _safe('Classés à la main', classes5697, desk, _acteur5697(), prefix, m['id'])
     out += _safe('Pièces demandées et remises', pieces5697, desk, _acteur5697(), prefix, m['id'])
+    from . import appels56109, partage_client56109   # 5.6.109 (lot G2) : « Partager avec le client » (G03) et appels du dossier (G06)
+    out += _safe('Partage avec le client', partage_client56109.bloc_dossier, desk, prefix, m) + _safe('Appels', appels56109.bloc_dossier, desk, prefix, m)
     out += _safe('Intervenants', intervenants_html, desk, prefix, m)
     out += _safe('Courriels', courriels_html, desk, auth, prefix, m, args)
     out += _safe('Messagerie', __import__('importlib').import_module('.boite56106', __package__).bloc_dossier, desk, prefix, m)   # 5.6.106 (lot L) : sous-dossier de messagerie du dossier
@@ -801,6 +846,8 @@ def page(desk, auth, prefix, args, shell):
         pass
     view = str(args.get('vue') or '')
     view = ALIASES.get(view, view)
+    if view == 'simulation':   # 5.6.109 (lot N, F14) : même en-tête et même volet d'aperçu ; contenu rendu par simulation56109 (lecture seule)
+        from .simulation56109 import page_dossier as _page56109n; return _page56109n(desk, auth, prefix, args, shell, m)
     if view not in dict(TABS) and view not in DETAIL_VIEWS:
         view = 'synthese'
     modele5651.ensure_schema(desk)
@@ -820,4 +867,6 @@ def page(desk, auth, prefix, args, shell):
     head = ('<script defer src="%s/static/v5627.js"></script><script defer src="%s/static/v5679.js"></script>'
             '<script defer src="%s/static/v5698-fiche.js"></script>') % (e(prefix), e(prefix), e(prefix))   # 5.6.98 : sous-onglets au clavier, confirmation d'un retrait
     head += '<script defer src="%s/static/v56108-fichiers.js"></script>' % e(prefix)   # 5.6.108 (lot F) : Ajouter un fichier, glisser-déposer, boutons PDF de l'aperçu
+    head += '<script defer src="%s/static/v56109-relations.js"></script>' % e(prefix)   # 5.6.109 (lot G2) : paquet de partage ou pièce du kit rendus une fois (téléchargement du reçu)
+    head += '<script defer src="%s/static/v56109-repertoire.js"></script>' % e(prefix)   # 5.6.109 (lot L, F02) : répertoire trié — comptage à la demande, sélection et défilement gardés au retour
     return shell(matter_display(m), body, prefix, auth['csrf'], '/dossiers', head)

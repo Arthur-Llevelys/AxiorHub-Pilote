@@ -1,0 +1,38 @@
+{
+  "id": "builtin.parcours109.carpa_rib",
+  "name": "Demande documentaire de RIB CARPA",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub proposition de développement",
+  "license": "AGPL-3.0",
+  "description": "Demande documentaire de RIB CARPA via un parcours supervisé et borné, sans droits implicites.",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "redaction_courriel",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "rib carpa",
+    "rib e carpa",
+    "rib carma",
+    "rib e carma"
+  ],
+  "enabled_default": true,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "activation_note": "Méthode seulement ; profil de portail et capacités à qualifier."
+}

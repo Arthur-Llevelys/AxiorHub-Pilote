@@ -1,0 +1,12 @@
+/* AxiorHub 5.6.109 (lot G4) — cartes de « Mes routines | Mes agents IA » : relever les messages procéduraux (G11-G12), offre et PDF joint au
+   brouillon (G10), documents publics des sociétés par l'API Pappers Entreprises (G17). Couleurs par les variables communes (clair et sombre) ;
+   focus visible ; aucune règle propre au mode sombre nécessaire (variables). */
+.g4-carte form { margin: 6px 0; }
+.g4-carte form label { display: block; margin: 4px 0; }
+.g4-carte form.r52-inline { display: inline-block; margin-right: 6px; }
+.g4-carte textarea, .g4-carte input:not([type="checkbox"]):not([type="hidden"]), .g4-carte select { width: 100%; max-width: 36rem; box-sizing: border-box; }
+.g4-liste { padding-left: 18px; margin: 6px 0; max-height: 320px; overflow: auto; }
+.g4-liste li { margin: 6px 0; color: var(--ax-text, #1b1f24); }
+.g4-carte .r52-meta { display: block; margin: 4px 0; color: var(--ax-muted, #57606a); }
+.g4-carte summary:focus-visible, .g4-carte button:focus-visible, .g4-carte input:focus-visible, .g4-carte textarea:focus-visible,
+.g4-carte select:focus-visible { outline: 2px solid var(--ax-focus, #0969da); outline-offset: 2px; }

@@ -223,10 +223,13 @@ def capacite(cfg, capabilities=None, state_dir=None):
 
 # ================================================================================================ images : PNG, PNM, JPEG, PDF d'une page
 class Image:
-    __slots__ = ('mime', 'data', 'largeur', 'hauteur', 'masquee', 'zones')
+    __slots__ = ('mime', 'data', 'largeur', 'hauteur', 'masquee', 'zones', 'recu')
 
     def __init__(self, mime, data, largeur, hauteur, masquee=False, zones=0):
         self.mime, self.data, self.largeur, self.hauteur, self.masquee, self.zones = mime, data, int(largeur), int(hauteur), bool(masquee), int(zones)
+        # 5.6.109 (P05) : reçu de préparation posé par ``Piece.image_masquee`` (source, empreinte des octets masqués, révision des identités,
+        # version des règles). ``transmission56109`` n'admet dans une enveloppe externe qu'une image qui le porte : « masquee » seul ne prouve rien.
+        self.recu = None
 
     def b64(self):
         return base64.b64encode(self.data).decode('ascii')
@@ -536,7 +539,11 @@ def sensibles(config, mots):
     """Indices des mots à noircir : ceux que les règles de pseudonymisation existantes remplacent dans le texte OCR (noms connus du
     cabinet, courriels, téléphones, IBAN, SIREN/SIRET, n° de sécurité sociale, RG et références, adresses, dates de naissance, sociétés,
     noms), plus les mots lus avec une confiance inférieure à ``CONF_MASQUE``. Alignement mot à mot : tout mot d'origine qui n'est pas
-    recopié à l'identique dans le texte pseudonymisé est noirci (règle prudente)."""
+    recopié à l'identique dans le texte pseudonymisé est noirci (règle prudente).
+
+    5.6.109 (P01) : pendant une émission externe (``Model._leaf``), le pseudonymiseur construit ici lit l'instantané des identités de CET
+    appel (``pseudo540.INSTANTANE``) : registre courant des dossiers, parties, alias et contacts compris, les mêmes noms que pour le texte.
+    Un registre illisible lève : l'appelant en fait « masquage en échec », et aucune image ne part."""
     from .model import pseudo_sources
     from .pseudo540 import Pseudonymizer
     if not mots:
@@ -698,8 +705,13 @@ class Piece:
         return self._mots
 
     def image_masquee(self, config):
-        """Image masquée pour un fournisseur externe, ou ``Stop`` (motif) : dans ce cas rien ne part vers l'externe."""
-        if self._masquee is not None:
+        """Image masquée pour un fournisseur externe, ou ``Stop`` (motif) : dans ce cas rien ne part vers l'externe.
+
+        5.6.109 (P01, P05) : le masquage est refait pour chaque émission (il dépend des identités de l'appel, relues du registre ; l'OCR, lui,
+        est repris), et l'image porte son reçu de préparation."""
+        from . import pseudo540
+        instantane = pseudo540.INSTANTANE.get()
+        if self._masquee is not None and (instantane is None or getattr(self, '_masquee_pour', None) is instantane):
             return self._masquee
         try:
             largeur_ocr, mots = self.mots()
@@ -718,7 +730,11 @@ class Piece:
         def masque(w, h, c, px):
             zones = rectangles(mots, indices, w / float(largeur_ocr), w, h)
             return noircir(w, c, px, zones), len(zones)
-        self._masquee = self._encoder(masque)
+        image = self._encoder(masque)
+        image.recu = {'source': self.sha, 'page': self.page, 'zones': image.zones, 'empreinte': hashlib.sha256(image.data).hexdigest(),
+                      'revision': getattr(instantane, 'revision', None) if instantane is not None else pseudo540.revision((config or {}).get('state_dir')),
+                      'detecteur': pseudo540.VERSION_DETECTEUR}
+        self._masquee, self._masquee_pour = image, instantane
         return self._masquee
 
     def texte(self):

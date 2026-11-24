@@ -259,6 +259,7 @@ REASONS['trop_de_pieces_jointes']='Vingt documents au plus par demande.'   # 5.6
 REASONS['piece_extraite_plus_de_2000000_caracteres']='Document trop long : plus de 2 millions de caractères extraits.'
 REASONS.setdefault('introuvable','Élément introuvable.')   # 5.6.100 (R04) : même texte pour un objet absent ou réservé à d’autres
 REASONS.setdefault('controle_indisponible','Contrôle des accès indisponible : réessayez dans un instant. Rien n’a été affiché ni modifié.')
+from .transmission56109 import MESSAGES as _MESSAGES56109P;REASONS.update(_MESSAGES56109P)   # 5.6.109 (lot P) : refus de confidentialité avant une IA externe : arrêts expliqués, jamais une erreur de transport
 JOB_LABELS.update({'office_analysis5684':'Analyse d’une modification dans l’éditeur','cession5684_run':'Cession : analyses et brouillons internes'})   # 5.6.84
 JOB_LABELS['efacture5688']='Relevé des plateformes de facturation électronique'   # 5.6.88
 JOB_LABELS['gmail5697']='Relève Gmail (lecture seule)'   # 5.6.97 (lot gmail)
@@ -1615,21 +1616,31 @@ class App:
                 main+=_boutons5697(prefix)
                 from .produire56100 import nouvelle as _nouvelle100p
                 _prets100=_nouvelle100p(desk,str(auth.get('owner') or 'cabinet'))
-                if _prets100:   # 5.6.100 (lot E, § 23) : documents prêts d'abord (type, dossier, titre, version, état réel, actions permises), avant la file
-                    from .produire56100 import section_html as _documents100
-                    from .i18n5631 import role as _role100p
-                    main+=_documents100(desk,prefix,str(auth.get('owner') or 'cabinet'),_role100p(),args)
-                try:   # 5.6.51 (A06) : projets et modifications à relire, mêmes éléments que Aujourd'hui et Dossier
-                    from .file5651 import html as queue5651
-                    from .membres5650 import viewer_hidden
-                    from .i18n5631 import role as _role52
-                    main+=queue5651(desk,prefix,None,'relire',viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
-                    if not _prets100:   # 5.6.100 : avec la nouvelle présentation, la même projection est déjà en tête (pas de seconde liste)
-                        from .livrables_web5689 import section_html as _livrables5689   # 5.6.89 : même projection qu'Aujourd'hui et Dossier
-                        main+=_livrables5689(desk,prefix,None,8,prefix+'/production')
-                except Exception:   # noqa: BLE001
-                    pass
-                main+=production_page(desk,args,form,link)
+                _vue109='livrables'
+                if _prets100:   # 5.6.109 (lot V, F08) : Produire en trois vues (Créer, Livrables, Modèles) ; Livrables garde la page ci-dessous ; présentation historique inchangée
+                    try:
+                        from .artefacts56109 import vue_produire as _vue_produire109, vues_html as _vues109
+                        from .i18n5631 import role as _role109v
+                        _vue109=_vue_produire109(args)
+                        main+=_vues109(desk,prefix,str(auth.get('owner') or 'cabinet'),_role109v(),args)
+                    except Exception:   # noqa: BLE001 — les vues ne bloquent jamais Produire : la page Livrables s'affiche
+                        _vue109='livrables'
+                if _vue109=='livrables':
+                    if _prets100:   # 5.6.100 (lot E, § 23) : documents prêts d'abord (type, dossier, titre, version, état réel, actions permises), avant la file
+                        from .produire56100 import section_html as _documents100
+                        from .i18n5631 import role as _role100p
+                        main+=_documents100(desk,prefix,str(auth.get('owner') or 'cabinet'),_role100p(),args)
+                    try:   # 5.6.51 (A06) : projets et modifications à relire, mêmes éléments que Aujourd'hui et Dossier
+                        from .file5651 import html as queue5651
+                        from .membres5650 import viewer_hidden
+                        from .i18n5631 import role as _role52
+                        main+=queue5651(desk,prefix,None,'relire',viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
+                        if not _prets100:   # 5.6.100 : avec la nouvelle présentation, la même projection est déjà en tête (pas de seconde liste)
+                            from .livrables_web5689 import section_html as _livrables5689   # 5.6.89 : même projection qu'Aujourd'hui et Dossier
+                            main+=_livrables5689(desk,prefix,None,8,prefix+'/production')
+                    except Exception:   # noqa: BLE001
+                        pass
+                    main+=production_page(desk,args,form,link)
         elif path=='/apprentissage':
             from .learning410_ui import page as learning_page
             main+=learning_page(desk,form)
@@ -1638,7 +1649,7 @@ class App:
             main+=reliability_page(desk,args,form,link,REASONS,JOB_LABELS)
         elif path=='/routage-hybride':
             from .hybrid400_ui import page as hybrid_page
-            main+=hybrid_page(desk,args,form)
+            main+=hybrid_page(desk,args,form,prefix=prefix)   # 5.6.109 (I2) : lien vers « Consommation et coûts » avec le préfixe
         elif path=='/playbooks':
             from .operating380_ui import playbooks_page
             main+=playbooks_page(desk,matters,args,form,link)
@@ -2423,8 +2434,15 @@ class App:
             from .strategic_ui import panel
             main+=panel(c,desk,matters,args,form,link)
         elif path=='/assistant':
-            from .workspace_ui import assistant_panel
-            main+=assistant_panel(c,desk,matters,args,form,link)
+            from .interface56100 import active as _actif109
+            if _actif109(desk,auth.get('owner') or 'cabinet') and (args.get('vue') in ('historique','corbeille','attribuer') or not (args.get('key') or args.get('matter'))):
+                # 5.6.109 (lot H, F09) : historique et fil dans la vue agrandie de l'assistant ; l'ancienne présentation reste derrière l'interrupteur (mêmes droits)
+                from .historique56109 import vue_assistant
+                from .membres5650 import viewer_role as _role109
+                main+=vue_assistant(desk,(auth.get('owner') or 'cabinet',_role109()),prefix,args,form,matters)
+            else:
+                from .workspace_ui import assistant_panel
+                main+=assistant_panel(c,desk,matters,args,form,link)
         elif path=='/memoire':
             memory=SentMemory(c);info=memory.status()
             main+='<div class="stats"><article><strong>'+str(info['examples'])+'</strong><span>Exemples conservés</span></article><article><strong>'+str(info['correction_pairs'])+'</strong><span>Corrections rapprochées</span></article><article><strong>'+str(info.get('accepted_preferences',0))+'</strong><span>Préférences confirmées</span></article></div>'
@@ -2587,6 +2605,12 @@ def internal_error_response(env,kind,config_path='',prefix=None):
     automatique au lieu de « Interface indisponible »."""
     import sys,traceback
     error=sys.exc_info()[1]
+    try:   # 5.6.109 (lot R) : base du bureau illisible : page d'arrêt claire (503), une ligne au journal, jamais une erreur 500 répétée
+        from .secours56109 import reponse_web
+        arret=reponse_web(env,kind,config_path,prefix,error)
+        if arret:return arret
+    except Exception:   # noqa: BLE001 — à défaut, la réponse habituelle
+        pass
     log_interface_error(env,config_path)
     if isinstance(error,sqlite3.OperationalError) and 'locked' in str(error).lower():
         try:
@@ -2641,7 +2665,12 @@ def serve(config_path,auth_path,port=8769,host='127.0.0.1'):
     application=App(config_path,auth_path)
     from . import __version__ as _version,budget_ledger5689,passerelle5689
     _config=load_config(config_path)     # 5.6.89 : registre du budget et passerelle des appels sortants valent aussi pour le service web
-    budget_ledger5689.preparer(_config,'web',_version);passerelle5689.installer(_config)
+    try:
+        budget_ledger5689.preparer(_config,'web',_version)
+    except sqlite3.DatabaseError as error:   # 5.6.109 (lot R) : base illisible : l'interface reste en service et affiche la page d'arrêt (503)
+        from .secours56109 import declarer
+        if declarer(_config,error,'interface') is None:raise
+    passerelle5689.installer(_config)
     # send_bytes=1 : chaque écriture part tout de suite (sinon Waitress retient ~18 Ko et les événements du flux SSE restent en attente).
     # 5.6.20 : port et hôte paramétrables (mode poste) ; l'écoute reste locale par défaut.
     waitress_serve(application,host=host,port=int(port),threads=24,send_bytes=1,

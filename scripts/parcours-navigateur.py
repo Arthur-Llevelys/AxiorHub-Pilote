@@ -1803,6 +1803,8 @@ PARCOURS = PARCOURS + ((('P108k', 'Conseil de modèles (préréglage détecté, 
 import parcours_p108l   # noqa: E402 — 5.6.108 (lot L) : assistant « Configurer l'IA locale »
 PARCOURS = PARCOURS + (('P108l', 'Configurer l’IA locale (détection, machine, modèles, suggestions, téléchargement confirmé, réglages, essai)',
                         parcours_p108l.p108l_ia_locale),)
+import parcours_p109h   # noqa: E402 — 5.6.109 (lot H) : historique de l'assistant, apparence
+PARCOURS = PARCOURS + tuple(parcours_p109h.PARCOURS)
 
 # ------------------------------------------------------------------------------------------------ lancement
 def _tranche(ident):

@@ -172,7 +172,9 @@ def gate(cfg):
         return
     rule = read_fresh(state_dir)
     if rule and not is_allowed(rule, cfg.get('provider_type') or cfg.get('type') or 'ollama', cfg.get('provider_id') or cfg.get('id') or 'ollama'):
-        raise Stop('fournisseur_interdit_par_politique')
+        from .choix_modele56109 import local_epingle_admis   # 5.6.109 (lot T) : modèle LOCAL fixé par l'administrateur, relu en base (rien ne sort)
+        if not local_epingle_admis(cfg):
+            raise Stop('fournisseur_interdit_par_politique')
     from .data_policy5689 import garde_destination   # 5.6.89 : avant la moindre connexion au prestataire, sa clé comprise
     garde_destination(cfg, state_dir)
 

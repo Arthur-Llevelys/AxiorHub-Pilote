@@ -1,0 +1,82 @@
+/* AxiorHub 5.6.109 (lot H, F09 et F10) : Historique dans l'assistant (volet et vue agrandie /assistant), actions des discussions.
+   Volet : l'en-tête et le composeur restent fixes, seule la zone centrale défile (min-height: 0 sur les enfants flex). */
+#ws-ai-dock .h109-tete-barre { align-items: center; display: flex; flex: none; flex-wrap: wrap; gap: .25rem; }
+#ws-ai-dock .h109-tete-bouton { align-items: center; background: transparent; border: 1px solid var(--cds-border-subtle-01, #c6c6c6); border-radius: 4px;
+  color: var(--cds-text-primary, var(--ws-ink, #161616)); cursor: pointer; display: inline-flex; font-size: var(--ui-taille-petit, .875rem); gap: .25rem;
+  height: auto; min-height: 2.5rem; padding: .25rem .5rem; text-decoration: none; width: auto; }
+#ws-ai-dock .h109-tete-bouton:hover { background: var(--cds-layer-hover-01, #e8e8e8); }
+#ws-ai-dock .h109-tete-bouton:focus-visible, .h109 :is(a, button, select, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; box-shadow: 0 0 0 4px var(--cds-background, #fff); }
+#ws-ai-dock .h109-tete-bouton[aria-expanded=true] { border-color: currentColor; font-weight: 600; }
+#ws-ai-dock .h109-panneau [hidden], .h109 [hidden] { display: none !important; }   /* les règles globales « button { display } » rendaient hidden inopérant */
+#ws-ai-dock .h109-panneau .h109-texte, .h109 .h109-texte, #ws-ai-dock .h109-panneau .h109-titre { color: var(--cds-text-primary, var(--ws-ink, #161616)); opacity: 1; }
+#ws-ai-dock .h109-panneau .h109-meta, #ws-ai-dock .h109-panneau .h109-extrait { opacity: 1; }
+#ws-ai-dock .h109-panneau { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); margin: 0 0 .75rem; padding: 0 0 .75rem; }
+#ws-ai-dock .h109-panneau input[type=search] { box-sizing: border-box; margin: 0 0 .5rem; width: 100%; }
+.h109-fils { list-style: none; margin: 0; padding: 0; }
+.h109-ligne { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); }
+.h109-lien { background: transparent; border: 0; color: inherit; cursor: pointer; display: block; font: inherit; padding: .5rem .25rem; text-align: left;
+  text-decoration: none; width: 100%; }
+.h109-lien:hover, .h109-choisi > .h109-lien { background: var(--cds-layer-hover-01, #e8e8e8); }
+.h109-choisi > .h109-lien { box-shadow: inset 3px 0 currentColor; font-weight: 600; }
+.h109-titre { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.h109-meta, .h109-extrait { color: var(--cds-text-secondary, #525252); display: block; font-size: var(--ui-taille-petit, .875rem); overflow-wrap: anywhere; }
+.h109-extrait { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.h109-etat[data-etat=echec] { color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.h109-etat[data-etat=en_pause], .h109-etat[data-etat=a_preciser] { font-weight: 600; }
+.h109-message { border-left: 3px solid var(--cds-border-subtle-01, #c6c6c6); margin: .5rem 0; padding: .25rem .75rem; }
+.h109-message.h109-user { border-left-color: var(--cds-interactive, #0f62fe); }
+.h109-texte { white-space: pre-wrap; overflow-wrap: anywhere; margin: .25rem 0; }
+.h109-note, .h109-portee { color: var(--cds-text-secondary, #525252); font-size: var(--ui-taille-petit, .875rem); }
+.h109-alerte { color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.h109-statut:empty { display: none; }
+.h109-retour, .h109-reprendre, .h109-suite, .h109-bouton-lien { background: transparent; border: 0; color: var(--cds-link-primary, #0f62fe); cursor: pointer;
+  font: inherit; min-height: 2rem; padding: .25rem 0; text-decoration: underline; }
+.h109-continuer { display: inline-block; margin: .5rem 0; }
+
+/* vue agrandie : liste et fil côte à côte ; le fil garde sa saisie visible (seuls les messages défilent) */
+.h109 { align-items: start; display: grid; gap: 1rem 1.5rem; grid-template-columns: minmax(17rem, 25rem) minmax(0, 1fr); }
+.h109-entete { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; }
+.h109-entete h2 { margin: 0; }
+.h109-filtres { display: grid; gap: .5rem; grid-template-columns: 1fr 1fr; margin: .75rem 0 .25rem; }
+.h109-filtres label { display: flex; flex-direction: column; font-weight: 600; gap: .125rem; min-width: 0; }
+.h109-filtres label:first-of-type { grid-column: 1 / -1; }
+.h109-filtres .h109-case { align-items: center; flex-direction: row; font-weight: 400; gap: .375rem; }
+.h109-liste [data-h109-liste] { max-height: calc(100dvh - 22rem); min-height: 8rem; overflow: auto; }
+.h109-detail { display: flex; flex-direction: column; gap: .5rem; max-height: calc(100dvh - 6rem); min-height: 0; position: sticky; top: 4.5rem; }
+.h109-messages { flex: 1 1 auto; min-height: 6rem; overflow: auto; overscroll-behavior: contain; }
+.h109-composeur { flex: none; }
+.h109-composeur textarea { box-sizing: border-box; max-height: 30dvh; width: 100%; }
+.h109-barre { display: flex; flex-wrap: wrap; gap: .375rem; }
+.h109-barre .h109-groupe { align-items: center; display: inline-flex; gap: .25rem; }
+.h109-membres, .h109-groupes { margin: .5rem 0; }
+.h109-partage { display: flex; flex-wrap: wrap; gap: .375rem; align-items: center; }
+.h109-sous-titre { font-size: var(--ui-taille-petit, .875rem); margin: .75rem 0 .25rem; text-transform: none; }
+.h109-attribuer { border-left: 3px solid var(--cds-support-warning, #f1c21b); margin: .75rem 0; padding: .25rem .5rem; }
+@media (max-width: 960px) {
+  .h109 { grid-template-columns: 1fr; }
+  .h109-detail { max-height: none; position: static; }
+  .h109-liste [data-h109-liste] { max-height: none; }
+}
+/* F10 : écran 1920 × 1080 à 125 % (1536 × 864 px CSS) et moins haut : le composeur du volet se resserre pour que la saisie, Envoyer, le
+   micro et l'en-tête (Historique, Nouvelle discussion, Fermer) restent visibles sans défiler. */
+@media (max-height: 900px) {
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-hint { display: none; }
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-tete { padding-bottom: .375rem; padding-top: .375rem; }
+  #ws-ai-dock:not(.ws-ai-dock--embedded) #ws-ai-question { max-height: min(9rem, 22dvh); }
+  #ws-ai-dock:not(.ws-ai-dock--embedded) #ws-ai-status { font-size: var(--ui-taille-petit, .875rem); margin: 0; }
+}
+/* Téléphone (volet en pleine largeur, 375 px) : la barre Historique / Nouvelle discussion / Ouvrir en grand passe sous le titre. Sans cela
+   elle prenait toute la largeur : titre écrasé à une lettre par ligne, « Fermer » hors de l'écran, saisie repoussée sous la vue (constaté
+   par le parcours P96a à l'intégration). La barre tient sur une seule ligne et défile sur elle-même si elle dépasse : la zone de
+   conversation et la saisie gardent leur hauteur, clavier logiciel ouvert compris. */
+@media (max-width: 40rem) {
+  #ws-ai-dock .ws-ai-tete { flex-wrap: wrap; }
+  #ws-ai-dock .ws-ai-tete-texte { flex: 1 1 0; min-width: 8rem; }
+  #ws-ai-dock .h109-tete-barre { flex: 1 1 100%; flex-wrap: nowrap; min-width: 0; order: 5; overflow-x: auto; overscroll-behavior: contain; }
+  #ws-ai-dock .h109-tete-bouton { flex: none; padding: .25rem .375rem; white-space: nowrap; }
+}
+@media (forced-colors: active) {
+  .h109-choisi > .h109-lien { border-left: 3px solid Highlight; }
+  #ws-ai-dock .h109-tete-bouton { border-color: ButtonText; }
+}

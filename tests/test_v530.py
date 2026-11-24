@@ -91,7 +91,7 @@ class Page(Base):
     def test_cockpit_is_the_home_screen(self):
         body = self.request('/aujourdhui')['body']
         for text in ('id="c530"', 'Instruction à l’agent', 'aria-label="Joindre un document"', 'aria-label="Dicter"', 'Envoyer',
-                     'À relire', 'Ce que fait l’agent', 'Ma journée', 'Tâches Nextcloud', 'Deck · Production de l’agent', 'Routines du cabinet',
+                     'À relire', 'Ce que fait l’agent', 'Ma journée', 'Tâches Nextcloud', 'Deck · Production de l’agent', 'Mes routines | Mes agents IA',   # 5.6.109 (lot B) : libellé renommé (« Routines du cabinet »)
                      'Briefing du matin', 'Style du cabinet', '/static/v530.js', '/static/v500.js'):
             self.assertIn(text, body)
         # 5.6.101 (lot P) : la liste des dossiers est celle du formulaire « Ajouter une routine », servi à l'ouverture de son pli

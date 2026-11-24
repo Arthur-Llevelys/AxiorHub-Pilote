@@ -126,6 +126,9 @@ def main():
         from agent.setup import configure
         configure(args.config); return 0
     c = load_config(args.config)
+    if args.command not in ('diagnostic-file','doctor','mode'):   # 5.6.109 (lot R) : base illisible : arrêt lisible avant toute ouverture en écriture
+        from agent.secours56109 import garde_ligne_de_commande
+        garde_ligne_de_commande(c)
     if args.command=='diagnostic-file':   # 5.6.60 : lecture seule (base ouverte en lecture), aucune écriture
         import sqlite3
         from agent.blocage5660 import diagnose, text_report
@@ -274,6 +277,9 @@ if __name__=='__main__':
     try: sys.exit(main() or 0)
     except Stop as e: print('ARRÊT : '+str(e),file=sys.stderr); sys.exit(2)
     except KeyboardInterrupt: print('Interrompu.',file=sys.stderr);sys.exit(130)
-    except Exception:
+    except Exception as error:
+        from agent.secours56109 import illisible, MESSAGE, CODE_SORTIE
+        if illisible(error):   # 5.6.109 (lot R) : une seule ligne lisible, code 78 ; la minuterie relance au plus toutes les 5 min, sans boucle serrée
+            print('ARRÊT (base illisible) : '+MESSAGE,file=sys.stderr);sys.exit(CODE_SORTIE)
         print('ARRÊT : erreur de configuration ou de service. Exécuter diagnostic.py puis doctor ; aucun détail secret n’est affiché.',file=sys.stderr)
         sys.exit(3)

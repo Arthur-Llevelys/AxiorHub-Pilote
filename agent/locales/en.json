@@ -755,6 +755,8 @@
  "fn.securite_serveur.desc": "Security watch of the machine: intrusions, suspicious programs, versions to update",
  "fn.fichiers.label": "Files",
  "fn.fichiers.desc": "Two-pane explorer for Nextcloud files (and this workstation): batch rename, versions, ZIP, notes",
+ "fn.telephonie_bland.label": "AI telephony (Bland)",
+ "fn.telephonie_bland.desc": "Voice agents, calls and text messages through Bland, each action confirmed by the lawyer; appointment-booking agent, client reminder",
  "f101.guide.famille": "“{famille}” family",
  "f101.guide.autres": "The other tabs of this family:",
  "f101.usage.titre": "Rarely used functions",

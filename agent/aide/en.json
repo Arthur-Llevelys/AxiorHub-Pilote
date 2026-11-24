@@ -1329,7 +1329,8 @@
 "Click “Save changes”.",
 "Test with “Test IMAP”, “Test Nextcloud / calendars” or “Test Ollama”.",
 "For an external AI: save its key, click “Charger les modèles”, choose the model; the known price and the caps are prefilled.",
-"To choose how the AI works: open “Mode de l’IA” and pick the ChatGPT subscription, the Mistral API, the Claude API, local only or automatic. AxiorHub then takes, for each task, the most economical suitable model."
+"To choose how the AI works: open “Mode de l’IA” and pick the ChatGPT subscription, the Mistral API, the Claude API, local only or automatic. AxiorHub then takes, for each task, the most economical suitable model.",
+"API or subscription: a consumer subscription (Google AI Pro or Ultra, Mistral Le Chat Pro, ChatGPT Plus or Pro) is not an API key. For Google Gemini, create a key in Google AI Studio (billed per use, separately from any subscription), then in the “Google Gemini · clé API” card: test the connection, save the key, enter the price and the permission to send, then enable. A connection that has not been tested is never used. Sign-in through Gemini CLI is not supplied in this version. Mistral: the existing Studio key is used for the API. Depending on your organisation’s plan, monthly usage may be shared between Studio, the API and Vibe Code, then billed according to your Mistral settings (Manage Mistral usage). AxiorHub does not use Vibe: only the Studio key is called, and Mistral does not provide the remaining quota."
 ],
 "result": "Settings saved, without reloading the page.",
 "verify": "The test message states what was actually checked.",
@@ -1498,7 +1499,10 @@
 "Open Hybrid routing.",
 "Estimate with “Calculate routing and cost”.",
 "See the data sent with “Show data and cost”.",
-"Click “Save the policy”."
+"Click “Save the policy”.",
+"Fix a model for a task: Settings › AI models, table “Local models and routing”. On the function’s row, choose the connection (local AI or an enabled external connection) and the exact model, then “Save”. That model is then called alone for this function: no automatic router, no switch, no fallback; if it fails, the message names the function and the model.",
+"What the choice does not allow: it never widens permissions. In “Local AI only” mode, or for a disabled connection or one without sending authorisation, choosing an external model is refused with its reason; a request that requires local processing (matter excluded from external sending) stays local. To go back: “According to the general mode” on the row, or “Reset everything to the general mode”.",
+"Reduce a task’s context: on the same row, “Context sent”: “Reduced” sends fewer passages, emails, facts and file names (the most relevant or most recent, upcoming dates first); the documents you chose or attached are always sent. The mission details show the size sent at each call and what was not sent. “Normal” keeps the usual limits."
 ],
 "result": "A routing policy applied before any sending.",
 "verify": "The latest routing decisions are listed.",
@@ -2311,6 +2315,45 @@
 "example": "Close invoices to the AI while keeping the documents of matter DOS-001.",
 "buttons": [
 "Enregistrer"
+],
+"version": "5.6.36"
+},
+"telephonie_bland": {
+"objective": "Connect AxiorHub to the Bland service (voice agents, calls, text messages) with the firm’s API key; you confirm every action.",
+"when": "To have a voice agent book appointments, remind a client of an appointment or place a prepared call.",
+"prerequisites": "A Bland account and a full-access organisation API key; you must be an administrator to enter it.",
+"steps": [
+"Create the account and the key with the two links of the “Bland — AI telephony” card (Settings › API connections).",
+"Paste the key, then “Save the key”: it goes to the vault and is never displayed again.",
+"Click “Test the connection”, then “Activate the connector” if the state is “Ready”.",
+"Ask for an action: it becomes a request showing the number, the text and the amount; confirm it.",
+"For the appointment reminder, configure the routine in “My routines | My AI agents” and record the client’s consent."
+],
+"result": "Calls, text messages and agents leave only after your confirmation; costs appear in “Consumption and costs”.",
+"verify": "The card shows “Ready” and the number of tools discovered; an unconfirmed request stays “To confirm”.",
+"errors": [
+[
+"Key refused",
+"Use a full-access organisation key: restricted keys cannot connect."
+],
+[
+"Strict local mode",
+"The connection to Bland is refused while the data mode stays strict local."
+],
+[
+"Automatic sending suspended",
+"A Bland response was lost (“to check”) or the “send” right was withdrawn: check, then approve the template again."
+],
+[
+"Place missing from the reminder",
+"The free-text place of the calendar is never copied: set the firm’s address in the routine."
+]
+],
+"example": "Remind Mr DURAND by text message at 01 00 00 00 05 of his appointment, two days before.",
+"buttons": [
+"Enregistrer la clé",
+"Tester la connexion",
+"Activer le connecteur"
 ],
 "version": "5.6.36"
 }

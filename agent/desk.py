@@ -338,8 +338,22 @@ class Desk:
                 self._prepare_once(c)
                 if waited:
                     _startup_log('base de données de nouveau disponible : préparation terminée après %d s d’attente.' % waited)
+                from .secours56109 import lever_si_active
+                lever_si_active(c)   # 5.6.109 (lot R) : base remplacée par une copie saine : l'alerte est marquée levée (jamais supprimée)
                 return
-            except (sqlite3.OperationalError, Stop) as error:
+            except (sqlite3.DatabaseError, Stop) as error:
+                # 5.6.109 (lot R) : base endommagée (« malformed », « not a database ») : arrêt typé et alerte hors base ; jamais de réparation
+                # automatique, jamais de suppression de fichier, aucune nouvelle tentative (une base illisible ne se libère pas en attendant)
+                from .secours56109 import declarer
+                arret = None if _locked(error) else declarer(c, error)
+                if arret is not None:
+                    try:
+                        self.db.close()
+                    except (sqlite3.Error, AttributeError):
+                        pass
+                    if arret is error:
+                        raise
+                    raise arret from error
                 if not _locked(error):
                     raise
                 try:
@@ -382,6 +396,8 @@ class Desk:
 
     def _open(self, c):
         self.c = c
+        from .secours56109 import garde_desk
+        garde_desk(c)   # 5.6.109 (lot R) : base déjà reconnue illisible (même fichier) : arrêt immédiat, SQLite n'est pas rouvert
         from .common import busy_timeout
         self._busy = busy_timeout()   # 5.6.32 : 2 s pour l'affichage d'une page, 10 s pour les actions et le worker
         from .ecritures5636 import TimedConnection
@@ -583,6 +599,12 @@ class Desk:
         ensure_fichiers56108_schema(self)
         from .ia_locale56108 import ensure_schema as ensure_ia_locale56108_schema   # 5.6.108 (lot L) : « Configurer l'IA locale » (téléchargements, essais, configurations appliquées)
         ensure_ia_locale56108_schema(self)
+        from .projection56109 import ensure_schema as ensure_projection56109_schema   # 5.6.109 (lot D, F04) : projection de la fiche (liens registre ↔ extractions, refus durables, qualités par instance, mentions, champs, propositions, présentations)
+        ensure_projection56109_schema(self)
+        from .catalogue56109 import ensure_schema as ensure_catalogue56109_schema   # 5.6.109 (lot D, F05) : catalogue de prestations (brouillons, versions publiées immuables, simulations, liens vers les estimations, reçus)
+        ensure_catalogue56109_schema(self)
+        from .reanalyse56109 import ensure_schema as ensure_reanalyse56109_schema   # 5.6.109 (lot A, C04 et F03) : campagnes et couverture de l'analyse d'un dossier (plus jamais créées pendant une lecture), propositions à décider, reçus
+        ensure_reanalyse56109_schema(self)
         from .relecture56100 import ensure_schema as ensure_relecture56100_schema, rattraper as rattraper_relecture56100   # 5.6.100 (lot B) : file commune « À relire »
         ensure_relecture56100_schema(self)
         try:   # reprise bornée et relançable des propositions existantes (sans LIKE sur le JSON) ; la suite passe par les automatismes
@@ -591,6 +613,23 @@ class Desk:
             self.db.rollback()
         from .reprises56101 import au_demarrage as reprises56101   # 5.6.101 (R05) : reprises uniques d'autres modules, ici et plus jamais pendant une lecture
         reprises56101(self)
+        from .sources_publiques56109 import ensure_schema as ensure_sources56109_schema; ensure_sources56109_schema(self)   # 5.6.109 (lot S, F11) : sondes des sources publiques, préconfiguration des seules entrées manquantes (aucun réseau)
+        from .international56109 import ensure_schema as ensure_international56109_schema; ensure_international56109_schema(self)   # 5.6.109 (lot S, G18-G19) : identités de registre étranger (contacts), documents publics classés, reçus
+        from .historique56109 import ensure_schema as ensure_historique56109_schema; ensure_historique56109_schema(self)   # 5.6.109 (lot H, F09) : propriétaires, participants, préférences, groupes, liens, contextes, brouillons et reçus des discussions de l'assistant
+        from .poste56109 import ensure_schema as ensure_poste56109_schema; ensure_poste56109_schema(self)   # 5.6.109 (lot O, F12 et G13) : autorisations de mission sur le poste, reçus, postes associés, ordres signés et baux du compagnon
+        from .decision56109 import ensure_schema as ensure_decision56109_schema; ensure_decision56109_schema(self)   # 5.6.109 (lot K, F07) : décisions locales (journal sans contenu), questions ciblées par mission, reçus
+        from .bland56109 import ensure_schema as ensure_bland56109_schema; ensure_bland56109_schema(self)   # 5.6.109 (lot B) : téléphonie par IA (outils découverts, demandes, agents, rappels, accords des clients, reçus) ; routine de rappel créée une fois, désactivée
+        from .artefacts56109 import ensure_schema as ensure_artefacts56109_schema; ensure_artefacts56109_schema(self)   # 5.6.109 (lot V, F08) : contenus des livrables structurés (liés aux versions du registre commun), reçus, plans des sous-agents
+        from .modele_docx56109 import ensure_schema as ensure_modeles56109_schema; ensure_modeles56109_schema(self)   # 5.6.109 (lot V, F08) : modèles Word du cabinet (versions, validation) et productions contrôlées
+        from .craft56109 import ensure_schema as ensure_craft56109_schema; ensure_craft56109_schema(self)   # 5.6.109 (lot V, F16) : installations Craft vérifiées, intentions d'export, plans de commandes IA (aucun binaire livré)
+        from . import fonds_juridique56109, contexte56109; fonds_juridique56109.ensure_schema(self); contexte56109.ensure_schema(self)   # 5.6.109 (lot Q) : fonds juridique local (G23 : lots, documents publics versionnés, désignations actives, reçus) ; fichiers de ce poste (F13 : emplacements autorisés, versions lues, inventaires, reçus)
+        from .simulation56109 import ensure_schema as ensure_simulation56109_schema; ensure_simulation56109_schema(self)   # 5.6.109 (lot N, F14) : simulation de décision du dossier (traitements versionnés, cadrage confirmé, corrections de l'avocat, reçus)
+        from .gestion56109 import ensure_schema as ensure_gestion56109_schema; ensure_gestion56109_schema(self)   # 5.6.109 (lot G1) : préfacturation (diligences, traces), assistance régulière (contrats versionnés, périodes, consommations), mouvements complémentaires, coordonnées bancaires à vérifier, reçus
+        from .partage_client56109 import ensure_schema as ensure_relations56109_schema; ensure_relations56109_schema(self)   # 5.6.109 (lot G2) : partages client (versions exactes, demandes, réponses, quarantaine), appels et actions, remplacements (instructions, preuves), kits d'audience (éléments, notes), reçus
+        from . import closing56109, suites56109, formalites56109; closing56109.ensure_schema(self); suites56109.ensure_schema(self); formalites56109.ensure_schema(self)   # 5.6.109 (lot G3) : « À finaliser » des opérations (conditions, dépendances, journal, décisions qualifiées), suites et exécution (obligations sourcées, actions, échéancier), formalités supervisées (pièces exactes, effets distincts, documents, réservations), reçus
+        from . import offre56109, collecte_portail56109, pappers_documents56109; offre56109.ensure_schema(self); collecte_portail56109.ensure_schema(self); pappers_documents56109.ensure_schema(self)   # 5.6.109 (lot G4) : commandes d'offre et PDF joint (reçus de brouillon), profils de portail, missions de collecte (messages, pièces, dates, brouillons, correspondances), appels et crédits Pappers (politique du dossier, autorisations, reçus)
+        from .pseudo540 import ensure_schema as ensure_pseudo56109_schema   # 5.6.109 (lot P, P02) : révision durable du registre des identités ; en dernier : déclencheurs sur tous les registres déjà créés
+        ensure_pseudo56109_schema(self)
 
     def now(self):return now()
 
@@ -1577,6 +1616,7 @@ class Desk:
                 from .competences5632 import for_job   # 5.6.32 (R16) : compétences retenues pour CE travail seulement
                 with producer_lock(self.c,row['kind'],_args), for_job(self,row,_args):
                     note_holder(self.c['state_dir'],'Travail n° %s (%s)'%(row['id'],row['kind']))
+                    from .decision56109 import au_travail as _decision56109;_decision56109(self,row,_args)   # 5.6.109 (lot K, F07) : décision locale (désactivée par défaut ; observation : tracée, parcours inchangé)
                     result=self.perform(row['kind'],with_consignes(self,json.loads(row['args'])))
             if isinstance(result,dict) and not result.get('sans_controle'):   # 5.6.80 : conversation vocale et réponse de repli
                 try:

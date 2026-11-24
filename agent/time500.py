@@ -239,6 +239,7 @@ def estimate(desk, matter='', since='', until='', today=None, now_dt=None):
         items, skipped = collect(desk, mid, since, until, now_dt)
         skipped_total += skipped
         known = {r[0] for r in desk.db.execute('SELECT ref FROM time500_items WHERE matter=?', (mid,))}
+        known |= _refs_prefacturees(desk, [i['ref'] for i in items])   # 5.6.109 (G01) : déjà validées par la préfacturation, jamais reproposées
         fresh = [i for i in items if i['ref'] not in known]
         by_day = {}
         for item in fresh:
@@ -264,8 +265,20 @@ def estimate(desk, matter='', since='', until='', today=None, now_dt=None):
     return {'created': created, 'updated': updated, 'since': since, 'until': until, 'not_estimated_all_day_events': skipped_total}
 
 
+def _refs_prefacturees(desk, refs):
+    """5.6.109 (G01) : éléments déjà validés par la préfacturation (``gestion56109``) — une diligence, une seule entrée."""
+    from .gestion56109 import refs_validees
+    return refs_validees(desk, refs)
+
+
 def _refresh_proposal(desk, pid, bar):
-    rows = desk.db.execute('SELECT kind,minutes,label FROM time500_items WHERE proposal_id=? ORDER BY kind,label', (pid,)).fetchall()
+    rows = desk.db.execute('SELECT ref,kind,minutes,label FROM time500_items WHERE proposal_id=? ORDER BY kind,label', (pid,)).fetchall()
+    pris = _refs_prefacturees(desk, [r['ref'] for r in rows])        # 5.6.109 (G01) : hors de l'estimation, déjà dans un temps validé
+    rows = [r for r in rows if r['ref'] not in pris]
+    if pris and not rows:
+        desk.db.execute("UPDATE time500_proposals SET minutes_est=0, explanation=?, status='prefacturee', decided=? WHERE id=? AND status='a_valider'",
+                        ('Tous les éléments ont été validés par la préfacturation.', m5.now(), pid))
+        return
     total = sum(r['minutes'] for r in rows)
     total = min(_round_up(total, bar['arrondi']), bar['plafond_jour'])
     counts = {}
@@ -273,6 +286,8 @@ def _refresh_proposal(desk, pid, bar):
         counts[r['kind']] = counts.get(r['kind'], 0) + 1
     parts = ['%d × %s' % (n, KIND_LABELS.get(k, k).lower()) for k, n in sorted(counts.items())]
     explanation = ' ; '.join(parts) + ' — estimation à partir du barème affiché sur la page, arrondie à %d min.' % bar['arrondi']
+    if pris:
+        explanation += ' %d élément(s) déjà validé(s) par la préfacturation ne sont pas comptés.' % len(pris)
     desk.db.execute('UPDATE time500_proposals SET minutes_est=?, explanation=? WHERE id=?', (total, explanation, pid))
 
 
@@ -299,7 +314,23 @@ def pending(desk, matter='', limit=200):
 
 
 def _amount(minutes, rate_cents):
-    return int(round(minutes * rate_cents / 60.0))
+    """5.6.109 (G01) : arrondi monétaire commun (``Decimal``, moitié supérieure, ``catalogue56109.arrondi``) au lieu du flottant et de
+    l'arrondi bancaire de Python. Les temps déjà validés gardent leur montant enregistré : rien n'est recalculé."""
+    from .gestion56109 import montant_temps
+    return montant_temps(int(minutes), int(rate_cents))
+
+
+def retirer_prefactures(desk, refs):
+    """5.6.109 (G01) : après une validation par la préfacturation (même transaction, sans commit), les propositions en attente qui
+    contenaient ces éléments sont recalculées ; une proposition entièrement couverte est close (« prefacturee »), jamais validée deux fois."""
+    refs = [str(r) for r in refs if r]
+    if not refs:
+        return
+    bar = bareme(desk)
+    marques = ','.join('?' * len(refs))
+    for row in desk.db.execute("SELECT DISTINCT i.proposal_id FROM time500_items i JOIN time500_proposals p ON p.id=i.proposal_id WHERE p.status='a_valider' "
+                               'AND i.ref IN (%s)' % marques, refs).fetchall():
+        _refresh_proposal(desk, row[0], bar)
 
 
 def clean_author(value):
@@ -320,12 +351,20 @@ def _insert_entry(desk, verb, entry_id, matter, day, minutes, rate_cents, label,
                                                         m5.now(), m5.now(), clean_author(author)))
 
 
-def validate(desk, pid, minutes=None, label='', rate=None, author=''):
-    """Validation explicite par l'avocat : seul chemin qui transforme une estimation en temps enregistré."""
-    m5.ensure_schema(desk)
+def _valider_coeur(desk, pid, minutes=None, label='', rate=None, author=''):
+    """5.6.109 (G01) : noyau SANS commit (appelable dans une transaction de lot). Un élément déjà validé par la préfacturation sort de
+    la proposition ; une proposition entièrement couverte est refusée (une diligence ne produit qu'une entrée)."""
     row = desk.db.execute("SELECT * FROM time500_proposals WHERE id=? AND status='a_valider'", (pid,)).fetchone()
     if not row:
         raise Stop('proposition_absente_ou_traitee')
+    refs = [r[0] for r in desk.db.execute('SELECT ref FROM time500_items WHERE proposal_id=?', (pid,))]
+    pris = _refs_prefacturees(desk, refs)
+    if pris:
+        if len(pris) == len(refs):
+            _refresh_proposal(desk, pid, bareme(desk))
+            raise Stop('proposition_deja_prefacturee')
+        if minutes in (None, ''):                              # l'estimation affichée comptait peut-être ces éléments : durée à confirmer
+            raise Stop('proposition_a_relire_prefacturee')
     chosen = row['minutes_est'] if minutes in (None, '') else minutes
     try:
         chosen = int(chosen)
@@ -339,6 +378,17 @@ def validate(desk, pid, minutes=None, label='', rate=None, author=''):
     _insert_entry(desk, 'INSERT OR REPLACE', entry_id, row['matter'], row['day'], chosen, rate_cents, str(label or 'Temps validé')[:200],
                   'proposition_validee', pid, author)
     desk.db.execute("UPDATE time500_proposals SET status='valide', decided=? WHERE id=?", (m5.now(), pid))
+    return row, chosen, entry_id, rate_cents
+
+
+def validate(desk, pid, minutes=None, label='', rate=None, author=''):
+    """Validation explicite par l'avocat : seul chemin qui transforme une estimation en temps enregistré."""
+    m5.ensure_schema(desk)
+    try:
+        row, chosen, entry_id, rate_cents = _valider_coeur(desk, pid, minutes, label, rate, author)
+    except Stop:
+        desk.db.commit()                                       # proposition close par le recalcul : état durable, aucune entrée
+        raise
     desk.db.commit()
     desk.audit('temps_500_valide', {'matter': row['matter'], 'minutes': chosen, 'modified': chosen != row['minutes_est']})
     m5.log_access(desk, 'honoraires', 'temps_valide', row['matter'])
@@ -451,6 +501,9 @@ def cancel_entry(desk, entry_id, reason):
     if not row:
         raise Stop('temps_absent')
     desk.db.execute('DELETE FROM time500_entries WHERE id=?', (entry_id,))
+    if row['origin'] == 'prefacturation':                      # 5.6.109 (G01) : la diligence redevient à valider (sources conservées)
+        from .gestion56109 import annuler_entree
+        annuler_entree(desk, entry_id)
     if row['proposal_id']:
         desk.db.execute("UPDATE time500_proposals SET status='a_valider', decided='' WHERE id=?", (row['proposal_id'],))
     desk.db.commit()

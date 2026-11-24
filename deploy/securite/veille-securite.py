@@ -118,6 +118,8 @@ EXPLICATIONS = {
             'n’était prévue.',
     'S07': 'Un fichier qui contient des mots de passe ou des clés peut être lu par le compte du serveur web (directement, par un groupe '
            'supplémentaire, ou parce qu’il est lisible par tous). Une faille dans n’importe quel site suffit alors à voler ces secrets.',
+    'S07r': 'Un fichier de réglages est lisible par le serveur web, mais aucun mot de passe, clé ou jeton n’y a été reconnu (par exemple le '
+            'fichier d’environnement d’acme.sh). À vérifier, et à restreindre si des secrets y sont ajoutés plus tard.',
     'S07g': 'Le compte du serveur web est membre d’un groupe sensible : tout site piraté obtient les droits de ce groupe (par exemple lire la '
             'configuration de la messagerie).',
     'S08': 'La racine d’un site contient d’autres applications : leurs fichiers de configuration (.env, .git) peuvent être téléchargés par '
@@ -126,6 +128,8 @@ EXPLICATIONS = {
             'qu’il contient doivent être considérés comme connus et changés.',
     'S09': 'Cette application web est plus ancienne que la version minimale sûre connue : des failles publiées permettent de prendre le '
            'contrôle du serveur ou des boîtes de messagerie.',
+    'S09d': 'Une copie ancienne de cette application dort sur le disque, mais aucun site ni alias d’Apache ne la sert : elle n’est pas '
+            'joignable depuis Internet aujourd’hui. Supprimez-la ou mettez-la à jour : elle redeviendrait dangereuse dès qu’un site la servirait.',
     'S09r': 'RainLoop n’est plus maintenu depuis des années ; ses failles ne seront jamais corrigées. Remplacez-le (par exemple par SnappyMail).',
     'S10': 'Un dossier web appartient au compte du serveur web : une application piratée peut y modifier tous les fichiers, y compris ceux '
            'exécutés par d’autres comptes.',
@@ -788,6 +792,8 @@ class Veille:
             return False
         if bas == '.env' or bas.endswith('.env') or bas.startswith('.env.'):
             return True
+        if bas == 'account.conf' and 'acme' in dossier.lower():   # 5.6.109 : acme.sh (clés d'API DNS et compte ACME : SAVED_*, *_Key, *_Token)
+            return True
         if bas in ('wp-config.php', 'dovecot-sql.conf.ext', 'config.inc.php', 'config.local.php'):
             return True
         if bas == 'config.php' and (os.path.basename(dossier) == 'config' or dossier.startswith('/etc/')):
@@ -844,13 +850,20 @@ class Veille:
                     noms = self.noms_reglages(chemin)
                     if dossier.startswith('/etc/postfix') and not noms:
                         continue                  # 5.6.104 : .cf de Postfix sans mot de passe (types de tables, etc.) : rien de secret
+                    # 5.6.109 : un fichier de réglages (.env, account.conf) sans aucun réglage sensible identifié (ex. acme.sh.env : dossier de
+                    # travail, alias) n'est pas au niveau d'un fichier de secrets : « à surveiller », libellé distinct
+                    sans_secret = not noms and (nom.lower() == 'account.conf' or '.env' in nom.lower())
                     if mode & stat.S_IROTH:       # 5.6.104 : retirer la lecture par tous ; le propriétaire et le groupe actuels gardent leur accès
                         commandes = ['sudo chmod o-r %s' % chemin]
                     else:
                         commandes = ['sudo chmod g-r %s' % chemin,
                                      '# ou retirez %s du groupe %s si un autre service de ce groupe doit lire le fichier' % (web['nom'], self.nom_gid(gid))]
-                    commandes.append('# puis changez les mots de passe et clés concernés : ils ont pu être lus')
-                    self.ajouter('S07', chemin, 'important', 'Fichier de secrets lisible par le serveur web : %s' % self.masque(chemin), EXPLICATIONS['S07'],
+                    if not sans_secret:
+                        commandes.append('# puis changez les mots de passe et clés concernés : ils ont pu être lus')
+                    self.ajouter('S07', chemin, 'surveiller' if sans_secret else 'important',
+                                 ('Fichier de réglages lisible par le serveur web, sans réglage sensible identifié : %s' if sans_secret
+                                  else 'Fichier de secrets lisible par le serveur web : %s') % self.masque(chemin),
+                                 EXPLICATIONS['S07r' if sans_secret else 'S07'],
                                  ['%s : %s ; propriétaire %s, groupe %s' % (chemin, raison, self.nom_uid(uid), self.nom_gid(gid)),
                                   'Réglages concernés : %s' % (', '.join(noms) if noms else 'non identifiés')],
                                  commandes,
@@ -889,6 +902,74 @@ class Veille:
 
     def racines_apache(self):
         return sorted({s['racine'] for s in self.sites_apache() if s['racine']})
+
+    def expositions_apache(self):
+        """5.6.109 : chemins réellement servis par Apache : racines et alias des sites (``sites-enabled``) et alias GLOBAUX (``conf-enabled``,
+        ou hors de tout ``<VirtualHost>`` : servis sur tous les sites). Rend None quand l'exposition ne peut pas être établie (pas de
+        configuration Apache lisible, ou un autre serveur web configuré que la veille ne lit pas). Lecture des fichiers seulement."""
+        if hasattr(self, '_expositions'):
+            return self._expositions
+        dossiers = [d for d in ('/etc/apache2/sites-enabled', '/etc/apache2/conf-enabled') if self.existe(d)]
+        if not dossiers or any(self.lister(d) for d in ('/etc/nginx/sites-enabled', '/etc/nginx/conf.d')):
+            self._expositions = None
+            return None
+        servis = []
+        for dossier in dossiers:
+            for nom in self.lister(dossier):
+                if not nom.endswith('.conf'):
+                    continue
+                texte = self.lire(dossier + '/' + nom, 500_000) or ''
+                site = None
+                for ligne in texte.splitlines():
+                    l = ligne.strip()
+                    if not l or l.startswith('#'):
+                        continue
+                    if re.match(r'(?i)<VirtualHost\b', l):
+                        site = {'nom': ''}
+                        continue
+                    if re.match(r'(?i)</VirtualHost>', l):
+                        site = None
+                        continue
+                    m = re.match(r'(?i)ServerName\s+(\S+)', l)
+                    if m and site is not None and not site['nom']:
+                        site['nom'] = m.group(1)
+                        continue
+                    m = re.match(r'(?i)(DocumentRoot)\s+"?([^"\s]+)"?', l) or re.match(r'(?i)(Alias|AliasMatch|ScriptAlias)\s+"?\S+?"?\s+"?([^"\s]+)"?\s*$', l)
+                    if not m:
+                        continue
+                    cible = re.split(r'\$\d', m.group(2))[0].rstrip('/') or '/'
+                    if not cible.startswith('/'):
+                        continue
+                    servis.append({'chemin': cible, 'fichier': dossier.rsplit('/', 1)[-1] + '/' + nom, 'directive': m.group(1),
+                                   'global': site is None, 'site': (site or {}).get('nom', '')})
+        self._expositions = servis
+        return servis
+
+    def exposition(self, chemin):
+        """(état, détail) d'une application : 'servie' (par un site ou un alias global), 'non_servie' (copie sur le disque seulement) ou
+        'inconnue'. Un alias ou une racine qui contient l'application, ou qui pointe dans son dossier, la sert ; un lien est suivi."""
+        servis = self.expositions_apache()
+        if servis is None:
+            return 'inconnue', 'exposition non déterminée (configuration Apache absente ou autre serveur web)'
+        candidats = {chemin.rstrip('/')}
+        cible = self.cible_lien(chemin)
+        if cible:
+            candidats.add(cible.rstrip('/'))
+        trouves = []
+        for s in servis:
+            chemins = {s['chemin']}
+            lien = self.cible_lien(s['chemin'])
+            if lien:
+                chemins.add(lien.rstrip('/'))
+            if any(c == x or c.startswith(x.rstrip('/') + '/') or x.startswith(c + '/') for c in candidats for x in chemins):
+                trouves.append(s)
+        if not trouves:
+            return 'non_servie', 'copie non servie : ni site ni alias d’Apache ne pointe vers ce dossier'
+        globaux = [s for s in trouves if s['global']]
+        if globaux:
+            return 'servie', 'servie sur tous les sites par un alias global (%s, %s)' % (globaux[0]['fichier'], globaux[0]['directive'])
+        s = trouves[0]
+        return 'servie', 'servie par le site %s (%s, %s)' % (s['site'] or '(sans nom)', s['fichier'], s['directive'])
 
     def sonder(self, hote, port, tls, chemin):
         """Requête GET vers 127.0.0.1 seulement, en-tête Host du site ; renvoie (statut, servi). Le corps lu (4 Ko au plus) est jeté."""
@@ -1000,25 +1081,34 @@ class Veille:
         for a in self.detecter_applications():
             regle = VERSIONS_MINIMALES.get(a['app'])
             nom = (regle or {}).get('nom') or NOMS_APPS.get(a['app'], a['app'])
+            # 5.6.109 : exposition réelle (site, alias global de conf-enabled) ; une copie qui dort sur le disque est signalée un cran plus bas
+            expo, detail = self.exposition(a['chemin'])
             entree = {'nom': nom, 'version': a['version'] or 'inconnue', 'chemin': self.masque(a['chemin']), 'minimum': '', 'statut': 'version_affichee',
-                      'source': (regle or {}).get('source', ''), 'table': TABLE_VERSIONS_DATE}
+                      'source': (regle or {}).get('source', ''), 'table': TABLE_VERSIONS_DATE, 'exposition': expo}
+            dormante = expo == 'non_servie'
+            niveau = 'surveiller' if dormante else 'important'
+            suffixe = ' : copie non servie, sur le disque seulement' if dormante else ''
+            fin = (['# copie non servie : supprimez-la (ou mettez-la à jour) ; elle redeviendrait dangereuse dès qu’un site ou un alias la servirait']
+                   if dormante else [])
             if regle and regle.get('abandonne'):
                 entree['statut'] = 'abandonne'
-                self.ajouter('S09', a['app'] + '|' + a['chemin'], 'important', '%s installé : logiciel abandonné' % nom, EXPLICATIONS['S09r'],
-                             ['%s %s dans %s' % (nom, a['version'] or '(version inconnue)', a['chemin']), 'Source : ' + regle['source']],
-                             ['# remplacez %s par une messagerie web maintenue, puis retirez le dossier %s du site' % (nom, a['chemin'])],
-                             [a['app'], a['chemin'], a['version']])
+                self.ajouter('S09', a['app'] + '|' + a['chemin'], niveau, '%s installé : logiciel abandonné%s' % (nom, suffixe),
+                             EXPLICATIONS['S09d' if dormante else 'S09r'],
+                             ['%s %s dans %s' % (nom, a['version'] or '(version inconnue)', a['chemin']), 'Exposition : ' + detail, 'Source : ' + regle['source']],
+                             fin + ['# remplacez %s par une messagerie web maintenue, puis retirez le dossier %s du site' % (nom, a['chemin'])],
+                             [a['app'], a['chemin'], a['version'], expo])
             elif regle and regle.get('minimum'):
                 entree['minimum'] = regle['minimum']
                 if a['version'] and _version(a['version']) < _version(regle['minimum']):
                     entree['statut'] = 'obsolete'
-                    self.ajouter('S09', a['app'] + '|' + a['chemin'], 'important', '%s %s obsolète (minimum sûr : %s)' % (nom, a['version'], regle['minimum']),
-                                 EXPLICATIONS['S09'],
+                    self.ajouter('S09', a['app'] + '|' + a['chemin'], niveau,
+                                 '%s %s obsolète (minimum sûr : %s)%s' % (nom, a['version'], regle['minimum'], suffixe),
+                                 EXPLICATIONS['S09d' if dormante else 'S09'],
                                  ['%s %s dans %s ; version minimale sûre connue : %s (table du %s)' % (nom, a['version'], a['chemin'], regle['minimum'],
-                                                                                                     '14/11/2026'), 'Source : ' + regle['source']],
-                                 ['# sauvegardez le dossier et la base, puis installez la dernière version publiée par l’éditeur (%s)' % regle['source'].split(': ', 1)[-1],
-                                  '# Roundcube : bin/installto.sh <dossier> depuis l’archive officielle ; SnappyMail : mise à jour depuis son panneau d’administration'],
-                                 [a['app'], a['chemin'], a['version']])
+                                                                                                     '14/11/2026'), 'Exposition : ' + detail, 'Source : ' + regle['source']],
+                                 fin + ['# sauvegardez le dossier et la base, puis installez la dernière version publiée par l’éditeur (%s)' % regle['source'].split(': ', 1)[-1],
+                                        '# Roundcube : bin/installto.sh <dossier> depuis l’archive officielle ; SnappyMail : mise à jour depuis son panneau d’administration'],
+                                 [a['app'], a['chemin'], a['version'], expo])
                 else:
                     entree['statut'] = 'a_jour' if a['version'] else 'version_inconnue'
             self.applications.append(entree)

@@ -205,6 +205,11 @@
                el('p', (x.canal ? x.canal + ' · ' : '') + 'consommation : ' + x.consommation));
       c.append(d);
     }
+    if ((m.appels_ia || []).length) {   // 5.6.109 (lot T) : chaque appel au modèle : fonction, modèle, choix fixé ou non, taille transmise, contexte écarté
+      const d = el('details', undefined, 'm82-choix'); d.append(el('summary', 'Appels au modèle et contexte transmis'));
+      m.appels_ia.forEach(x => d.append(el('p', String(x.texte || ''))));
+      c.append(d);
+    }
     const methode = (m.resultat5689 || {}).methode_transmise || [];
     if (methode.length) {   // 5.6.108 (lot I) : méthode réellement transmise au modèle, lue dans la trace écrite juste avant l'appel
       const d = el('details', undefined, 'm82-choix'); d.append(el('summary', 'Méthode transmise'));

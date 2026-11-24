@@ -13,7 +13,11 @@
   var shown = '';
   var form = root.querySelector('form[data-n5673="lancer"]');
   var STATES = { demarrage: 'Démarrage…', en_cours: 'L’agent travaille', validation: 'Votre accord est demandé', site_a_autoriser: 'Nouveau site à autoriser',
-    attente_avocat: 'L’agent vous attend', main_a_l_avocat: 'Vous avez la main', termine: 'Terminé', arrete: 'Arrêté', erreur: 'Interrompu' };
+    attente_avocat: 'L’agent vous attend', main_a_l_avocat: 'Vous avez la main', termine: 'Terminé', arrete: 'Arrêté', erreur: 'Interrompu',
+    // 5.6.109 (lot O) : transfert non acquitté, pause, blocage, limite et fin sans preuve ne sont jamais présentés comme « terminé »
+    transfert_de_controle: 'Transfert de la main en cours : attendez avant toute saisie', en_pause: 'IA en pause : l’agent attend',
+    besoin_utilisateur: 'L’agent a besoin de vous', limite_atteinte: 'Limite atteinte : à reprendre', a_verifier: 'À vérifier : preuve attendue absente' };
+  var FINALS = ['termine', 'arrete', 'erreur', 'limite_atteinte', 'a_verifier'];
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   function toast(message, bad) {
@@ -38,7 +42,9 @@
     if (s.adresse) head.appendChild(document.createTextNode(' · ' + s.adresse));
     live.appendChild(head);
     live.appendChild(el('p', 'ax-muted', 'Tâche : ' + s.tache));
-    var running = ['termine', 'arrete', 'erreur'].indexOf(s.etat) < 0;
+    if (s.modele && s.modele.modele) live.appendChild(el('p', 'ax-muted n56109-modele', 'Modèle : ' + s.modele.fournisseur + ' · ' + s.modele.modele + ' · ' + s.modele.qualification));
+    if (s.main) live.appendChild(el('p', s.main_acquittee ? 'n56109-main ok' : 'n56109-main', s.main_acquittee ? 'La main est à vous : plus aucune commande de l’agent n’est en cours.' : 'Transfert de la main en cours : attendez la confirmation avant toute saisie.'));
+    var running = FINALS.indexOf(s.etat) < 0;
     if (form) form.hidden = running;   // une séance à la fois : le formulaire revient à la fin
     if (s.attente) {
       var box = el('div', 'n5673-ask'); box.setAttribute('role', 'alert');
@@ -84,7 +90,7 @@
     if (!running && timer) { clearInterval(timer); timer = null; }
   }
   function refresh() {
-    api('etat').then(function (d) { render(d.seance); if (d.seance && ['termine', 'arrete', 'erreur'].indexOf(d.seance.etat) < 0 && !timer) timer = setInterval(refresh, 1500); })
+    api('etat').then(function (d) { render(d.seance); if (d.seance && FINALS.indexOf(d.seance.etat) < 0 && !timer) timer = setInterval(refresh, 1500); })
       .catch(function () {});
   }
   if (form) form.addEventListener('submit', function (ev) {

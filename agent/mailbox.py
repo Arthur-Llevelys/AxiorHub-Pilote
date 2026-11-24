@@ -52,8 +52,56 @@ def modified_utf7(s):
 
 
 _VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'}
-_MASKED = re.compile(r'display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)|font-size\s*:\s*(?:0|0?\.\d+|1)(?:px|pt|em|rem)?\s*(?:;|$)|'
-                     r'(?:max-)?height\s*:\s*0(?:px)?\s*(?:;|$)[^"]*overflow\s*:\s*hidden|overflow\s*:\s*hidden[^"]*(?:max-)?height\s*:\s*0(?:px)?\s*(?:;|$)', re.I)
+_MASQUE_FIXE = re.compile(r'display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)|'
+                          r'(?:max-)?height\s*:\s*0(?:px)?\s*(?:;|$)[^"]*overflow\s*:\s*hidden|overflow\s*:\s*hidden[^"]*(?:max-)?height\s*:\s*0(?:px)?\s*(?:;|$)', re.I)
+# 5.6.109 (C01) : version de l'extraction du corps d'un courriel (texte lu par l'avocat, l'index de recherche et l'IA). Elle entre dans la
+# clé des caches de corps extraits : un changement de règle (ici, la sémantique des tailles de police et le repli sur la partie HTML)
+# fait recalculer les corps déjà lus avec l'ancienne règle, depuis le message d'origine, jamais pendant un affichage.
+EXTRACTEUR_VERSION = 2
+_TAILLE = re.compile(r'font-size\s*:\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)\s*([a-z%]*)\s*(?:!\s*important\s*)?(?:;|$)', re.I)
+# une unité absolue se ramène au pixel CSS ; le seuil garde la règle d'origine (1 px et 1 pt masqués, 2 px lisibles)
+_ABSOLUES = {'px': 1.0, 'pt': 96 / 72, 'pc': 16.0, 'in': 96.0, 'cm': 96 / 2.54, 'mm': 96 / 25.4, 'q': 96 / 101.6}
+# une unité relative se ramène à une proportion du texte voisin (1em, 0.9em, 90 % : texte normal) ; l'unité de fenêtre à 1 % de sa largeur
+_RELATIVES = {'em': 1.0, 'rem': 1.0, '%': 0.01, 'ex': 0.5, 'ch': 0.5, 'lh': 1.0, 'rlh': 1.0, 'vw': 1.0, 'vh': 1.0, 'vmin': 1.0, 'vmax': 1.0}
+SEUIL_ABSOLU = 96 / 72        # pixels CSS : au plus 1 pt (1 px compris) est illisible
+SEUIL_RELATIF = 0.2           # proportion : au plus 0,2 em (20 %) est illisible
+
+
+def taille_masquante(style):
+    """Une déclaration ``font-size`` du style rend-elle le texte illisible ? Valeur nulle dans toute unité ; valeur microscopique en
+    unité absolue (au plus 1 px ou 1 pt, et leurs équivalents mm, cm, in, pc, Q) ; valeur microscopique en unité relative (au plus
+    0,2 em ou rem, 20 %). Une taille relative normale (1em, 0.9em, 1rem, 90 %) n'est jamais du texte caché. Unité inconnue ou valeur
+    sans unité non nulle : déclaration invalide, ignorée par un navigateur, donc texte visible."""
+    for nombre, unite in _TAILLE.findall(str(style or '')):
+        try:
+            valeur = float(nombre)
+        except ValueError:
+            continue
+        unite = unite.lower()
+        if valeur <= 0:
+            if valeur == 0 and (not unite or unite in _ABSOLUES or unite in _RELATIVES):
+                return True
+            continue
+        if unite in _ABSOLUES and valeur * _ABSOLUES[unite] <= SEUIL_ABSOLU + 1e-9:
+            return True
+        if unite in _RELATIVES and valeur * _RELATIVES[unite] <= SEUIL_RELATIF + 1e-9:
+            return True
+    return False
+
+
+class _Masque:
+    """Filtre partagé du texte caché par la mise en forme (``mailbox.PlainHTML``, ``lecteur56106``, ``volet56101``) : même appel que
+    l'expression d'origine, ``_MASKED.search(style)`` rend une valeur vraie si le style masque le texte. 5.6.109 (C01) : les tailles de
+    police sont lues avec leur unité (``taille_masquante``) au lieu d'être comparées comme des chaînes."""
+    pattern = _MASQUE_FIXE.pattern
+
+    @staticmethod
+    def search(style):
+        style = str(style or '')
+        return _MASQUE_FIXE.search(style) or (taille_masquante(style) or None)
+
+
+_MASKED = _Masque()
 
 
 DEFAULT_UNSEEN_DAYS = 14
@@ -86,6 +134,18 @@ class PlainHTML(HTMLParser):
         (self.masked_parts if self._masked() else self.parts).append(data)
 
 
+def partie_html_du_corps(msg):
+    """Partie HTML du CORPS de ce message, ou ``None``. Un fichier HTML joint (partie nommée, ou marquée « attachment ») n'est pas le
+    corps : ``get_body`` le proposerait pourtant quand il est rangé « inline » à côté d'un texte vide."""
+    try:
+        part = msg.get_body(preferencelist=('html',))
+    except (LookupError, ValueError, AttributeError):
+        return None
+    if part is None or part.get_content_type() != 'text/html' or part.get_filename() or part.is_attachment():
+        return None
+    return part
+
+
 def body_text(msg):
     body = msg.get_body(preferencelist=('plain', 'html'))
     if body is None:
@@ -95,6 +155,16 @@ def body_text(msg):
     except (LookupError, UnicodeError):
         return ''
     if not isinstance(text, str): return ''
+    # Une partie plain vide ne doit pas cacher la version HTML du même message.
+    if body.get_content_type() == 'text/plain' and not text.strip():
+        alternative = partie_html_du_corps(msg)   # 5.6.109 (C01) : jamais un fichier HTML joint pris pour le corps
+        if alternative is not None:
+            try:
+                contenu = alternative.get_content()
+            except (LookupError, UnicodeError):
+                contenu = ''
+            if isinstance(contenu, str) and contenu.strip():
+                body, text = alternative, contenu
     if body.get_content_type() == 'text/html':
         p = PlainHTML()
         p.feed(text)

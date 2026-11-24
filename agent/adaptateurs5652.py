@@ -42,6 +42,13 @@ ENV_URLS = {
     'recherche_entreprises': {'test': 'https://recherche-entreprises.api.gouv.fr', 'production': 'https://recherche-entreprises.api.gouv.fr'},
     # 5.6.88 : la préproduction de l'INPI a ses propres comptes : un compte du cabinet n'y entre pas ; même hôte pour les deux environnements
     'inpi_rne': {'test': 'https://registre-national-entreprises.inpi.fr', 'production': 'https://registre-national-entreprises.inpi.fr'},
+    # 5.6.109 (lot S, G19 et G21) : services étrangers (pas de bac à sable : même hôte) ; documentations relues le 23 novembre 2026, aucun appel réel
+    'uk_companies_house': {'test': 'https://api.company-information.service.gov.uk', 'production': 'https://api.company-information.service.gov.uk'},
+    'opencorporates': {'test': 'https://api.opencorporates.com/v0.4', 'production': 'https://api.opencorporates.com/v0.4'},
+    'ca_canlii': {'test': 'https://api.canlii.org/v1', 'production': 'https://api.canlii.org/v1'},
+    'us_courtlistener': {'test': 'https://www.courtlistener.com/api/rest/v4', 'production': 'https://www.courtlistener.com/api/rest/v4'},
+    'us_sec': {'test': 'https://data.sec.gov', 'production': 'https://data.sec.gov'},
+    'pappers_international': {'test': 'https://api.pappers.in', 'production': 'https://api.pappers.in'},
 }
 GOOGLE_HOSTS = ('https://www.googleapis.com', 'https://gmail.googleapis.com', 'https://oauth2.googleapis.com', 'https://openidconnect.googleapis.com')
 
@@ -1060,7 +1067,264 @@ class InpiRne(Adapter):
         return {'fichier': raw, 'taille': len(raw)}
 
 
+# ------------------------------------------------------------------------------------------------ 5.6.109 (lot S, G19 et G21) : services étrangers
+# Contrats d'après les documentations officielles (Companies House Public Data et Document API, SEC EDGAR, OpenCorporates, CanLII,
+# CourtListener) relues le 23 novembre 2026 ; AUCUN appel réel n'a été fait : les essais passent par de faux transports. Les plans de requête
+# viennent de ``international56109`` (numéros textuels, pagination bornée) ; aucune adresse n'est choisie par le modèle.
+SONDE_NUMERO_UK = '00000006'     # numéro public neutre pour la sonde « fiche » et « historique » (aucune donnée du cabinet)
+SONDE_CIK = '320193'             # déposant public neutre pour la sonde SEC
+MAX_PAGES_HISTORIQUE = 10        # 10 pages de 100 dépôts au plus par passage : au-delà, l'historique est dit « incomplet »
+MAX_DOCUMENT = 30_000_000
+
+
+def _format_document(raw, accepte=('application/pdf',)):
+    """Format reconnu à l'octet (jamais d'après l'extension seule) ; une page de connexion HTML n'est jamais rangée comme un acte."""
+    tete = bytes(raw[:512]).lstrip().lower()
+    if tete.startswith(b'%pdf-') and 'application/pdf' in accepte:
+        return 'application/pdf'
+    if tete.startswith((b'<!doctype html', b'<html')) or b'<html' in tete[:200]:
+        if 'text/html' in accepte:
+            return 'text/html'
+        raise Stop('document_html_recu')
+    raise Stop('document_illisible')
+
+
+class CompaniesHouse(Adapter):
+    """Companies House (Royaume-Uni) : Public Data API (recherche, fiche, historique des dépôts) et Document API (métadonnées, contenu).
+    Clé de lecture en HTTP Basic (clé comme identifiant, mot de passe vide), envoyée SEULEMENT aux hôtes déclarés ci-dessous ; un 401
+    ne déclenche aucun essai avec une autre identité ; un 429 est rendu tel quel (le travail attend). ``company_number`` reste du texte."""
+    provider = 'uk_companies_house'
+    HOTES_DOCUMENTS = ('frontend-doc-api.company-information.service.gov.uk', 'document-api.company-information.service.gov.uk')
+
+    def headers(self):
+        return {'Authorization': 'Basic ' + base64.b64encode((self.ctx.secret('api_key') + ':').encode()).decode()}
+
+    def identity(self):
+        self.request('GET', '/search/companies?' + urlencode({'q': 'ZORVAL', 'items_per_page': 1}))
+        return {'compte': 'clé Companies House reconnue'}
+
+    def _numero(self, p):
+        from .international56109 import requete_historique_uk
+        numero = SONDE_NUMERO_UK if p.get('sonde') else p.get('numero')
+        requete_historique_uk(numero)            # contrôle de forme : 8 caractères, zéros de tête conservés, jamais un entier
+        return numero
+
+    def cap_societe_rechercher(self, p):
+        q = 'ZORVAL' if p.get('sonde') else str(p.get('query') or '').strip()[:120]
+        out = self.request('GET', '/search/companies?' + urlencode({'q': q, 'items_per_page': 5}))
+        return {'resultats': [{'numero': str(r.get('company_number') or ''), 'nom': r.get('title'), 'statut': r.get('company_status')}
+                              for r in (out.get('items') or []) if isinstance(r, dict)][:5]}
+
+    def cap_societe_lire(self, p):
+        numero = self._numero(p)
+        out = self.request('GET', '/company/' + numero)
+        return {'societe': {'numero': str(out.get('company_number') or numero), 'nom': out.get('company_name'), 'statut': out.get('company_status'),
+                            'juridiction': out.get('jurisdiction'), 'creation': out.get('date_of_creation')}, 'resultats': [numero]}
+
+    def cap_documents_lister(self, p):
+        """Historique paginé et borné ; ``complet`` faux si le nombre annoncé n'est pas atteint (jamais présenté comme exhaustif)."""
+        from .international56109 import requete_historique_uk
+        numero = self._numero(p)
+        documents, total, pages = [], None, 1 if p.get('sonde') else min(int(p.get('pages') or MAX_PAGES_HISTORIQUE), MAX_PAGES_HISTORIQUE)
+        for page in range(pages):
+            r = requete_historique_uk(numero, page=page, taille=100)
+            out = self.request('GET', r['url'][len(self.base):] + '?' + urlencode(r['params']))
+            items = [x for x in (out.get('items') or []) if isinstance(x, dict)]
+            total = int(out.get('total_count') or 0) if total is None else total
+            for x in items:
+                lien = ((x.get('links') or {}).get('document_metadata') or '')
+                documents.append({'reference': str(x.get('transaction_id') or ''), 'date': str(x.get('date') or '')[:10], 'type': str(x.get('type') or ''),
+                                  'categorie': str(x.get('category') or ''), 'description': str(x.get('description') or '')[:200],
+                                  'revision': str(x.get('barcode') or x.get('date') or '')[:60], 'metadonnees': lien if isinstance(lien, str) else '',
+                                  'pages': x.get('pages')})
+            if not items or len(documents) >= total:
+                break
+        return {'documents': documents, 'total': total or 0, 'complet': len(documents) >= (total or 0), 'resultats': documents}
+
+    def _document_url(self, url):
+        p = urlsplit(str(url or ''))
+        if p.scheme != 'https' or (p.hostname or '') not in self.HOTES_DOCUMENTS or p.username or p.password or p.query or p.fragment:
+            raise Stop('adresse_document_refusee')     # la clé ne part jamais vers un hôte non déclaré
+        return 'https://%s%s' % (p.hostname, p.path)
+
+    def cap_documents_telecharger(self, p):
+        """Métadonnées puis contenu PDF (Document API) ; sonde : métadonnées seulement, aucun fichier lu."""
+        if p.get('sonde'):
+            liste = self.cap_documents_lister({'sonde': True})['documents']
+            lien = next((d['metadonnees'] for d in liste if d['metadonnees']), '')
+            if not lien:
+                return {'metadonnees': [], 'resultats': []}
+            meta = self.request('GET', '', url=self._document_url(lien))
+            return {'metadonnees': [sorted((meta.get('resources') or {}).keys())], 'resultats': [1]}
+        meta = self.request('GET', '', url=self._document_url(p.get('metadonnees')))
+        if 'application/pdf' not in (meta.get('resources') or {}):
+            raise Stop('format_document_indisponible')
+        contenu = (meta.get('links') or {}).get('document') or ''
+        raw = self.request('GET', '', url=self._document_url(contenu if contenu.endswith('/content') else contenu + '/content'), raw=True,
+                           limit=MAX_DOCUMENT, accept='application/pdf')
+        return {'fichier': raw, 'taille': len(raw), 'format': _format_document(raw)}
+
+
+class SecEdgar(Adapter):
+    """SEC EDGAR (États-Unis) : déposants couverts seulement (CIK), sans clé ; User-Agent avec le contact déclaré, exigé par la SEC.
+    Le CIK n'est pas l'identifiant d'un registre d'État ; les documents gardent leur format d'origine (souvent HTML)."""
+    provider = 'us_sec'
+    HOTE_ARCHIVES = 'https://www.sec.gov/Archives/edgar/data/'
+
+    def headers(self):
+        contact = str(self.ctx.params.get('contact') or '').strip()
+        if not contact:
+            raise Stop('contact_user_agent_requis')
+        return {'User-Agent': 'AxiorHub ' + contact[:200]}
+
+    def identity(self):
+        self.headers()
+        return {'compte': 'service public sans clé (contact déclaré)'}
+
+    def _soumissions(self, p):
+        from .international56109 import requete_sec
+        r = requete_sec(SONDE_CIK if p.get('sonde') else p.get('cik'))
+        return self.request('GET', '', url=r['url'])
+
+    def cap_societe_lire(self, p):
+        out = self._soumissions(p)
+        return {'societe': {'cik': str(out.get('cik') or ''), 'nom': out.get('name'), 'etat': out.get('stateOfIncorporation')}, 'resultats': [1]}
+
+    def cap_documents_lister(self, p):
+        out = self._soumissions(p)
+        rec = ((out.get('filings') or {}).get('recent') or {})
+        cik = str(int(str(out.get('cik') or p.get('cik') or SONDE_CIK)))
+        docs = []
+        colonnes = [list(rec.get(k) or []) for k in ('accessionNumber', 'primaryDocument', 'filingDate', 'form')]
+        for acc, prim, date, forme in list(zip(*colonnes))[:200]:     # colonnes de longueurs inégales : seules les lignes complètes sont lues
+            acc, prim = str(acc or ''), str(prim or '')
+            if not re.fullmatch(r'[0-9-]{10,30}', acc) or not re.fullmatch(r'[\w.-]{1,200}', prim):
+                continue
+            docs.append({'reference': acc, 'date': str(date or '')[:10], 'type': str(forme or '')[:40], 'revision': acc,
+                         'url': self.HOTE_ARCHIVES + cik + '/' + acc.replace('-', '') + '/' + prim, 'description': prim})
+        return {'documents': docs, 'total': len(docs), 'complet': True, 'resultats': docs}
+
+    def cap_documents_telecharger(self, p):
+        if p.get('sonde'):
+            return {'resultats': self.cap_documents_lister({'sonde': True})['documents'][:1]}
+        url = str(p.get('url') or '')
+        if not url.startswith(self.HOTE_ARCHIVES) or '..' in url or '?' in url:
+            raise Stop('adresse_document_refusee')
+        raw = self.request('GET', '', url=url, raw=True, limit=MAX_DOCUMENT, accept='text/html, application/pdf')
+        return {'fichier': raw, 'taille': len(raw), 'format': _format_document(raw, ('application/pdf', 'text/html'))}
+
+
+class OpenCorporates(Adapter):
+    """OpenCorporates : identité et données de registre (couverture variable selon le pays) ; jamais un acte officiel."""
+    provider = 'opencorporates'
+
+    def headers(self):
+        return {'X-API-TOKEN': self.ctx.secret('api_key')}
+
+    def identity(self):
+        self.request('GET', '/companies/search?' + urlencode({'q': 'ZORVAL', 'per_page': 1}))
+        return {'compte': 'clé OpenCorporates reconnue'}
+
+    def cap_societe_rechercher(self, p):
+        q = 'ZORVAL' if p.get('sonde') else str(p.get('query') or '').strip()[:120]
+        out = self.request('GET', '/companies/search?' + urlencode({'q': q, 'per_page': 5}))
+        rows = ((out.get('results') or {}).get('companies') or [])
+        return {'resultats': [{'numero': str((c.get('company') or {}).get('company_number') or ''), 'juridiction': (c.get('company') or {}).get('jurisdiction_code'),
+                               'nom': (c.get('company') or {}).get('name')} for c in rows if isinstance(c, dict)][:5]}
+
+    def cap_societe_lire(self, p):
+        if p.get('sonde'):
+            return self.cap_societe_rechercher({'sonde': True})
+        jur, num = str(p.get('juridiction') or ''), str(p.get('numero') or '')
+        if not re.fullmatch(r'[a-z]{2}(?:_[a-z]{2})?', jur) or not re.fullmatch(r'[A-Za-z0-9-]{1,40}', num):
+            raise Stop('identite_societe_a_preciser')
+        out = self.request('GET', '/companies/%s/%s' % (jur, quote(num, safe='')))
+        c = (out.get('results') or {}).get('company') or {}
+        return {'societe': {'numero': str(c.get('company_number') or num), 'nom': c.get('name'), 'juridiction': c.get('jurisdiction_code')}, 'resultats': [1]}
+
+
+class CanLII(Adapter):
+    """CanLII : MÉTADONNÉES de décisions et de textes (adresse et données de référence), jamais le texte intégral. La clé passe dans
+    l'adresse (contrat de l'API) : elle est ajoutée en dernier et toute erreur est réduite à son code, sans adresse ni clé."""
+    provider = 'ca_canlii'
+
+    def _get(self, chemin):
+        url = self.base + chemin + ('&' if '?' in chemin else '?') + urlencode({'api_key': self.ctx.secret('api_key')})
+        try:
+            return self.request('GET', '', url=url)
+        except Stop as ex:
+            raise Stop(str(ex).split(':')[0]) from None   # ni l'adresse ni la clé ne remontent dans une erreur ou un journal
+
+    def identity(self):
+        self._get('/caseBrowse/fr/')
+        return {'compte': 'clé CanLII reconnue'}
+
+    def cap_decisions_metadonnees(self, p):
+        if p.get('sonde'):
+            out = self._get('/caseBrowse/fr/')
+            return {'bases': [d.get('databaseId') for d in (out.get('caseDatabases') or []) if isinstance(d, dict)][:20], 'contenu': 'metadonnees_seulement'}
+        from .international56109 import requete_canlii
+        r = requete_canlii(p.get('base'), p.get('decision'), p.get('langue') or 'fr')
+        out = self._get(r['url'][len(self.base):])
+        return {'decision': {k: out.get(k) for k in ('databaseId', 'caseId', 'title', 'citation', 'decisionDate', 'url', 'language')},
+                'contenu': 'metadonnees_seulement', 'resultats': [1]}
+
+    def cap_textes_metadonnees(self, p):
+        out = self._get('/legislationBrowse/fr/')
+        return {'bases': [d.get('databaseId') for d in (out.get('legislationDatabases') or []) if isinstance(d, dict)][:20], 'contenu': 'metadonnees_seulement'}
+
+
+class CourtListener(Adapter):
+    """CourtListener : décisions des fonds couverts selon les droits du compte ; aucune récupération PACER payante (non proposée)."""
+    provider = 'us_courtlistener'
+
+    def headers(self):
+        return {'Authorization': 'Token ' + self.ctx.secret('api_key')}
+
+    def identity(self):
+        self.request('GET', '/search/?' + urlencode({'q': 'contract', 'type': 'o', 'page_size': 1}))
+        return {'compte': 'jeton CourtListener reconnu'}
+
+    def cap_decisions_rechercher(self, p):
+        q = 'contract' if p.get('sonde') else str(p.get('query') or '').strip()[:200]
+        out = self.request('GET', '/search/?' + urlencode({'q': q, 'type': 'o', 'page_size': 5}))
+        return {'resultats': [{'id': r.get('cluster_id'), 'titre': r.get('caseName'), 'date': r.get('dateFiled'), 'juridiction': r.get('court')}
+                              for r in (out.get('results') or []) if isinstance(r, dict)][:5]}
+
+    def _ident(self, p):
+        ident = str(p.get('id') or '')
+        if not re.fullmatch(r'[0-9]{1,12}', ident):
+            raise Stop('reference_decision_invalide')
+        return ident
+
+    def cap_decisions_metadonnees(self, p):
+        if p.get('sonde'):
+            return self.cap_decisions_rechercher({'sonde': True})
+        out = self.request('GET', '/clusters/%s/' % self._ident(p))
+        return {'decision': {k: out.get(k) for k in ('id', 'case_name', 'date_filed', 'absolute_url')}, 'resultats': [1]}
+
+    def cap_decisions_lire(self, p):
+        if p.get('sonde'):
+            return self.cap_decisions_rechercher({'sonde': True})
+        out = self.request('GET', '/opinions/%s/' % self._ident(p))
+        return {'texte': str(out.get('plain_text') or '')[:200000], 'resultats': [1]}
+
+
+class PappersInternational(Adapter):
+    """Pappers International : routes, pays et produits selon l'offre du compte, différents de Pappers France ; adaptateur à qualifier sur
+    un compte réel avant tout usage (aucune route supposée)."""
+    provider = 'pappers_international'
+
+    def identity(self):
+        raise Stop('adaptateur_a_qualifier')
+
+    def call(self, capability, params):
+        raise Stop('adaptateur_a_qualifier')
+
+
 ADAPTERS = {'ar24': AR24, 'youtrust': Youtrust, 'legifrance_piste': Legifrance, 'judilibre_piste': Judilibre, 'pappers_justice': PappersJustice,
             'pennylane': Pennylane, 'docusign': DocuSign, 'superpdp': SuperPDP, 'b2brouter': B2Brouter, 'gocardless': GoCardless,
             'chorus_pro': ChorusPro, 'maileva': Maileva, 'microsoft_graph': MicrosoftGraph, 'google_workspace': GoogleWorkspace, 'axonaut': Axonaut,
-            'recherche_entreprises': RechercheEntreprises, 'inpi_rne': InpiRne}
+            'recherche_entreprises': RechercheEntreprises, 'inpi_rne': InpiRne,
+            'uk_companies_house': CompaniesHouse, 'us_sec': SecEdgar, 'opencorporates': OpenCorporates, 'ca_canlii': CanLII,
+            'us_courtlistener': CourtListener, 'pappers_international': PappersInternational}

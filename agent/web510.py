@@ -50,7 +50,7 @@ MESSAGES = {
     'fournisseur_ia_injoignable': 'Le modèle d’IA est injoignable depuis le serveur : Ollama est-il démarré (sudo systemctl status ollama) ?',
     'fournisseur_ia_inactif': 'Le fournisseur d’IA choisi pour cette fonction est désactivé (Paramètres › IA).',
     'modele_fournisseur_absent': 'Aucun modèle d’IA n’est choisi pour cette fonction (Paramètres › IA).',
-    'generation_ia_incomplete': 'Le modèle d’IA a rendu une réponse incomplète ; réessayez ou choisissez un modèle plus capable.',
+    'generation_ia_incomplete': 'La réponse du modèle a été coupée à la longueur maximale accordée : rien n’est rendu comme résultat. Réessayez ; si cela se répète, signalez-le à l’administrateur.',   # 5.6.109 (lot E) : ne met plus en cause la « capacité » du modèle
     'reponse_ia_vide': 'Le modèle d’IA a rendu une réponse vide.',
     'json_ia_invalide': 'Le modèle d’IA n’a pas respecté le format demandé ; réessayez ou choisissez un modèle plus capable.',
     'contexte_trop_long': 'Trop de texte à transmettre au modèle d’IA : précisez la demande ou réduisez les pièces.',

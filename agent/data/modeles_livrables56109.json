@@ -1,0 +1,552 @@
+{
+ "schema_version": 1,
+ "date_revision": "2026-11-20",
+ "default_skill": "assistant_juridique",
+ "statut_global": "trames_structurelles_a_valider",
+ "modeles": [
+  {
+   "id": "chronologie-sourcee",
+   "version": 1,
+   "label": "Chronologie sourcée",
+   "kind": "chronologie",
+   "practice": "contentieux",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "mission",
+    "sources"
+   ],
+   "missing_information_question": "Quelle période et quels événements faut-il couvrir ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Date",
+    "Événement",
+    "Statut de preuve",
+    "Source",
+    "Point à clarifier"
+   ],
+   "default_payload": {
+    "kind": "chronologie",
+    "title": "Chronologie sourcée",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Date",
+       "Événement",
+       "Statut de preuve",
+       "Source",
+       "Point à clarifier"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "arguments-preuves",
+   "version": 1,
+   "label": "Arguments et preuves",
+   "kind": "arguments_preuves",
+   "practice": "contentieux",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "demandes",
+    "parties",
+    "sources"
+   ],
+   "missing_information_question": "Quelle demande ou quel argument faut-il traiter en premier ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Demande",
+    "Argument du cabinet",
+    "Objection adverse",
+    "Preuve et passage",
+    "Lacune"
+   ],
+   "default_payload": {
+    "kind": "arguments_preuves",
+    "title": "Arguments et preuves",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Demande",
+       "Argument du cabinet",
+       "Objection adverse",
+       "Preuve et passage",
+       "Lacune"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "consultation-options",
+   "version": 1,
+   "label": "Consultation avec options",
+   "kind": "consultation",
+   "practice": "conseil",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "question",
+    "droit_applicable",
+    "sources"
+   ],
+   "missing_information_question": "Quel objectif le client veut-il atteindre ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Question",
+    "Faits établis",
+    "Règle vérifiée",
+    "Option",
+    "Risque",
+    "Recommandation"
+   ],
+   "default_payload": {
+    "kind": "consultation",
+    "title": "Consultation avec options",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Question",
+       "Faits établis",
+       "Règle vérifiée",
+       "Option",
+       "Risque",
+       "Recommandation"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "negociation-contrat",
+   "version": 1,
+   "label": "Analyse et négociation de contrat",
+   "kind": "contrat",
+   "practice": "conseil",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "contrat_version",
+    "client_represente",
+    "objectifs"
+   ],
+   "missing_information_question": "Quelle partie représentez-vous et quels points sont prioritaires ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Clause et version",
+    "Position du cabinet",
+    "Risque",
+    "Modification proposée",
+    "Message de négociation"
+   ],
+   "default_payload": {
+    "kind": "contrat",
+    "title": "Analyse et négociation de contrat",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Clause et version",
+       "Position du cabinet",
+       "Risque",
+       "Modification proposée",
+       "Message de négociation"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "obligations-signees",
+   "version": 1,
+   "label": "Suivi des obligations après signature",
+   "kind": "obligations",
+   "practice": "conseil",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "contrat_signe",
+    "roles",
+    "sources"
+   ],
+   "missing_information_question": "Dispose-t-on de la version signée et de sa date d’effet ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Obligation",
+    "Débiteur",
+    "Déclencheur",
+    "Date à vérifier",
+    "Responsable",
+    "État",
+    "Source"
+   ],
+   "default_payload": {
+    "kind": "obligations",
+    "title": "Suivi des obligations après signature",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Obligation",
+       "Débiteur",
+       "Déclencheur",
+       "Date à vérifier",
+       "Responsable",
+       "État",
+       "Source"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "audit-acquisition",
+   "version": 1,
+   "label": "Audit juridique d acquisition",
+   "kind": "audit",
+   "practice": "conseil",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "operation",
+    "perimetre",
+    "sources"
+   ],
+   "missing_information_question": "Quel périmètre d’audit et quelle date de remise sont convenus ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Périmètre",
+    "Document",
+    "Constat",
+    "Source",
+    "Information manquante",
+    "Action"
+   ],
+   "default_payload": {
+    "kind": "audit",
+    "title": "Audit juridique d acquisition",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Périmètre",
+       "Document",
+       "Constat",
+       "Source",
+       "Information manquante",
+       "Action"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "cession-fonds-bail",
+   "version": 1,
+   "label": "Cession de fonds et de bail",
+   "kind": "checklist",
+   "practice": "conseil",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "operation",
+    "juridiction",
+    "parties"
+   ],
+   "missing_information_question": "S’agit-il du fonds, du bail seul ou d’une opération associant les deux ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Étape",
+    "Prérequis",
+    "Acte ou formalité",
+    "Responsable",
+    "Source et règle vérifiées",
+    "État"
+   ],
+   "default_payload": {
+    "kind": "checklist",
+    "title": "Cession de fonds et de bail",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Étape",
+       "Prérequis",
+       "Acte ou formalité",
+       "Responsable",
+       "Source et règle vérifiées",
+       "État"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "cession-titres",
+   "version": 1,
+   "label": "Cession de parts et d actions",
+   "kind": "checklist",
+   "practice": "conseil",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "forme_societe",
+    "titres",
+    "statuts_version"
+   ],
+   "missing_information_question": "Quelle est la forme sociale et quelle version des statuts fait foi ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Étape",
+    "Titre ou pièce",
+    "Validation",
+    "Responsable",
+    "Source",
+    "État"
+   ],
+   "default_payload": {
+    "kind": "checklist",
+    "title": "Cession de parts et d actions",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Étape",
+       "Titre ou pièce",
+       "Validation",
+       "Responsable",
+       "Source",
+       "État"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "budget-honoraires",
+   "version": 1,
+   "label": "Budget d honoraires du cabinet",
+   "kind": "budget",
+   "practice": "mixte",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "bareme_parametres",
+    "perimetre",
+    "modalites"
+   ],
+   "missing_information_question": "Quel périmètre d’intervention doit être chiffré ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Prestation",
+    "Barème et version",
+    "Conditions",
+    "Quantité",
+    "Montant calculé",
+    "Validation"
+   ],
+   "default_payload": {
+    "kind": "budget",
+    "title": "Budget d honoraires du cabinet",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Prestation",
+       "Barème et version",
+       "Conditions",
+       "Quantité",
+       "Montant calculé",
+       "Validation"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "bordereau-pieces",
+   "version": 1,
+   "label": "Bordereau de communication de pièces",
+   "kind": "bordereau",
+   "practice": "contentieux",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "pieces_selectionnees",
+    "instance",
+    "partie_emettrice"
+   ],
+   "missing_information_question": "Quelles pièces doivent réellement être communiquées par cette partie ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Numéro",
+    "Désignation",
+    "Fichier et version",
+    "État de communication",
+    "Source"
+   ],
+   "default_payload": {
+    "kind": "bordereau",
+    "title": "Bordereau de communication de pièces",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Numéro",
+       "Désignation",
+       "Fichier et version",
+       "État de communication",
+       "Source"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "brief-audience",
+   "version": 1,
+   "label": "Brief d audience",
+   "kind": "brief",
+   "practice": "contentieux",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "audience",
+    "demandes",
+    "actes_version"
+   ],
+   "missing_information_question": "Quelle audience et quelle version des demandes doivent être retenues ?",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Demande",
+    "Point litigieux",
+    "Argument",
+    "Pièce à ouvrir",
+    "Question ou décision"
+   ],
+   "default_payload": {
+    "kind": "brief",
+    "title": "Brief d audience",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Demande",
+       "Point litigieux",
+       "Argument",
+       "Pièce à ouvrir",
+       "Question ou décision"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "suivi-procedural",
+   "version": 1,
+   "label": "Plan procédural à vérifier",
+   "kind": "checklist",
+   "practice": "contentieux",
+   "jurisdiction": null,
+   "legal_review": null,
+   "status": "a_valider",
+   "required_inputs": [
+    "instance",
+    "actes",
+    "calendrier"
+   ],
+   "missing_information_question": "Quel calendrier ou acte ouvre le délai ? Aucun délai ne sera déduit sans source.",
+   "default_skill": "assistant_juridique",
+   "external_effects": false,
+   "columns": [
+    "Action",
+    "Événement de départ",
+    "Règle vérifiée",
+    "Date proposée ou confirmée",
+    "Source",
+    "Responsable"
+   ],
+   "default_payload": {
+    "kind": "checklist",
+    "title": "Plan procédural à vérifier",
+    "blocks": [
+     {
+      "id": "principal",
+      "type": "table",
+      "columns": [
+       "Action",
+       "Événement de départ",
+       "Règle vérifiée",
+       "Date proposée ou confirmée",
+       "Source",
+       "Responsable"
+      ],
+      "rows": [],
+      "source_ids": []
+     }
+    ]
+   }
+  }
+ ],
+ "source": "Trames de structure du dossier technique 5.6.109 (atelier109-modeles.json), à valider par le cabinet ; aucune page Atelier."
+}

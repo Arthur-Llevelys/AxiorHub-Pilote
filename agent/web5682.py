@@ -40,7 +40,8 @@ def api(env, desk, auth, prefix, name, args, method):
             raise Stop('operation_absente')
         return json_out(recherche5682.search(desk, args.get('q', ''), owner, role))
     route = name[len('m5682/'):].split('?', 1)[0]
-    if route not in ('politique', 'catalogue', 'session/export', 'session/import', 'mistral/tester', 'mistral/enregistrer'):
+    if route not in ('politique', 'catalogue', 'session/export', 'session/import', 'mistral/tester', 'mistral/enregistrer',
+                     'mistral/modele', 'essai-requete'):   # 5.6.109 (lot E) : « Modèle à choisir », essai d'une requête réelle (texte fictif)
         raise Stop('operation_absente')
     if method != 'POST':
         raise Stop('methode_refusee')
@@ -49,6 +50,12 @@ def api(env, desk, auth, prefix, name, args, method):
     data = _post(env, auth, 80_000)
     if route == 'politique':
         return json_out(_policy(desk, owner, data))
+    if route == 'essai-requete':          # 5.6.109 (lot E, point 6) : même forme que la rédaction, courriel fictif ; motif précis d'un refus
+        from .modeles_catalogue56109 import essai_requete
+        return json_out(essai_requete(desk, str(data.get('provider') or ''), owner))
+    if route == 'mistral/modele':         # 5.6.109 (lot E, point 2) : choix explicite d'un modèle du catalogue de la clé
+        from . import mistral5696
+        return json_out(mistral5696.choisir_modele(desk, str(data.get('modele') or ''), data.get('revision'), owner))
     if route.startswith('mistral/'):      # 5.6.96 (A02, A03) : tester puis enregistrer une clé Studio ; la réponse ne contient jamais la clé
         from . import mistral5696
         if route == 'mistral/tester':

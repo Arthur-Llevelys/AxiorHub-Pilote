@@ -36,7 +36,26 @@ TEXT_TYPES = {'.md': 'markdown', '.txt': 'texte', '.json': 'json', '.yaml': 'yam
 FILE_TYPES = {'.docx': 'modele', '.dotx': 'modele', '.xlsx': 'tableur', '.pdf': 'pdf'}
 SCRIPT_TYPES = ('.py', '.pyc', '.js', '.mjs', '.cjs', '.sh', '.bash', '.php', '.pl', '.rb', '.ps1', '.bat', '.cmd')
 # Décisions du cahier (SK04) : un script remplacé par un service testé, sinon indisponible avec son motif.
-SCRIPT_SERVICES = {'verify_links': ('service', 'liens5683.verifier', 'Vérification des liens par le service réseau d’AxiorHub.')}
+SCRIPT_SERVICES = {'verify_links': ('service', 'liens5683.verifier', 'Vérification des liens par le service réseau d’AxiorHub.'),
+                   # 5.6.109 (lot K, F06, § 7) : outils transmis par le cabinet rapprochés des services natifs ; le script lui-même n'est jamais exécuté
+                   'extract_references': ('service', 'references56108.extraire', 'Références candidates relevées par le service d’extraction '
+                                          'd’AxiorHub ; un motif reconnu reste une référence à vérifier.'),
+                   'format_citation': ('service', 'citations5697.normaliser', 'Forme normalisée par le service natif (fournisseur, zone, date utile), '
+                                       'statut de vérification conservé.'),
+                   'knowledge_memory_tool': ('service', 'savoir5659.select', 'Mémoire native versionnée du cabinet (portée, provenance, corrections) ; '
+                                             'aucune base commune entre dossiers.'),
+                   'llm_council': ('service', 'conseil56108.lancer', 'Conseil de modèles d’AxiorHub, facultatif, borné par la politique des données '
+                                   'et le budget ; un vote de modèles ne prouve rien.'),
+                   'skills_manager_tool_fix': ('service', 'competences5632.import_skill', 'Registre et import déclaratif natifs des compétences ; '
+                                               'aucune installation par le modèle.'),
+                   'legal_pleading_creator_v1_0': ('service', 'modeles5684.selectionner', 'Modèles du cabinet et édition Word native, versions '
+                                                   'conservées dans le dossier.'),
+                   'generate_bibliography': ('indisponible', '', 'Bibliographie : à produire depuis les références retenues et vérifiées ; formateur '
+                                             'natif non livré dans cette version, le script n’est pas exécuté.'),
+                   'hal_search': ('indisponible', '', 'Recherche HAL : adaptateur facultatif du registre de sources non livré dans cette version ; '
+                                  'aucune requête n’est envoyée.'),
+                   'frontier_ui': ('indisponible', '', 'Interface générée non reprise : les composants natifs suffisent ; aucune image, carte ni '
+                                   'écriture de fichier n’est activée.')}
 SCRIPT_UNAVAILABLE = 'Script importé non exécuté : aucun service équivalent livré, la fonction est indisponible.'
 CORE_TITLES = ('role', 'posture', 'regle', 'principe', 'interdit', 'limite', 'controle', 'obligatoire')
 PHASE_WORDS = {'analyse': 'analyse preuve fait qualification recherche', 'redaction_document': 'redaction acte document modele clause',

@@ -84,6 +84,11 @@ def representation(desk, mid):
         out.append({'id': p['id'], 'nom': p['display_name'], 'client': bool(p['client']), 'qualite': ', '.join(roles), 'conseil': counsel,
                     'version': p['version'], 'sources': _sources([a['source'] for a in p['aliases']])})
     out.sort(key=lambda x: (not x['client'], x['nom']))
+    try:   # 5.6.109 (lot D, F04) : projection commune — les parties inscrites au registre priment ; les mentions non rapprochées restent « à vérifier »
+        from .projection56109 import unifier_representation
+        out = unifier_representation(desk, mid, out)
+    except Exception:   # noqa: BLE001 — projection indisponible : la liste extraite reste affichée, comme avant
+        pass
     return out
 
 

@@ -98,7 +98,7 @@ FAMILLES = {
 # Annexe (``function_capability_matrix_proposed``) : capacités de service proposées, par groupe du registre. Elles n'existent pas sous ces noms.
 PROPOSEES = {'communiquer': ('communication.read', 'communication.prepare'), 'dossier': ('matter.read', 'document.read', 'document.propose'), 'rechercher': ('search.authorized', 'source.read'),
              'temps': ('time.read', 'billing.prepare'), 'modeles': ('template.read', 'document.prepare'), 'regler': ('help.read', 'diagnostic.read')}
-AIDE_SEULE = ('mon_compte', 'journal_audit', 'vue_ia', 'administration', 'securite_serveur', 'fichiers')       # 5.6.103 (lot F) : Fichiers, aide seule ; l'annexe les borne à l'aide : aucune lecture de secret ni changement autonome des droits
+AIDE_SEULE = ('mon_compte', 'journal_audit', 'vue_ia', 'administration', 'securite_serveur', 'fichiers', 'telephonie_bland')       # 5.6.103 (lot F) : Fichiers, aide seule ; 5.6.109 (I2) : téléphonie Bland, aide seule ; l'annexe les borne à l'aide : aucune lecture de secret ni changement autonome des droits
 MANUEL_TALK = 'Talk est affiché dans un cadre : AxiorHub n’y lit rien et n’y écrit rien. Copiez le texte préparé et envoyez-le vous-même. Le salon d’une réunion peut être préparé par les automatismes du rendez-vous, si le cabinet les a activés.'
 MANUEL_DECK = 'Deck : seul le tableau de suivi des travaux de l’agent est synchronisé, si le cabinet l’a activé. Une carte demandée ici reste à créer à la main.'
 MANUEL_NOTES = 'Notes : lu par le point hebdomadaire seulement, rien n’y est écrit. Une note préparée ici reste à coller à la main.'
@@ -226,6 +226,10 @@ LIGNES = (
     # 5.6.103 (lot F) : page « Fichiers » — aide seulement : aucun contenu de fichier n'est lu par un modèle depuis cette page
     ('fichiers', 'reglages', 'Expliquer le fonctionnement de l’explorateur (volets, renommage par lot, versions, ZIP).', ('fichiers56103.lister',), ('expliquer',), (),
      ('Aucune lecture du contenu d’un fichier par un modèle depuis cette page.',)),
+    # 5.6.109 (lot B, intégration I2) : téléphonie par IA (Bland) — aide seulement : l'IA explique ; chaque appel, SMS ou agent est préparé puis
+    # confirmé par l'avocat depuis l'interface, jamais déclenché par un modèle
+    ('telephonie_bland', 'courriels', 'Expliquer la connexion Bland, les demandes à confirmer et le rappel de rendez-vous au client.', ('bland56109.vue',), ('expliquer',), (),
+     ('Aucun appel, SMS ou agent n’est déclenché par l’IA : chaque action est confirmée par l’avocat.',)),
 )
 FICHES = {}
 

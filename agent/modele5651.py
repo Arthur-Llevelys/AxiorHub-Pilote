@@ -1017,6 +1017,11 @@ def rebuild(desk, mid, force=False):
         after_rebuild(desk, mid)
     except Exception:   # noqa: BLE001 — un bilan impossible n'empêche jamais l'actualisation
         pass
+    try:   # 5.6.109 (lot D, C10) : mentions des actes et des contrats gardées avec leur contexte (source, zone, ligne, qualité) ; sans IA, rien n'est inscrit
+        from .projection56109 import relever_mentions
+        relever_mentions(desk, mid, inv)
+    except Exception:   # noqa: BLE001 — un relevé impossible n'empêche jamais l'actualisation
+        pass
     desk.db.execute('INSERT OR REPLACE INTO d51_rebuilds(matter,at,counters,revision) VALUES(?,?,?,?)', (mid, now, json.dumps(counters), revision))
     desk.db.commit()
     return counters

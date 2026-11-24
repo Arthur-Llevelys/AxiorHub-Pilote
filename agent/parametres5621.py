@@ -27,10 +27,11 @@ RUBRIQUES = (
     ('cabinet', 'Cabinet, comptes et confidentialité', 'Comptes et mots de passe, cabinet et utilisateurs, confidentialité, droits et sécurité'),
     ('poste', 'Confort et maintenance', 'Mobile, recherche, raccourcis clavier, sauvegarde et export, maintenance, diagnostic de l’agent'),
     ('interface', 'Interface', 'Présentation Carbon, nouvelle page Aujourd’hui, anciennes vues'),
+    ('apparence', 'Apparence', 'Couleur du menu de gauche (clair et sombre), mode d’affichage, épingler Discussions IA'),   # 5.6.109 (lot H, F10)
 )
 FAMILIES = (('Démarrer', ('apercu', 'demarrage')), ('Connexions et courriels', ('connexions', 'stockage', 'messagerie')),
             ('IA et automatisations', ('ia', 'horaires', 'voix', 'recherche')), ('Travail de l’agent', ('routines', 'documents')),
-            ('Cabinet', ('cabinet', 'poste', 'interface')))
+            ('Cabinet', ('cabinet', 'poste', 'interface', 'apparence')))
 KEYWORDS = {'demarrage': 'assistant demarrage profil cabinet identite alias adresses propres qualification preuves preparation demonstration fictive hebergement',
             'stockage': 'stockage cloud nextcloud google drive sharepoint onedrive dropbox copie migration nommage rangement cloisonnement partage oauth',
             'connexions': 'imap smtp mot de passe serveur nextcloud webdav caldav agenda google outlook ollama invoice ninja talk api connexion',
@@ -43,6 +44,7 @@ KEYWORDS = {'demarrage': 'assistant demarrage profil cabinet identite alias adre
             'documents': 'word onlyoffice collabora brouillon versions procedure role dossier modeles agendas',
             'cabinet': 'compte administrateur identifiant mot de passe utilisateurs confidentialite droits acces securite',
             'interface': 'theme carbon clair sombre accueil aujourdhui ancienne interface retour anciennes vues cockpit essentiel',
+            'apparence': 'apparence couleur menu gauche barre laterale contraste clair sombre theme epingler discussions ia historique',   # 5.6.109 (lot H, F10)
             'poste': 'mobile telephone smartphone telephones associes qr appareil notification clavier raccourcis maintenance purge sauvegarde chiffree restauration phrase export reversibilite manifeste webdav s3 diagnostic blocage file etat systeme '
                      'charge serveur frequence surveillance documents requetes nextcloud'}
 RUBRIQUE_ALIASES = {'sources': 'recherche', 'veille': 'recherche', 'comptes': 'cabinet'}   # anciennes rubriques fusionnées
@@ -203,6 +205,12 @@ def _ia(desk, auth, prefix, env, cap):
         body += _section(_conseil108(desk, prefix, _actor108k(env)[1]))
     except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
         body += _section('<section class="ax-card" id="conseil56108"><h2>Conseil de modèles</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    try:   # 5.6.109 (lot K, F07) : « Organisation locale des demandes » (désactivée par défaut ; observation ; activée), questions ciblées en attente
+        from .decision56109 import section_html as _decision109
+        from .web567 import actor as _actor109k
+        body += _section(_decision109(desk, prefix, _actor109k(env)[1], _actor109k(env)[0]))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        body += _section('<section class="ax-card" id="decision56109"><h2>Organisation locale des demandes</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
     try:   # 5.6.102 (lot M) : « Pilote dans la messagerie instantanée » (réglage du cabinet, activé par défaut)
         from .pilote_messagerie56102 import reglage_html as _pilote102
         from .web567 import actor as _actor102
@@ -290,6 +298,20 @@ def _cabinet(desk, auth, prefix, env, cap):
     body = _comptes(desk, auth, prefix, env, cap)
     for tab, title in (('cabinet', 'Cabinet et utilisateurs'), ('confidentialite', 'Confidentialité')):
         body += _section(_legacy(desk, prefix, auth['csrf'], tab), title)
+    try:   # 5.6.109 (lot D, F05) : Paramètres › Cabinet › Prestations et honoraires (catalogue du cabinet, conditions, publication, simulation)
+        from urllib.parse import parse_qs
+        from .catalogue56109 import section_html as _catalogue109
+        from .web567 import actor as _actor109
+        _args109 = {k: v[0] for k, v in parse_qs(env.get('QUERY_STRING', ''), max_num_fields=20).items()}
+        body += _section(_catalogue109(desk, prefix, *_actor109(env), _args109))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        body += _section('<section class="ax-card" id="catalogue56109"><h2>Prestations et honoraires</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    try:   # 5.6.109 (lot H, F09) : Paramètres › Cabinet › Discussions IA (suppression, partage interne, durée de la corbeille : administrateur)
+        from .discussions56109 import politique_html as _politique109
+        from .web567 import actor as _acteur109
+        body += _politique109(desk, prefix, _acteur109(env)[1])
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable
+        pass
     body += _section(_links(prefix, (('/parametres/droits', 'Droits et accès des comptes'), ('/securite-ia', 'Sécurité de l’IA'),
                                      ('/parametres/ia-visible', 'Ce que l’IA peut voir'), ('/parametres/gouvernance', 'Données et budget de l’IA'), ('/banc-essai', 'Banc d’essai et état des fonctions'), ('/parametres/journal-audit', 'Journal d’audit'),
                                      ('/tracabilite', 'Traçabilité : données vues par le modèle'))), 'Droits, sécurité et traçabilité')
@@ -318,6 +340,9 @@ def _poste(desk, auth, prefix, env, cap):
         if key == 'mobile':   # 5.6.74 : téléphones associés par QR code
             from .appareils5674 import settings_html as _ap74
             body += _section(_ap74(desk.c['state_dir'], auth, env.get('axiorhub.user')))
+    from .contexte56109 import section_html as _local109   # 5.6.109 (lot Q, F13) : « Fichiers de ce poste » (emplacements autorisés, lecture seule)
+    from .web567 import actor as _actor109l
+    body += _section(_local109(desk, _actor109l(env), prefix, auth))
     try:   # 5.6.103 (lot L) : liaison entre postes du cabinet (poste de travail seulement ; désactivée par défaut)
         from .liaison_web56103 import section_html as _liaison103
         body += _section(_liaison103(desk, auth, prefix, env))
@@ -361,7 +386,9 @@ def _poste(desk, auth, prefix, env, cap):
 
 def _recherche(desk, auth, prefix, env, cap):
     """5.6.60 : sources juridiques et veille (anciennes rubriques « Sources juridiques » et « Veille et recherche Internet »)."""
-    return _sources(desk, auth, prefix, env, cap) + _veille(desk, auth, prefix, env, cap)
+    from .fonds_juridique56109 import section_html as _fonds109   # 5.6.109 (lot Q, G23) : « Fonds juridique local » (aucune nouvelle page)
+    from .web567 import actor as _actor109q
+    return _sources(desk, auth, prefix, env, cap) + _section(_fonds109(desk, prefix, _actor109q(env)[1])) + _veille(desk, auth, prefix, env, cap)
 
 
 def _status_rows(desk):
@@ -486,7 +513,13 @@ def _interface(desk, auth, prefix, env, cap):   # 5.6.89 : drapeaux de la nouvel
     return section_cabinet(desk, prefix, actor(env)[1]) + reglages_html(desk, actor(env)[1] == 'administrateur') + anciennes_vues_html(prefix)
 
 
-BUILDERS = {'apercu': _apercu, 'interface': _interface, 'demarrage': _demarrage, 'connexions': _connexions, 'stockage': _stockage, 'ia': _ia, 'horaires': _horaires, 'voix': _voix, 'routines': _routines, 'documents': _documents,
+def _apparence(desk, auth, prefix, env, cap):   # 5.6.109 (lot H, F10) : couleur du menu de gauche, mode, épingle « Discussions IA » (préférence du compte)
+    from .apparence56109 import section_html
+    from .web567 import actor
+    return '<details class="p5621-section p5660-sec" id="apparence"><summary>Couleur du menu et affichage</summary>' + section_html(desk, prefix, actor(env)[0]) + '</details>'
+
+
+BUILDERS = {'apercu': _apercu, 'interface': _interface, 'apparence': _apparence, 'demarrage': _demarrage, 'connexions': _connexions, 'stockage': _stockage, 'ia': _ia, 'horaires': _horaires, 'voix': _voix, 'routines': _routines, 'documents': _documents,
             'cabinet': _cabinet, 'poste': _poste, 'recherche': _recherche, 'messagerie': _messagerie}
 
 

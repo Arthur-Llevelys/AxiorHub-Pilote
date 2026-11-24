@@ -49,7 +49,8 @@ def api(env, desk, auth, prefix, name, args, method):
                 raise Stop('dossier_reserve')
             if not any(str(m['id']) == matter for m in load_matters(desk.c)):
                 raise Stop('dossier_inconnu')
-        out = mgr.start(owner, str(data.get('tache') or ''), matter)
+        preuve = str(data.get('preuve') or '')   # 5.6.109 (lot O) : preuve de fin exigée (fichier reçu, page enregistrée) ; rôle relu à la reprise
+        out = mgr.start(owner, str(data.get('tache') or ''), matter, role=role, preuves=(preuve,) if preuve else ())
         desk.audit('navigateur5673_lancement', {'seance': out['id'], 'dossier': matter, 'par': str(owner)[:80]})
         return json_out({'ok': True, 'seance': out, 'message': 'L’agent démarre dans la fenêtre du navigateur.'})
     sid = str(data.get('id') or '')
@@ -61,7 +62,10 @@ def api(env, desk, auth, prefix, name, args, method):
                                                                 'reprendre': 'L’agent reprend.'}.get(choice, 'Enregistré.')})
     if route == 'main':
         on = str(data.get('prendre') or '') in ('1', 'oui', 'true')
-        return json_out({'ok': True, 'seance': mgr.take(sid, on), 'message': 'Vous avez la main : l’agent attend.' if on else 'L’agent reprend la main.'})
+        out = mgr.take(sid, on, acteur=(owner, role), desk=desk)   # 5.6.109 (lot O, G13) : main rendue seulement une fois acquittée
+        return json_out({'ok': True, 'seance': out, 'message': ('La main est à vous : plus aucune commande de l’agent n’est en cours.' if out.get('main_acquittee')
+                                                                else 'Transfert de la main en cours : attendez la confirmation avant toute saisie.')
+                         if on else 'L’agent reprend : nouvelle observation de la page, droits relus.'})
     if route == 'arreter':
         out = mgr.stop(sid)
         desk.audit('navigateur5673_arret', {'seance': sid, 'par': str(owner)[:80]})
@@ -100,7 +104,8 @@ def page_html(desk, prefix, args, env, auth=None):
                        '<button class="ax-btn" type="submit">Enregistrer la liste</button></form></details>') % (
             len(nv.sites(desk)), e('\n'.join(nv.sites(desk))))
     rows = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
-        e(h['debut'][:16].replace('T', ' ')), e(h['tache'][:120]), e({'termine': 'terminé', 'arrete': 'arrêté', 'erreur': 'interrompu'}.get(h['etat'], h['etat'])),
+        e(h['debut'][:16].replace('T', ' ')), e(h['tache'][:120]), e({'termine': 'terminé', 'arrete': 'arrêté', 'erreur': 'interrompu', 'limite_atteinte': 'limite atteinte — à reprendre',
+           'a_verifier': 'à vérifier'}.get(h['etat'], h['etat'])),
         e(', '.join(f['nom'] for f in h['fichiers'])[:200] or '—')) for h in nv.history(desk, 10))
     return ('<section class="ax-card n5673" id="n5673" data-prefix="%s"><h2>Navigateur supervisé</h2>%s'
             '<p class="ax-muted">Navigateur utilisé : <code>%s</code></p>'
@@ -112,4 +117,13 @@ def page_html(desk, prefix, args, env, auth=None):
             '<button class="ax-btn" type="submit">Lancer</button></form>%s'
             '<h3>Dernières séances</h3><div class="table"><table><thead><tr><th>Début</th><th>Tâche</th><th>Fin</th><th>Fichiers</th></tr></thead>'
             '<tbody>%s</tbody></table></div></section>') % (
-        e(prefix, quote=True), intro, e(found), options, sites_block, rows or '<tr><td colspan="4">Aucune séance.</td></tr>')
+        e(prefix, quote=True), intro, e(found), options, sites_block, rows or '<tr><td colspan="4">Aucune séance.</td></tr>') + _modele56109(desk, prefix, env, auth)
+
+
+def _modele56109(desk, prefix, env, auth):
+    """5.6.109 (lot O, G24 et F12) : modèle du navigateur réellement retenu (origine, profil, qualification) et accès à ce poste, en lecture seule."""
+    from .navigateur56109 import section_html
+    from .poste56109 import section_html as poste_html
+    from .web567 import actor
+    acteur = actor(env)
+    return section_html(desk, prefix, acteur[1]) + poste_html(desk, acteur, auth)

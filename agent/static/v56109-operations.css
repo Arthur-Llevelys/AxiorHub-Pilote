@@ -1,0 +1,36 @@
+/* AxiorHub 5.6.109 (lot G3) — blocs insérés dans les écrans existants (g3-) : « À finaliser » (Corporate et Cession), « Suites et exécution »
+   (fiche, onglet Juridiction), formalités supervisées (opération) et RIB CARPA documentaire (vue financière du dossier).
+   Jetons Carbon avec repli (clair et sombre) ; un état est toujours écrit en mots, jamais par la seule couleur. */
+.g3-closing, .g3-formalites, .g3-suites, .g3-carpa, .g3-resume { display: grid; gap: .625rem; min-width: 0; }
+.g3-etat, .g3-badge { border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 10px; color: var(--cds-text-secondary, #525252);
+  font-size: .75rem; font-weight: 600; padding: 0 .45rem; white-space: nowrap; }
+.g3-etat-prete_a_signer, .g3-etat-signee, .g3-etat-realisee, .g3-etat-formalites_terminees { border-color: var(--cds-support-success, #24a148);
+  color: var(--cds-text-primary, #161616); }
+.g3-etat-a_finaliser { border-color: var(--cds-support-warning, #b28600); color: var(--ui-attention-texte, #3d2f00);
+  background: var(--ui-attention-doux, #fcf4d6); }
+.g3-priorites { margin: 0; padding-left: 1.25rem; }
+.g3-groupe h4 { margin: .25rem 0; }
+.g3-liste, .g3-obligations { display: grid; gap: .375rem; list-style: none; margin: 0; padding: 0; }
+.g3-ligne, .g3-ob, .g3-formalite { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; padding: .5rem .75rem; }
+.g3-ligne.g3-bloque { border-left: 4px solid var(--cds-support-warning, #b28600); }
+.g3-tete { align-items: baseline; display: flex; flex-wrap: wrap; gap: .25rem .5rem; }
+.g3-detail { color: var(--cds-text-secondary, #525252); font-size: .8125rem; margin: .25rem 0 0; overflow-wrap: anywhere; }
+.g3-motif { color: var(--ui-attention-texte, #3d2f00); font-size: .8125rem; }
+.g3-ob q { font-style: italic; overflow-wrap: anywhere; }
+.g3-ob-motifs, .g3-ob-pretention, .g3-ob-antecedent { opacity: .85; }
+.g3-form { align-items: end; display: flex; flex-wrap: wrap; gap: .5rem .75rem; margin: .375rem 0; min-width: 0; }
+.g3-form label { display: grid; gap: .25rem; min-width: 0; }
+.g3-case { align-items: center; display: flex !important; gap: .375rem; }
+.g3-gestes { display: flex; flex-wrap: wrap; gap: .5rem; }
+.g3-mentions { font-size: .8125rem; margin: 0; padding-left: 1.25rem; }
+.g3-closing details > summary, .g3-suites details > summary, .g3-formalites details > summary, .g3-carpa details > summary {
+  color: var(--cds-link-primary, #0f62fe); cursor: pointer; }
+.g3-closing :focus-visible, .g3-suites :focus-visible, .g3-formalites :focus-visible, .g3-carpa :focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) {
+  .g3-etat-a_finaliser { background: transparent; color: var(--cds-text-primary, #f4f4f4); }
+  .g3-detail, .g3-etat, .g3-badge { color: var(--cds-text-secondary, #c6c6c6); }
+}
+@media (max-width: 640px) {
+  .g3-form { display: grid; grid-template-columns: 1fr; }
+}

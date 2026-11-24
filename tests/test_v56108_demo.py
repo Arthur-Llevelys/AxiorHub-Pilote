@@ -58,6 +58,22 @@ BANDEAUX = {'fr': 'Mode démonstration — données fictives', 'en': 'Demo mode 
 BOUTONS = {'fr': 'Commencer la démo', 'en': 'Start the demo', 'de': 'Demo starten', 'es': 'Iniciar la demo'}
 
 
+def corps_lu(app):
+    """Faux serveur d'essai : le corps de la requête est lu avant la réponse. Sans cela, sous Windows, fermer une connexion dont le
+    corps n'a pas été lu la coupe par moments (WinError 10053 chez le client) : erreur intermittente constatée à l'intégration de la
+    5.6.109, présente aussi en 5.6.108. L'application reçoit le même corps, dans un tampon."""
+    import io as _io
+
+    def enveloppe(environ, start):
+        try:
+            taille = int(environ.get('CONTENT_LENGTH') or 0)
+        except ValueError:
+            taille = 0
+        environ['wsgi.input'] = _io.BytesIO(environ['wsgi.input'].read(taille) if taille > 0 else b'')
+        return app(environ, start)
+    return enveloppe
+
+
 class Flux:
     """Corps d'une réponse de l'instance ; ``ferme`` dit si le répartiteur a bien fermé la connexion d'une réponse écartée."""
 
@@ -527,7 +543,7 @@ class D5TestFumee(unittest.TestCase):
         self.app.preparer()
 
     def servir(self, app):
-        serveur = make_server('127.0.0.1', 0, app, handler_class=Silencieux)
+        serveur = make_server('127.0.0.1', 0, corps_lu(app), handler_class=Silencieux)
         threading.Thread(target=serveur.serve_forever, daemon=True).start()
         self.addCleanup(serveur.server_close)
         self.addCleanup(serveur.shutdown)

@@ -157,7 +157,10 @@ def _lecture(desk, acteur, parts, args):
         if dossier['stockage']['etat'] != 'pret':
             return _out({'etat': 'en_preparation', 'motif': dossier['stockage']['motif'] or dossier['stockage']['libelle'], 'dossiers': [], 'fichiers': []})
         page = int(args.get('page')) if str(args.get('page') or '').isdigit() and int(args.get('page')) > 0 else 1
-        return _out(F.arborescence(desk, dossier['stockage']['chemin'], str(args.get('rep') or ''), page))
+        # 5.6.109 (lot L, F02) : tri sur tout le répertoire avant la page (valeur inconnue : tri par nom) ; ``comptes=0`` : résumé du
+        # répertoire demandé sans lire ses sous-répertoires (comptage à la demande de l'onglet Fichiers)
+        return _out(F.arborescence(desk, dossier['stockage']['chemin'], str(args.get('rep') or ''), page, tri=args.get('tri'), sens=args.get('sens'),
+                                   comptes=str(args.get('comptes') or '') != '0'))
     raise Stop('route_inconnue')
 
 

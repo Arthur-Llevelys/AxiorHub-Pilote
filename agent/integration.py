@@ -166,6 +166,8 @@ def submit_question(desk, question, matter='', mail_key='', thread_id='', attach
         thread = desk.db.execute('SELECT * FROM assistant_threads WHERE id=?', (thread_id,)).fetchone()
         if not thread or thread['scope'] != scope:
             raise Stop('conversation_autre_contexte')
+        from . import historique56109   # 5.6.109 (lot H, F09) : continuer = propriétaire ou participant ; fil supprimé ou non attribué : refusé
+        historique56109.controler_continuation(desk, thread_id, auteur)
     else:
         thread_id = secrets.token_hex(16)
         title = question[:90]
@@ -173,6 +175,8 @@ def submit_question(desk, question, matter='', mail_key='', thread_id='', attach
             (id,scope,matter,mail_key,title,created,updated) VALUES (?,?,?,?,?,?,?)''',
             (thread_id, scope, selected['id'] if selected else '', mail_key if report else '',
              title, desk.now(), desk.now()))
+        from . import historique56109   # 5.6.109 (lot H, F09) : propriétaire établi par le serveur (requête ou auteur de la mission), validé avec le reste
+        historique56109.attribuer_creation(desk, thread_id, auteur)
     cur = desk.db.execute('''INSERT INTO assistant_messages
         (thread_id,role,content,status,sources,job_id,created,updated)
         VALUES (?,?,?,?,?,NULL,?,?)''',
@@ -182,17 +186,23 @@ def submit_question(desk, question, matter='', mail_key='', thread_id='', attach
     from .membres5650 import ai_denied, viewer_hidden
     # 5.6.83 : la réponse se prépare hors de la requête : les dossiers réservés de cette personne l'accompagnent
     # 5.6.88 : et ce que ses droits lui ferment : l'assistant n'ouvre jamais ce qu'elle ne peut pas ouvrir
-    job = desk.enqueue('assistant_answer', {'message': message_id, 'thread': thread_id, 'masques': sorted(viewer_hidden()),
-                                             'vue_ia': sorted(ai_denied()),
-                                             'mission_id':mission_id,
-                                             'matter': matter, 'key': mail_key,
-                                             'attachment_id':attachments[0] if attachments else '',
-                                             'attachment_ids':attachments,
-                                             'page_context':safe_context,'purpose':purpose,
-                                             **({'auteur':str(auteur)} if auteur else {})})   # 5.6.88 : seule une demande d'une personne identifiée alimente la mémoire proposée
-    desk.db.execute('UPDATE assistant_messages SET job_id=? WHERE id=?', (job, message_id))
-    desk.db.execute('UPDATE assistant_threads SET updated=? WHERE id=?', (desk.now(), thread_id))
-    desk.db.commit()
+    try:   # 5.6.109 (lot H, F09) : fil, message, propriétaire et travail validés ensemble (mise en file transactionnelle), ou rien
+        job = desk.enqueue('assistant_answer', {'message': message_id, 'thread': thread_id, 'masques': sorted(viewer_hidden()),
+                                                 'vue_ia': sorted(ai_denied()),
+                                                 'mission_id':mission_id,
+                                                 'matter': matter, 'key': mail_key,
+                                                 'attachment_id':attachments[0] if attachments else '',
+                                                 'attachment_ids':attachments,
+                                                 'page_context':safe_context,'purpose':purpose,
+                                                 **({'auteur':str(auteur)} if auteur else {})}, transactional=True)   # 5.6.88 : seule une demande d'une personne identifiée alimente la mémoire proposée
+        desk.db.execute('UPDATE assistant_messages SET job_id=? WHERE id=?', (job, message_id))
+        desk.db.execute('UPDATE assistant_threads SET updated=? WHERE id=?', (desk.now(), thread_id))
+        desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    desk.notify_queued(job, {'matter': matter, 'key': mail_key})
     return {'thread_id': thread_id, 'message_id': message_id, 'job_id': job,
             'status': 'queued', 'scope': 'matter' if selected else ('mail' if report else 'cabinet')}
 
@@ -227,6 +237,9 @@ def answer_question(desk, args):
         route = routed_config(desk.c,purpose)
         route['timeout_seconds'] = rapide5680.deadline(desk.c,purpose,route.get('timeout_seconds',240))
         quick = rapide5680.small_talk_answer(row['content']) if rapide5680.conversation_only(args,matter,key,row['content']) else None   # 5.6.81
+        if quick is None:   # 5.6.109 (I2) : « Crée un agent de prise de rendez-vous… » : chemin du parcours guidé, sans modèle, rien n'est créé
+            from .bland56109 import reponse_intention
+            quick = reponse_intention(desk, row['content'])
         from . import acces5683, societe5688   # 5.6.88 : lu ici pour que la réponse de repli porte aussi le contrôle, sans modèle
         liste = not key and acces5683.liste_simple(row['content'])   # 5.6.96 (M02) : liste simple de courriels : ni contrôle de société, ni modèle
         controle = {} if quick or liste else societe5688.avant(desk,row['content'],matter,'voix' if rapide5680.is_voice(purpose) else 'assistant')
@@ -285,13 +298,11 @@ class _ModeleDiffere:
 
 
 def threads(desk, limit=30, purger=True):
-    """Dernières conversations. 5.6.100 (R05) : ``purger=False`` pour les écrans de consultation (tableau de bord) : aucune écriture."""
-    if purger:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
-        desk.db.execute('DELETE FROM assistant_threads WHERE updated<?', (cutoff,)); desk.db.commit()
-    rows = desk.db.execute('SELECT * FROM assistant_threads ORDER BY updated DESC LIMIT ?',
-                           (max(1, min(int(limit), 100)),)).fetchall()
-    return [dict(x) for x in rows]
+    """Dernières conversations. 5.6.100 (R05) : ``purger=False`` pour les écrans de consultation (tableau de bord) : aucune écriture.
+    5.6.109 (lot H, F09) : l'archive n'est plus purgée (``purger`` est conservé pour les appelants, sans effet) ; en requête, seulement les
+    fils de la personne (propriétaire ou participant), droits du dossier appliqués avant LIMIT (``historique56109``)."""
+    from . import historique56109
+    return historique56109.fils_recents(desk, max(1, min(int(limit), 100)))
 
 
 def thread_messages(desk, thread_id):
@@ -299,6 +310,8 @@ def thread_messages(desk, thread_id):
         raise Stop('conversation_invalide')
     if not desk.db.execute('SELECT 1 FROM assistant_threads WHERE id=?', (thread_id,)).fetchone():
         raise Stop('conversation_absente')
+    from . import historique56109   # 5.6.109 (lot H, F09) : en requête, même réponse « absente » pour le fil d'une autre personne
+    historique56109.exiger_lecture_requete(desk, thread_id)
     return [dict(x) for x in desk.db.execute(
         'SELECT * FROM assistant_messages WHERE thread_id=? ORDER BY id LIMIT 100', (thread_id,))]
 

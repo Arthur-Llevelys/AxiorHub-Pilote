@@ -1,0 +1,14 @@
+/* AxiorHub 5.6.109 (lot O) : modèle du navigateur, acquittement de la prise de main, accès à ce poste. Contraste clair et sombre. */
+.n56109-table { border-collapse: collapse; width: 100%; max-width: 48rem; }
+.n56109-table th, .n56109-table td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--ax-border, #c9ced6); vertical-align: top; }
+.n56109-table th { font-weight: 600; width: 16rem; }
+.n56109-modele { font-size: .92em; }
+.n56109-main { margin: .4rem 0; padding: .45rem .6rem; border-left: 4px solid #8a5a00; background: #fff6e0; color: #3d2a00; }
+.n56109-main.ok { border-left-color: #1d6b35; background: #e8f5ec; color: #0f3b1d; }
+.n56109-delegation { margin-top: .6rem; }
+@media (prefers-color-scheme: dark) {
+  .n56109-main { background: #3a2c08; color: #ffe7b0; border-left-color: #f0b84a; }
+  .n56109-main.ok { background: #12301c; color: #c9f0d5; border-left-color: #5fd18a; }
+}
+[data-theme="dark"] .n56109-main { background: #3a2c08; color: #ffe7b0; border-left-color: #f0b84a; }
+[data-theme="dark"] .n56109-main.ok { background: #12301c; color: #c9f0d5; border-left-color: #5fd18a; }

@@ -22,6 +22,7 @@ import sqlite3
 
 from .common import Stop
 from .etat5657 import _age, _result, _since, business_state
+from .transmission56109 import CODES as _CODES_CONFIDENTIALITE
 
 ETATS = {'attente_calcul': 'En attente de calcul', 'en_cours': 'En cours', 'attente_information': 'Attente d’information', 'attente_decision': 'Attente de décision',
          'suspendu': 'Suspendu', 'annule': 'Annulé', 'echec': 'Échec', 'termine_preuve': 'Terminé avec preuve', 'termine': 'Terminé'}
@@ -29,7 +30,10 @@ PERIMETRE = 'Tous les travaux du cabinet, automatismes compris.'
 # 5.6.89 : erreurs qu'un nouvel essai identique ne corrige pas ; le correctif vient d'un réglage ou d'une autorisation
 DEFINITIVES = frozenset(('http_400', 'http_401', 'http_403', 'http_405', 'http_413', 'http_422', 'authentification_fournisseur_refusee', 'acces_fournisseur_refuse',
                          'modele_ou_route_fournisseur_absent', 'fournisseur_externe_non_autorise', 'modele_distant_refuse', 'type_fournisseur_invalide', 'modele_ollama_absent',
-                         'chatgpt_option_non_prise_en_charge', 'chatgpt_acces_refuse', 'chatgpt_compte_non_eligible', 'chatgpt_reconnexion_requise'))
+                         'chatgpt_option_non_prise_en_charge', 'chatgpt_acces_refuse', 'chatgpt_compte_non_eligible', 'chatgpt_reconnexion_requise')) | \
+    frozenset(('pseudo_marqueur_inconnu', 'pseudo_marqueur_altere', 'registre_identites_illisible')) | _CODES_CONFIDENTIALITE
+# 5.6.109 (intégration I1) : un refus de confidentialité (lot P, ``transmission56109.CODES``) est un arrêt expliqué, jamais une panne passagère :
+# un automatisme ne le retente pas (le même envoi serait refusé de la même façon)
 STATUTS_DEFINITIFS = (400, 401, 403, 404, 405, 413, 422)
 RETENUE_HEURES = 6               # délai de reprise : au-delà, un automatisme a droit à un seul nouvel essai
 TAILLE_DIAGNOSTIC = 100
@@ -228,6 +232,9 @@ def note_model_error(cfg, stage, error):
             db.commit()
         finally:
             db.close()
+        if status >= 400:   # 5.6.109 (lot E) : refus du fournisseur : une ligne sans contenu au journal du service et dans erreurs-interface.log
+            from .modeles_catalogue56109 import journaliser_refus
+            journaliser_refus(cfg, etape, code, status, champs)
     except Exception:   # noqa: BLE001 — jamais d'effet sur l'appel du modèle
         pass
 

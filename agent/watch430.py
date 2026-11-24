@@ -158,6 +158,11 @@ def _schedule_5642(desk,stamp=None):
             sync_deliveries(desk)
     except Exception as ex:   # noqa: BLE001
         emit(desk,'blocked','Connexions : suivi des opérations impossible ('+str(ex)[:120]+').',dedupe='connexions5652-poll')
+    try:   # 5.6.109 (lot S, F11) : sources publiques dont l'activation est demandée : qualification bornée, délai progressif, bail durable
+        from .sources_publiques56109 import planifier as planifier56109s
+        planifier56109s(desk,stamp)
+    except Exception as ex:   # noqa: BLE001 — une source publique en panne n'interrompt jamais la surveillance
+        emit(desk,'blocked','Sources publiques : vérification automatique impossible ('+str(ex)[:120]+').',dedupe='sources56109-planifier')
     try:   # 5.6.51 (A07) : préparations d'audience ou d'échéance confirmée, au plus une vérification par heure
         from .missions5651 import schedule as schedule5651
         jobs.extend(schedule5651(desk,stamp))

@@ -1,0 +1,31 @@
+/* AxiorHub 5.6.109 (lot G1) — sections insérées dans les pages existantes (g109-) : Préfacturation (Temps et honoraires), Assistance régulière
+   (fiche du contact client), Fonds, frais et débours (dossier). Jetons Carbon avec repli (clair et sombre) ; un état est toujours écrit en mots. */
+.g109 { display: grid; gap: .75rem; min-width: 0; }
+.g109-filtres { align-items: end; display: flex; flex-wrap: wrap; gap: .5rem .75rem; }
+.g109-filtres label, .g109-champ { display: grid; gap: .25rem; min-width: 0; }
+.g109-form { display: grid; gap: .5rem .75rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); min-width: 0; }
+.g109-form.g109-inline { align-items: end; display: flex; flex-wrap: wrap; }
+.g109-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; grid-column: 1 / -1; }
+.g109-table-wrap { grid-column: 1 / -1; max-width: 100%; overflow-x: auto; }
+.g109-table td { vertical-align: top; }
+.g109-table td:nth-child(5) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.g109-min { max-width: 6rem; }
+.g109-origine { border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 10px; color: var(--cds-text-secondary, #525252); font-size: .75rem;
+  padding: 0 .4rem; white-space: nowrap; }
+.g109-estimee, .g109-inconnue, .g109-alerte { background: var(--ui-attention-doux, #fcf4d6); border-color: var(--cds-support-warning, #b28600);
+  color: var(--ui-attention-texte, #3d2f00); }
+.g109-alerte { border-left: 4px solid var(--cds-support-warning, #b28600); margin: .25rem 0; padding: .125rem .5rem; }
+.g109-ok { border-left: 4px solid var(--cds-support-success, #24a148); margin: .25rem 0; padding: .125rem .5rem; }
+.g109-err { color: var(--cds-text-error, #da1e28); font-size: .8125rem; }
+.g109-err:empty { display: none; }
+.g109-compteurs { font-weight: 600; }
+.g109-liste { display: grid; gap: .375rem; list-style: none; margin: 0; padding: 0; }
+.g109-familles { display: grid; gap: .5rem .75rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); min-width: 0; }
+.g109-famille { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 6px; min-width: 0; padding: .5rem .75rem; }
+.g109-famille h4 { margin: 0 0 .25rem; }
+.g109 details > summary { color: var(--cds-link-primary, #0f62fe); cursor: pointer; }
+.g109 details > summary:focus-visible, .g109 input:focus-visible, .g109 select:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.g109 [aria-invalid="true"] { border-color: var(--cds-support-error, #da1e28); }
+@media (max-width: 640px) {
+  .g109-form, .g109-familles { grid-template-columns: 1fr; }
+}

@@ -16,6 +16,16 @@ Sources des données reconnues :
 
 Limite assumée : une pseudonymisation n'est pas une anonymisation ; un détail factuel peut encore permettre une réidentification.
 L'aperçu (Paramètres › IA) montre exactement ce qui part.
+
+5.6.109 (lot P) — ce qui change ici, sans second circuit ni second registre de pseudonymes :
+- P01 : l'instantané des identités connues couvre le registre courant (dossiers, parties, alias, contacts, parties lues dans les pièces),
+  il est comparé sans accent ni casse, dans les deux ordres, et le nom seul d'une personne du registre est masqué ; le même instantané
+  sert au texte, à la lecture des images (``vision56106``) et au contrôle de l'enveloppe (``transmission56109``) ;
+- P02 : révision durable du registre (table ``pseudo56109_revision``, déclencheurs sur les registres, ``invalider``) ; le cache ne sert que
+  si cette révision est vérifiable, sinon le registre est relu ; un registre illisible est un refus, jamais une liste vide ;
+- P03 : un marqueur écrit tel quel dans une source (« [PERSONNE_1] » dans un gabarit) n'est jamais confondu avec une substitution : son
+  numéro est réservé, ou il part sous une forme distincte (« [LITTERAL_PERSONNE_1] ») quand le numéro est déjà attribué ;
+- P04 : ``controle_retour`` relève les marqueurs inconnus ou altérés d'une réponse, sans rien deviner.
 """
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
@@ -34,6 +44,18 @@ LABELS = {'PERSONNE': 'Personnes', 'SOCIETE': 'Sociétés', 'ADRESSE': 'Adresses
           'REFERENCE': 'Références de dossier', 'DOSSIER': 'Noms de dossier', 'CHEMIN': 'Chemins de fichiers'}
 TOKEN = re.compile(r'\[(%s)_(\d{1,4})\]' % '|'.join(CATEGORIES))
 LOOSE_TOKEN = re.compile(r'\[?\b(%s)_(\d{1,4})\b\]?' % '|'.join(CATEGORIES))
+# 5.6.109 (P03) : marqueur littéral d'une source, parti sous une forme distincte. « [LITTERAL_PERSONNE_1] » n'est reconnu ni par TOKEN ni
+# par LOOSE_TOKEN (pas de frontière de mot après « _ ») : les tables stables et les anciens formats restent valables tels quels.
+ECHAPPE = re.compile(r'\[LITTERAL_((?:LITTERAL_)*(?:%s)_\d{1,4})\]' % '|'.join(CATEGORIES))
+PROTEGE = re.compile(r'\[(?:LITTERAL_)*(?:%s)_\d{1,4}\]' % '|'.join(CATEGORIES))   # marqueur ou littéral échappé : jamais retouché par les règles
+_RETOUR = re.compile(ECHAPPE.pattern + '|' + LOOSE_TOKEN.pattern)
+# 5.6.109 (P04) : formes qu'un modèle donne à un marqueur en le recopiant mal (casse, accent, espace, tiret, zéros) ; la prose ordinaire
+# (« le dossier 12 », « la personne 2 ») n'en fait pas partie : il faut des crochets, ou le tiret bas.
+_CAT_LIBRE = (r'PERSONNE|SOCI[ÉE]T[ÉE]|ADRESSE|COURRIEL|T[ÉE]L[ÉE]PHONE|IBAN|NUM[ÉE]RO|DATE[ _\-]?(?:DE[ _\-]?)?NAISSANCE|R[ÉE]F[ÉE]RENCE|'
+              r'DOSSIER|CHEMIN')
+MARQUEUR_LIBRE = re.compile(r'\[\s*(?:LITT[ÉE]RAL[ _\-]*)*(?:%s)\s*[ _\-]?\s*\d{1,6}\s*\]|(?<![\w\[])(?:%s)_\d{1,6}(?![\w\]])' % (_CAT_LIBRE, _CAT_LIBRE),
+                            re.I)
+VERSION_DETECTEUR = '5.6.109'   # règles et registres lus : dans la clé du cache, les reçus d'image et le journal
 
 UP = 'A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸ'
 LOW = 'a-zàâäçéèêëîïôöùûüÿœæ'
@@ -101,69 +123,333 @@ def _json_char(m):
 
 # ---------------------------------------------------------------------------------------- entités connues du cabinet
 _CACHE = {'key': None, 'at': 0, 'items': []}
+# 5.6.109 (P01) : identités de l'émission en cours. Posé par ``transmission56109.emission`` autour de ``Model._leaf`` : le texte, la lecture
+# des images et le contrôle de l'enveloppe lisent la même liste, relue du registre pour cette émission (jamais du cache).
+INSTANTANE = ContextVar('axiorhub_instantane56109', default=None)
+TABLE_REVISION = 'pseudo56109_revision'
+# Registres d'identités de la base du cabinet : chacun porte trois déclencheurs qui avancent la révision durable (P02).
+REGISTRES = ('dossiers5697', 'dossier_parties5697', 'dossier_alias5697', 'conflicts500_parties', 'contacts5636', 'd51_parties', 'd51_aliases')
+LIMITE_REGISTRE = 20000     # lignes lues par registre, les plus récentes d'abord ; au-delà, l'aperçu le dit (« registre tronqué »)
+ILLISIBLE = 'registre_identites_illisible'
+SCHEMA56109 = ('CREATE TABLE IF NOT EXISTS pseudo56109_revision(id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL DEFAULT 0, '
+               "motif TEXT NOT NULL DEFAULT '', modifie_le TEXT NOT NULL DEFAULT '')")
+# Colonnes ajoutées au journal des envois (P04, P05) : état réel, reçu sans contenu (empreinte et taille du corps exact), code du contrôle,
+# réponse gardée « à vérifier » (encore pseudonymisée), révision du registre et version des règles.
+COLONNES_JOURNAL = (('etat', "TEXT NOT NULL DEFAULT ''"), ('empreinte', "TEXT NOT NULL DEFAULT ''"), ('octets', 'INTEGER NOT NULL DEFAULT 0'),
+                    ('code', "TEXT NOT NULL DEFAULT ''"), ('retour', "TEXT NOT NULL DEFAULT ''"), ('revision', 'INTEGER NOT NULL DEFAULT 0'),
+                    ('detecteur', "TEXT NOT NULL DEFAULT ''"))
 
 
-def known_entities(config):
-    """[(texte, catégorie)] connus du cabinet. Mis en cache 5 minutes."""
+class Instantane(list):
+    """[(texte, catégorie)] connus à un instant, avec la révision du registre lue au même moment."""
+    revision = None      # révision durable (None : base sans table de révision)
+    sur = False          # la révision est vérifiable : table présente, déclencheurs posés sur chaque registre présent
+    lu_le = 0.0
+    registres = {}       # registre -> lignes lues (aperçu de la couverture ; aucun nom)
+    tronques = ()        # registres plus longs que la borne de lecture
+    recherche = None     # structures de recherche, calculées une fois par instantané
+
+
+def _declencheurs(table):
+    return tuple('pseudo56109_%s_%s' % (table, e) for e in 'iud')
+
+
+def _etat_registre(db):
+    """(révision durable, registre sûr, noms des tables et déclencheurs). Sûr : la table de révision existe et chaque registre présent porte
+    ses trois déclencheurs ; sinon rien ne prouve qu'une écriture ait avancé la révision, et le cache n'est pas employé."""
+    noms = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','trigger')")}
+    if TABLE_REVISION not in noms:
+        return None, False, noms
+    row = db.execute('SELECT revision FROM pseudo56109_revision WHERE id=1').fetchone()
+    complet = all(t in noms for table in REGISTRES if table in noms for t in _declencheurs(table))
+    return (int(row[0]) if row else None), bool(row) and complet, noms
+
+
+def _base(state_dir):
+    path = Path(state_dir) / 'desk.sqlite3' if state_dir else None
+    return path if path is not None and path.is_file() else None
+
+
+def revision(state_dir):
+    """Révision durable du registre des identités (None si la base ou la table n'existe pas). Lecture seule."""
+    path = _base(str(state_dir or ''))
+    if path is None:
+        return None
+    try:
+        db = sqlite3.connect(path, timeout=5)
+        try:
+            return _etat_registre(db)[0]
+        finally:
+            db.close()
+    except sqlite3.Error:
+        return None
+
+
+def ensure_schema(desk):
+    """Au démarrage (``Desk``) : table de la révision, déclencheurs sur les registres présents, colonnes du journal des envois. Rejouable ;
+    n'écrit rien quand tout est en place (aucune écriture ni verrou au démarrage sans changement). Jamais pendant une lecture."""
+    db = desk.db
+    noms = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','trigger')")}
+    manquants = [(table, evenement, nom) for table in REGISTRES if table in noms
+                 for evenement, nom in zip(('INSERT', 'UPDATE', 'DELETE'), _declencheurs(table)) if nom not in noms]
+    colonnes = {r[1] for r in db.execute('PRAGMA table_info(pseudo540_log)')} if 'pseudo540_log' in noms else None
+    a_ajouter = [c for c in COLONNES_JOURNAL if colonnes is not None and c[0] not in colonnes]
+    pret = TABLE_REVISION in noms and db.execute('SELECT 1 FROM pseudo56109_revision WHERE id=1').fetchone()
+    if pret and not manquants and not a_ajouter:
+        return
+    if db.in_transaction:
+        db.commit()
+    db.execute(SCHEMA56109)
+    db.execute('INSERT OR IGNORE INTO pseudo56109_revision(id, revision) VALUES(1, 0)')
+    _poser_declencheurs(db, manquants)
+    _colonnes_journal(db, a_ajouter)
+    db.commit()
+
+
+def _poser_declencheurs(db, manquants=None):
+    """Déclencheurs manquants des registres présents (un registre créé après le démarrage n'en porte pas encore)."""
+    if manquants is None:
+        noms = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','trigger')")}
+        manquants = [(table, evenement, nom) for table in REGISTRES if table in noms
+                     for evenement, nom in zip(('INSERT', 'UPDATE', 'DELETE'), _declencheurs(table)) if nom not in noms]
+    for table, evenement, nom in manquants:
+        db.execute('CREATE TRIGGER IF NOT EXISTS %s AFTER %s ON %s BEGIN UPDATE pseudo56109_revision SET revision=revision+1 WHERE id=1; END'
+                   % (nom, evenement, table))
+
+
+def _colonnes_journal(db, a_ajouter):
+    for nom, declaration in a_ajouter:
+        try:
+            db.execute('ALTER TABLE pseudo540_log ADD COLUMN %s %s' % (nom, declaration))
+        except sqlite3.OperationalError as ex:   # autre processus plus rapide : la colonne existe
+            if 'duplicate column' not in str(ex).lower():
+                raise
+
+
+def _avancer(db, motif):
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (TABLE_REVISION,)).fetchone():
+        return False      # table absente : aucun cache n'est employé pour cette base, le registre est relu à chaque émission
+    db.execute('UPDATE pseudo56109_revision SET revision=revision+1, motif=?, modifie_le=? WHERE id=1',
+               (str(motif or '')[:80], datetime.now(timezone.utc).isoformat(timespec='seconds')))
+    return True
+
+
+def invalider(cible=None, motif=''):
+    """Une identité vient de changer (ajout, correction, retrait, import, synchronisation) : la révision durable avance et le cache de ce
+    processus est vidé ; la prochaine émission relit le registre. ``cible`` : le bureau (``Desk`` : même connexion, donc même transaction
+    que l'écriture en cours), une configuration ou un répertoire d'état. Ne lève jamais : une écriture métier n'échoue pas à cause de ce
+    repère (sans lui, le registre est de toute façon relu à chaque émission externe)."""
+    _CACHE.update(key=None, at=0, items=[])
+    try:
+        db = getattr(cible, 'db', None)
+        if db is not None:
+            ouverte = db.in_transaction
+            fait = _avancer(db, motif)
+            if fait:
+                _poser_declencheurs(db)       # registre créé depuis le démarrage : ses écritures avancent désormais la révision
+                if not ouverte:
+                    db.commit()
+            return fait
+        path = _base(str((cible.get('state_dir') if isinstance(cible, dict) else cible) or ''))
+        if path is None:
+            return False
+        db = sqlite3.connect(path, timeout=5)
+        try:
+            fait = _avancer(db, motif)
+            db.commit()
+            return fait
+        finally:
+            db.close()
+    except (sqlite3.Error, OSError, AttributeError, TypeError, ValueError):
+        return False
+
+
+def _genre(nom, morale=False):
+    return 'SOCIETE' if morale or re.search(r'\b%s\b' % COMPANY_FORMS, nom) else 'PERSONNE'
+
+
+def _du_fichier_des_dossiers(matters_file, items):
+    from .common import Stop
+    try:
+        matters = json.loads(Path(matters_file).read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return 0
+    except (OSError, ValueError):      # fichier présent mais illisible : refus, jamais « aucun dossier connu »
+        raise Stop(ILLISIBLE) from None
+    avant = len(items)
+    for m in matters if isinstance(matters, list) else []:
+        if not isinstance(m, dict):
+            continue
+        name = str(m.get('client_name') or '').strip()
+        if name:
+            items.append((name, _genre(name)))
+        for alias in m.get('aliases') or []:
+            items.append((str(alias), 'PERSONNE'))
+        for ref in [m.get('id', '')] + list(m.get('references') or []):
+            items.append((str(ref), 'REFERENCE'))
+        folder = str(m.get('path') or '').rstrip('/').rsplit('/', 1)[-1]
+        if folder:
+            items.append((folder, 'DOSSIER'))
+        for person in m.get('correspondents') or []:
+            if isinstance(person, dict):
+                if person.get('name'):
+                    items.append((str(person['name']), 'PERSONNE'))
+                if person.get('email'):
+                    items.append((str(person['email']), 'COURRIEL'))
+    return len(items) - avant
+
+
+def _des_registres(db, noms, items):
+    """Registres présents dans la base du cabinet → identités ; rend ({registre: lignes lues}, [registres tronqués]). Toute erreur SQLite
+    remonte : l'appelant en fait un refus explicite (une liste vide laisserait partir les noms)."""
+    compte, tronques = {}, []
+
+    def lire(table, voulues):
+        if table not in noms:
+            return []
+        presentes = {r[1] for r in db.execute('PRAGMA table_info(%s)' % table)}
+        cols = [c for c in voulues if c in presentes]
+        if not cols:
+            return []
+        rows = db.execute('SELECT %s FROM %s ORDER BY rowid DESC LIMIT %d' % (','.join(cols), table, LIMITE_REGISTRE + 1)).fetchall()
+        if len(rows) > LIMITE_REGISTRE:
+            tronques.append(table)
+            rows = rows[:LIMITE_REGISTRE]
+        compte[table] = len(rows)
+        return [dict(zip(cols, r)) for r in rows]
+
+    def champ(row, nom):
+        return re.sub(r'\s+', ' ', str(row.get(nom) or '')).strip()
+
+    def coordonnees(row, courriel, telephone, adresse, siren):
+        if champ(row, courriel):
+            items.append((champ(row, courriel), 'COURRIEL'))
+        if len(champ(row, telephone)) >= 6:
+            items.append((champ(row, telephone), 'TELEPHONE'))
+        if 8 <= len(champ(row, adresse)) <= 160:
+            items.append((champ(row, adresse), 'ADRESSE'))
+        if len(champ(row, siren)) >= 9:
+            items.append((champ(row, siren), 'NUMERO'))
+
+    for row in lire('conflicts500_parties', ('name', 'email')):
+        if champ(row, 'name'):
+            items.append((champ(row, 'name'), _genre(champ(row, 'name'))))
+        if champ(row, 'email'):
+            items.append((champ(row, 'email'), 'COURRIEL'))
+    for row in lire('dossier_parties5697', ('nom', 'type_personne', 'courriel', 'telephone', 'adresse', 'siren')):
+        if champ(row, 'nom'):
+            items.append((champ(row, 'nom'), _genre(champ(row, 'nom'), champ(row, 'type_personne') == 'morale')))
+        coordonnees(row, 'courriel', 'telephone', 'adresse', 'siren')
+    for row in lire('dossiers5697', ('ref', 'titre', 'client', 'rg')):
+        if champ(row, 'client'):
+            items.append((champ(row, 'client'), _genre(champ(row, 'client'))))
+        if champ(row, 'ref'):
+            items.append((champ(row, 'ref'), 'REFERENCE'))
+        if len(champ(row, 'rg')) >= 5:
+            items.append((champ(row, 'rg'), 'REFERENCE'))
+        titre = champ(row, 'titre')
+        if len(titre) >= 8 and len(titre.split()) >= 2:      # un intitulé d'un seul mot (« Divers ») masquerait un mot courant partout
+            items.append((titre, 'DOSSIER'))
+    for row in lire('dossier_alias5697', ('genre', 'alias')):
+        alias = champ(row, 'alias')
+        if alias:
+            items.append((alias, 'REFERENCE' if champ(row, 'genre') == 'ref' else ('CHEMIN' if alias.startswith('/') else 'DOSSIER')))
+    for row in lire('contacts5636', ('kind', 'name', 'first_name', 'company', 'email', 'phone', 'address', 'siren')):
+        nom, prenom = champ(row, 'name'), champ(row, 'first_name')
+        if nom:
+            items.append(((prenom + ' ' + nom).strip(), _genre(nom, champ(row, 'kind') == 'societe' and not prenom)))
+        if champ(row, 'company'):
+            items.append((champ(row, 'company'), 'SOCIETE'))
+        coordonnees(row, 'email', 'phone', 'address', 'siren')
+    for row in lire('d51_parties', ('kind', 'display_name', 'counsel')):     # parties lues dans les pièces, sans IA (modele5651)
+        if champ(row, 'display_name'):
+            items.append((champ(row, 'display_name'), _genre(champ(row, 'display_name'), champ(row, 'kind') in ('morale', 'societe', 'pm'))))
+        if champ(row, 'counsel'):
+            items.append((champ(row, 'counsel'), 'PERSONNE'))
+    for row in lire('d51_aliases', ('alias',)):
+        if champ(row, 'alias'):
+            items.append((champ(row, 'alias'), _genre(champ(row, 'alias'))))
+    return compte, tronques
+
+
+def _cle_connue(text):
+    """Forme de comparaison d'un nom connu : sans accent ni casse, espaces et traits d'union équivalents."""
+    return re.sub(r'[\s\-]+', ' ', _fold(text)).strip()
+
+
+def known_entities(config, frais=False):
+    """[(texte, catégorie)] connus du cabinet : fichier des dossiers, registre courant (dossiers, parties, alias), parties saisies pour les
+    conflits, contacts, parties lues dans les pièces, racines du stockage. Rien n'est envoyé ni affiché.
+
+    5.6.109 (P02) : le cache (5 minutes au plus) ne sert que si la révision durable du registre est vérifiable et inchangée ; sinon le
+    registre est relu. ``frais`` : relecture imposée (émission externe). Un registre illisible lève ``Stop('registre_identites_illisible')`` :
+    une panne de lecture ne devient jamais une liste vide qui laisserait partir les noms."""
+    courant = INSTANTANE.get()
+    if courant is not None and not frais:
+        return courant
+    from .common import Stop
     matters_file = str(config.get('matters_file') or '')
     state_dir = str(config.get('state_dir') or '')
+    roots = tuple(str(r) for r in config.get('roots') or [])
     try:
-        stamp = Path(matters_file).stat().st_mtime if matters_file else 0
+        st = Path(matters_file).stat() if matters_file else None
+        stamp = (st.st_mtime_ns, st.st_size) if st else 0
     except OSError:
         stamp = 0
-    key = (matters_file, state_dir, stamp)
-    if _CACHE['key'] == key and time.time() - _CACHE['at'] < 300:
-        return _CACHE['items']
-    items = []
-    if matters_file:
-        try:
-            matters = json.loads(Path(matters_file).read_text(encoding='utf-8'))
-        except (OSError, ValueError):
-            matters = []
-        for m in matters if isinstance(matters, list) else []:
-            if not isinstance(m, dict):
-                continue
-            name = str(m.get('client_name') or '').strip()
-            if name:
-                items.append((name, 'SOCIETE' if re.search(r'\b%s\b' % COMPANY_FORMS, name) else 'PERSONNE'))
-            for alias in m.get('aliases') or []:
-                items.append((str(alias), 'PERSONNE'))
-            for ref in [m.get('id', '')] + list(m.get('references') or []):
-                items.append((str(ref), 'REFERENCE'))
-            folder = str(m.get('path') or '').rstrip('/').rsplit('/', 1)[-1]
-            if folder:
-                items.append((folder, 'DOSSIER'))
-            for person in m.get('correspondents') or []:
-                if isinstance(person, dict):
-                    if person.get('name'):
-                        items.append((str(person['name']), 'PERSONNE'))
-                    if person.get('email'):
-                        items.append((str(person['email']), 'COURRIEL'))
-    if state_dir and (Path(state_dir) / 'desk.sqlite3').is_file():
-        try:
-            db = sqlite3.connect(Path(state_dir) / 'desk.sqlite3', timeout=2)
+    path = _base(state_dir)
+    db = None
+    try:
+        rev, sur, noms = None, True, set()
+        if path is not None:
             try:
-                for name, email in db.execute('SELECT name,email FROM conflicts500_parties LIMIT 5000'):
-                    if name:
-                        items.append((str(name), 'SOCIETE' if re.search(r'\b%s\b' % COMPANY_FORMS, str(name)) else 'PERSONNE'))
-                    if email:
-                        items.append((str(email), 'COURRIEL'))
-            finally:
-                db.close()
-        except sqlite3.Error:
-            pass
-    for root in config.get('roots') or []:
-        items.append((str(root).rstrip('/'), 'CHEMIN'))
-    seen, clean = set(), []
+                db = sqlite3.connect(path, timeout=5)
+                rev, sur, noms = _etat_registre(db)
+            except sqlite3.Error:
+                raise Stop(ILLISIBLE) from None
+        key = (matters_file, state_dir, stamp, roots, rev, bool(path), VERSION_DETECTEUR)
+        if not frais and sur and _CACHE['key'] == key and time.time() - _CACHE['at'] < 300:
+            return _CACHE['items']
+        items, compte, tronques = [], {}, []
+        if matters_file:
+            compte['fichier_des_dossiers'] = _du_fichier_des_dossiers(matters_file, items)
+        if db is not None:
+            try:
+                lus, tronques = _des_registres(db, noms, items)
+                compte.update(lus)
+            except sqlite3.Error:
+                raise Stop(ILLISIBLE) from None
+    finally:
+        if db is not None:
+            db.close()
+    for root in roots:
+        items.append((root.rstrip('/'), 'CHEMIN'))
+    seen, clean = set(), Instantane()
     for text, cat in items:
         text = re.sub(r'\s+', ' ', text).strip()
-        if len(text) < 3 or _fold(text) in seen or text.upper() in NOT_NAMES:
+        cle = _cle_connue(text)
+        if len(text) < 3 or not cle or cle in seen or text.upper() in NOT_NAMES:
             continue
-        seen.add(_fold(text))
+        seen.add(cle)
         clean.append((text, cat))
     clean.sort(key=lambda x: -len(x[0]))
-    _CACHE.update(key=key, at=time.time(), items=clean)
+    clean.revision, clean.sur, clean.lu_le, clean.registres, clean.tronques = rev, sur, time.time(), compte, tuple(tronques)
+    if sur:
+        _CACHE.update(key=key, at=time.time(), items=clean)
+    else:
+        _CACHE.update(key=None, at=0, items=[])
     return clean
+
+
+def instantane(config):
+    """Identités relues du registre pour UNE émission externe (jamais du cache) : voir ``INSTANTANE``."""
+    return known_entities(config or {}, frais=True)
+
+
+def couverture(config):
+    """Ce que le masquage connaît, en nombres seulement (aperçu et Paramètres › IA) : aucun nom."""
+    connues = known_entities(config or {})
+    return {'identites': len(connues), 'registres': dict(getattr(connues, 'registres', {}) or {}), 'tronques': list(getattr(connues, 'tronques', ()) or ()),
+            'revision': getattr(connues, 'revision', None), 'detecteur': VERSION_DETECTEUR}
 
 
 # ---------------------------------------------------------------------------------------- motifs
@@ -230,6 +516,118 @@ def surname_of(original):
 # 5.6.88 : noms lus dans les registres pour la question en cours ([(texte, catégorie)]) : masqués comme des noms connus du cabinet, quelle que soit leur casse
 NOMS_DU_TOUR = ContextVar('axiorhub_noms5688', default=())
 
+# ---------------------------------------------------------------------------------------- 5.6.109 (P01) : noms connus, sans accent ni casse
+PARTICULES = frozenset(('de', 'du', 'des', 'd', 'la', 'le', 'les', 'l', 'van', 'von', 'der', 'den', 'ben', 'bin', 'el', 'al', 'di', 'da', 'dos',
+                        'del', 'della', 'et', 'y', 'ep', 'epouse', 'nee', 'veuve', 'dit', 'dite'))
+FORMES = frozenset(_fold(x) for x in ('SASU', 'SAS', 'SARL', 'EURL', 'SCI', 'SCP', 'SNC', 'SELARL', 'SELAS', 'SELAFA', 'SA', 'GIE', 'GAEC', 'EARL',
+                                      'Société', 'Sté', 'Association', 'Fondation', 'Groupe', 'Cabinet', 'Établissements', 'Ets'))
+_PLI = {}
+
+
+def _plie(s):
+    """(texte replié, rangs) : le repli de ``_fold`` caractère par caractère ; ``rangs[i]`` est le rang d'origine du i-ème caractère replié
+    (None pour un texte ASCII : mêmes rangs). Les noms connus sont cherchés sur le texte replié, puis remplacés dans le texte d'origine."""
+    if s.isascii():
+        return s.lower(), None
+    out, rangs = [], []
+    for i, ch in enumerate(s):
+        f = _PLI.get(ch)
+        if f is None:
+            f = ''.join(c for c in unicodedata.normalize('NFKD', "'" if ch == '’' else ch) if not unicodedata.combining(c)).lower()
+            if len(_PLI) < 4096:
+                _PLI[ch] = f
+        for c in f:
+            out.append(c)
+            rangs.append(i)
+    return ''.join(out), rangs
+
+
+def _rangs(s, rangs, a, b):
+    if rangs is None:
+        return a, b
+    debut, fin = rangs[a], rangs[b - 1] + 1
+    while fin < len(s) and unicodedata.combining(s[fin]):       # accent décomposé du dernier caractère
+        fin += 1
+    return debut, fin
+
+
+def _mots_isolables(mots):
+    """Mots d'un nom de personne connu à masquer aussi quand ils sont écrits seuls : le nom en capitales (« Samira ZELVANI »), sinon les mots
+    qui ne sont pas un prénom usuel (prénom rare ou étranger : protégé lui aussi), sinon le dernier mot (« Jean Martin »)."""
+    def prenom(m):
+        return all(_fold(p) in FIRST_NAMES for p in m.split('-'))
+    candidats = [m for m in (x.strip('.,;:()"') for x in mots)
+                 if len(m) >= 3 and _fold(m) not in PARTICULES and m.upper() not in NOT_NAMES and not any(c.isdigit() for c in m)
+                 and re.fullmatch(r"[^\W\d_]+(?:[\-'’][^\W\d_]+)*", m)]
+    majuscules = [m for m in candidats if m == m.upper()]
+    if majuscules and len(majuscules) < len(candidats):
+        choisis = majuscules
+    else:
+        choisis = [m for m in candidats if not prenom(m)] or candidats[-1:]
+    out = []
+    for m in choisis:
+        out.append(m)
+        if '-' in m:      # « Orlandec-Vasseur » : chaque partie seule aussi
+            out += [p for p in m.split('-') if len(p) >= 3 and _fold(p) not in FIRST_NAMES and _fold(p) not in PARTICULES and p.upper() not in NOT_NAMES]
+    return out
+
+
+def _coeur_societe(nom):
+    """Dénomination sans sa forme sociale (« Hôtel Bellevue SARL » → « Hôtel Bellevue ») ; '' si rien ne change."""
+    mots = [m for m in nom.split() if _fold(m.strip('.,()')) not in FORMES]
+    while mots and _fold(mots[0].rstrip("'’")) in PARTICULES:
+        mots.pop(0)
+    coeur = ' '.join(mots).strip(' ,.-')
+    return coeur if coeur and _cle_connue(coeur) != _cle_connue(nom) else ''
+
+
+def _motif_connu(cle):
+    return r'[ \t\n\r\f\v\-]+'.join(re.escape(p) for p in cle.split(' '))
+
+
+def _expression(cles):
+    return re.compile(r'(?<![\w@])(?:%s)(?![\w@])' % '|'.join(_motif_connu(k) for k in sorted(cles, key=len, reverse=True))) if cles else None
+
+
+def _recherche(connues):
+    """(catégorie par nom replié, expression des noms connus sur le texte replié, mots à masquer seuls → catégorie)."""
+    cat, isoles = {}, {}
+
+    def ajouter(texte, c):
+        cle = _cle_connue(texte)
+        if len(cle) >= 3:
+            cat.setdefault(cle, c)
+    for texte, c in connues:
+        ajouter(texte, c)
+        if c == 'PERSONNE':
+            mots = texte.split()
+            if 2 <= len(mots) <= 5:
+                ajouter(' '.join(mots[-1:] + mots[:-1]), c)       # « ZELVANI Samira » pour « Samira ZELVANI »
+                ajouter(' '.join(mots[1:] + mots[:1]), c)         # et l'inverse
+                for mot in _mots_isolables(mots):
+                    isoles[_fold(mot)] = 'PERSONNE'
+        elif c == 'SOCIETE':
+            coeur = _coeur_societe(texte)
+            if len(coeur.split()) >= 2:
+                ajouter(coeur, c)
+            elif len(coeur) >= 4 and coeur.upper() not in NOT_NAMES and re.fullmatch(r"[^\W\d_]+(?:[\-'’][^\W\d_]+)*", coeur):
+                isoles.setdefault(_fold(coeur), 'SOCIETE')
+    return cat, _expression(cat), isoles
+
+
+_DERNIERE = {'cle': None, 'valeur': None}     # structures de recherche de la dernière liste de noms (le registre est relu à chaque émission)
+
+
+def _chaines(valeur):
+    if isinstance(valeur, str):
+        yield valeur
+    elif isinstance(valeur, dict):
+        for v in valeur.values():
+            yield from _chaines(v)
+    elif isinstance(valeur, (list, tuple)):
+        for v in valeur:
+            yield from _chaines(v)
+
 
 class Pseudonymizer:
     def __init__(self, config=None, known=None):
@@ -239,18 +637,33 @@ class Pseudonymizer:
         self.counts = {c: 0 for c in CATEGORIES}
         self.surnames = {}     # 5.6.77 : nom de famille replié -> {clé du nom complet: texte d'origine}
         self.method = False    # 5.6.86 : texte d'une compétence en cours de traitement
+        # 5.6.109 (P03) : marqueurs écrits tels quels dans les sources
+        self.litteraux = set()         # numéros réservés : jamais attribués à une identité, laissés tels quels au retour
+        self.echappes = set()          # formes distinctes émises (« [LITTERAL_PERSONNE_1] »)
+        self.echapper_tout = False     # table stable d'un compte (connecteur Claude) : un littéral part toujours sous sa forme distincte
+        self.tolere = frozenset()      # marqueurs inconnus écrits par le correspondant lui-même, renvoyés tels quels dans un message d'erreur
+        self.plancher = {}             # catégorie -> dernier numéro déjà employé puis purgé : jamais réattribué
+        self._requete = (0, None)
         self._compile()
         self.ajouter(NOMS_DU_TOUR.get())
 
     def _compile(self):
-        self.known_cat = {_fold(x): c for x, c in self.known}
-        self.known_rx = (re.compile(r'(?<![\w@])(?:%s)(?![\w@])' % '|'.join(re.escape(x) for x, _ in self.known), re.I)
-                         if self.known else None)
+        recherche = getattr(self.known, 'recherche', None)
+        if recherche is None:
+            cle = tuple(self.known)
+            if _DERNIERE['cle'] == cle:                # registre inchangé depuis la dernière émission : rien à recompiler
+                recherche = _DERNIERE['valeur']
+            else:
+                recherche = _recherche(self.known)
+                _DERNIERE.update(cle=cle, valeur=recherche)
+            if isinstance(self.known, Instantane):
+                self.known.recherche = recherche       # calculé une fois par instantané
+        self.known_cat, self.known_rx, self.isoles = recherche
 
     def ajouter(self, noms):
         """5.6.88 : noms de plus pour cette requête ; les plus longs d'abord, comme ``known_entities``."""
         extra = [(re.sub(r'\s+', ' ', str(x)).strip(), c) for x, c in noms or ()]
-        extra = [(x, c) for x, c in extra if len(x) >= 3 and _fold(x) not in self.known_cat]
+        extra = [(x, c) for x, c in extra if len(x) >= 3 and _cle_connue(x) not in self.known_cat]
         if extra:
             self.known = sorted(list(self.known) + extra, key=lambda x: -len(x[0]))
             self._compile()
@@ -273,7 +686,10 @@ class Pseudonymizer:
         key = (category, entity_key(category, original))
         if key in self.forward:
             return self.forward[key]
-        n = sum(1 for k in self.forward if k[0] == category) + 1
+        # 5.6.109 (P03) : jamais un numéro déjà attribué (table stable à trous), réservé par un littéral de la source, ni purgé
+        n = max(sum(1 for k in self.forward if k[0] == category), self.plancher.get(category, 0)) + 1
+        while '[%s_%d]' % (category, n) in self.back or '[%s_%d]' % (category, n) in self.litteraux:
+            n += 1
         tok = '[%s_%d]' % (category, n)
         self.forward[key], self.back[tok] = tok, original
         self.counts[category] += 1
@@ -287,13 +703,57 @@ class Pseudonymizer:
             self._register(original)
 
     def _outside(self, text, func):
-        """Applique func aux seuls segments qui ne sont pas déjà des marqueurs."""
-        parts, last, out = [], 0, []
-        for m in TOKEN.finditer(text):
+        """Applique func aux seuls segments qui ne sont pas déjà des marqueurs (ni des littéraux échappés, 5.6.109)."""
+        last, out = 0, []
+        for m in PROTEGE.finditer(text):
             out.append(func(text[last:m.start()]))
             out.append(m.group(0))
             last = m.end()
         out.append(func(text[last:]))
+        return ''.join(out)
+
+    # ------------------------------------------------------------------ 5.6.109 (P03) : marqueurs littéraux des sources
+    def reperer(self, valeur):
+        """Marqueurs écrits tels quels dans TOUTES les sources d'une requête, relevés avant la première attribution : leur numéro est
+        réservé, même si le gabarit arrive dans un message ultérieur."""
+        if self.echapper_tout:
+            return
+        for s in _chaines(valeur):
+            if '[' in s:
+                for m in TOKEN.finditer(s):
+                    if m.group(0) not in self.back:
+                        self.litteraux.add(m.group(0))
+
+    def _litteraux(self, s):
+        """Dans une source : un marqueur dont le numéro est libre le reste (numéro réservé) ; un marqueur dont le numéro est déjà attribué,
+        ou tout marqueur d'une table stable, part sous une forme distincte ; une forme distincte déjà présente gagne un cran, pour que le
+        retour (un cran de moins) rende exactement la source."""
+        def repl(m):
+            tok = m.group(0)
+            if tok.startswith('[LITTERAL_'):
+                self.echappes.add('[LITTERAL_' + tok[1:])
+                return '[LITTERAL_' + tok[1:]
+            if tok in self.tolere:
+                return tok
+            if tok in self.back or (self.echapper_tout and tok not in self.litteraux):
+                self.echappes.add('[LITTERAL_' + tok[1:])
+                return '[LITTERAL_' + tok[1:]
+            self.litteraux.add(tok)
+            return tok
+        return PROTEGE.sub(repl, s) if '[' in s else s
+
+    def _connus(self, seg):
+        """5.6.109 (P01) : noms connus du cabinet, cherchés sans accent ni casse (espaces et traits d'union équivalents)."""
+        plie, rangs = _plie(seg)
+        out, last = [], 0
+        for m in self.known_rx.finditer(plie):
+            a, b = _rangs(seg, rangs, m.start(), m.end())
+            if a < last:
+                continue
+            out.append(seg[last:a])
+            out.append(self.token(self.known_cat.get(_cle_connue(seg[a:b]), 'PERSONNE'), seg[a:b]))
+            last = b
+        out.append(seg[last:])
         return ''.join(out)
 
     def _sub(self, regex, category, text, group=0):
@@ -356,7 +816,7 @@ class Pseudonymizer:
         if not s.strip():
             return s
         s = JSON_BREAK.sub(lambda m: BREAKS[m.group(1)], JSON_CHAR.sub(_json_char, s))
-        s = self._masked(s)
+        s = self._masked(self._litteraux(s))      # 5.6.109 (P03) : les marqueurs littéraux de la source d'abord
         for mark, back in BREAKS_BACK.items():
             s = s.replace(mark, back)
         return s
@@ -371,13 +831,23 @@ class Pseudonymizer:
         return seg
 
     def _surnames_alone(self, seg):
-        return ANY_WORD.sub(lambda m: self.token('PERSONNE', m.group(0)) if _fold(m.group(0)) in self.surnames and m.group(0).upper() not in NOT_NAMES else m.group(0), seg)
+        """Nom de famille seul d'une personne de la requête ; 5.6.109 (P01) : et mot seul d'une identité du registre (« Zelvani », « Zorval »).
+        Le marqueur garde le mot tel qu'il est écrit : au retour, rien n'est complété d'après le registre."""
+        def repl(m):
+            mot = m.group(0)
+            if mot.upper() in NOT_NAMES:
+                return mot
+            cle = _fold(mot)
+            if cle in self.surnames:
+                return self.token('PERSONNE', mot)
+            cat = self.isoles.get(cle)
+            return self.token(cat, mot) if cat else mot
+        return ANY_WORD.sub(repl, seg)
 
     def _masked(self, s):
         self._prescan(s)
         if self.known_rx is not None:
-            s = self._outside(s, lambda seg: self.known_rx.sub(
-                lambda m: self.token(self.known_cat.get(_fold(m.group(0)), 'PERSONNE'), m.group(0)), seg))
+            s = self._outside(s, self._connus)
         # 5.6.77 : numéros validés par leur clé (IBAN coupé sur deux lignes, NIR coupé, SIREN et carte par Luhn)
         s = self._outside(s, lambda seg: self._spans(seg, 'IBAN', iban_spans(seg)))
         s = self._outside(s, lambda seg: NIR_WRAPPED.sub(
@@ -418,16 +888,21 @@ class Pseudonymizer:
         return self._outside(self._outside(s, self._same_names), self._surnames_alone)
 
     def apply(self, value):
+        self.reperer(value)      # 5.6.109 (P03) : littéraux de toute la valeur relevés avant la première attribution
+        return self._apply(value)
+
+    def _apply(self, value):
         if isinstance(value, dict):
-            return {k: self.apply(v) for k, v in value.items()}
+            return {k: self._apply(v) for k, v in value.items()}
         if isinstance(value, list):
-            return [self.apply(v) for v in value]
+            return [self._apply(v) for v in value]
         if isinstance(value, str):
             return self.text(value)
         return value
 
     def apply_messages(self, messages, method_at=None):
         """``method_at`` : rang du texte d'une compétence : ses titres en majuscules ne sont pas des noms (5.6.86)."""
+        self.reperer(messages)
         out = []
         for rank, m in enumerate(messages):
             if isinstance(m, dict) and isinstance(m.get('content'), str):
@@ -435,21 +910,89 @@ class Pseudonymizer:
                 out.append({**m, 'content': self.text(m['content'])})
                 self.method = False
             else:
-                out.append(self.apply(m))
+                out.append(self._apply(m))
         return out
 
     # ------------------------------------------------------------------ retour
     def restore(self, text, json_mode=False):
-        if not isinstance(text, str) or not self.back:
+        if not isinstance(text, str) or (not self.back and 'LITTERAL_' not in text):
             return text
 
         def repl(m):
-            tok = '[%s_%s]' % (m.group(1), m.group(2))
+            if m.group(1) is not None:       # 5.6.109 (P03) : littéral parti sous sa forme distincte : un cran de moins, jamais un nom
+                return '[' + m.group(1) + ']'
+            tok = '[%s_%s]' % (m.group(2), m.group(3))
             if tok not in self.back:
                 return m.group(0)
             original = self.back[tok]
             return json.dumps(original, ensure_ascii=False)[1:-1] if json_mode else original
-        return LOOSE_TOKEN.sub(repl, text)
+        return _RETOUR.sub(repl, text)
+
+    def controle_retour(self, text):
+        """5.6.109 (P04) : ce qui, dans une réponse, ne peut pas être rétabli sans deviner. ``inconnus`` : marqueurs bien formés jamais
+        attribués dans cette requête (ni littéraux de ses sources) ; ``alteres`` : marqueurs recopiés sous une autre forme (casse, accent,
+        espace, tiret). Formes telles qu'écrites par le modèle, sans doublon. Rien n'est corrigé ici."""
+        inconnus, alteres = [], []
+        if not isinstance(text, str) or ('_' not in text and '[' not in text):
+            return {'inconnus': inconnus, 'alteres': alteres}
+        for m in _RETOUR.finditer(text):
+            if m.group(1) is not None:
+                if m.group(0) not in self.echappes and not self.echapper_tout and m.group(0) not in inconnus:
+                    inconnus.append(m.group(0))
+                continue
+            tok = '[%s_%s]' % (m.group(2), m.group(3))
+            if tok not in self.back and tok not in self.litteraux and m.group(0) not in inconnus:
+                inconnus.append(m.group(0))
+        for m in MARQUEUR_LIBRE.finditer(text):
+            forme = m.group(0)
+            if TOKEN.fullmatch(forme) or ECHAPPE.fullmatch(forme) or LOOSE_TOKEN.fullmatch(forme):
+                continue                     # forme exacte : déjà classée ci-dessus
+            if forme not in alteres:
+                alteres.append(forme)
+        return {'inconnus': inconnus[:20], 'alteres': alteres[:20]}
+
+    # ------------------------------------------------------------------ 5.6.109 (P01, P05) : identité restante
+    def _identites_requete(self):
+        """Expression (sur texte replié) des identités reconnues dans CETTE requête : pour les parties techniques de l'enveloppe."""
+        if self._requete[0] != len(self.back):
+            cles = set()
+            for tok, original in self.back.items():
+                cle, cat = _cle_connue(original), tok[1:].rsplit('_', 1)[0]
+                if len(cle) < 3 or (cat in ('ADRESSE', 'DATE_NAISSANCE', 'CHEMIN') and ' ' not in cle):
+                    continue                 # « Lyon » (lieu de naissance) reste un mot ordinaire ailleurs
+                cles.add(cle)
+                if cat == 'PERSONNE' and ' ' in cle:
+                    cles.add(' '.join(cle.split(' ')[::-1]))
+            self._requete = (len(self.back), _expression(cles))
+        return self._requete[1]
+
+    def residuelle(self, texte, technique=False):
+        """Vrai si ``texte`` contient encore une identité de cet instantané. Texte déjà masqué (messages) : noms connus du cabinet et mots
+        protégés seuls — ce que le masquage garantit. ``technique`` (schéma, clé, nom, métadonnée, jamais passés par le masquage) : aussi
+        les identités reconnues dans la requête ; un mot seul n'y compte que s'il porte une majuscule (« client », « source », « documents »
+        restent des mots techniques)."""
+        s = JSON_BREAK.sub(lambda m: BREAKS[m.group(1)], JSON_CHAR.sub(_json_char, str(texte or '')))
+        if len(s) < 3:
+            return False
+        requete = self._identites_requete() if technique else None
+        last = 0
+        for m in list(PROTEGE.finditer(s)) + [None]:
+            seg = s[last:m.start()] if m is not None else s[last:]
+            last = m.end() if m is not None else last
+            if len(seg) < 3:
+                continue
+            plie, rangs = _plie(seg)
+            for rx in (self.known_rx, requete):
+                for trouve in (rx.finditer(plie) if rx is not None else ()):
+                    if not technique or not re.fullmatch(r'[^\W\d_]+', trouve.group(0)):
+                        return True
+                    if seg[_rangs(seg, rangs, trouve.start(), trouve.end())[0]].isupper():
+                        return True
+            for trouve in ANY_WORD.finditer(seg):
+                mot = trouve.group(0)
+                if mot.upper() not in NOT_NAMES and (_fold(mot) in self.isoles or (technique and _fold(mot) in self.surnames)):
+                    return True
+        return False
 
     def restore_value(self, value):
         if isinstance(value, dict):
@@ -472,24 +1015,57 @@ def _db(state_dir):
     return db
 
 
+# 5.6.109 (P04, P05) : état réel d'une ligne du journal. « Préparé » n'est pas « Émis » : un refus avant le réseau ne prouve aucune
+# transmission ; '' : ligne écrite avant la 5.6.109 (l'état n'était pas noté).
+ETATS = {'prepare': 'Préparé, non émis', 'emis': 'Émis', 'refuse': 'Refusé avant l’envoi', 'a_verifier': 'Restitution incomplète : à vérifier',
+         'echec': 'Émission tentée, sans réponse exploitable', '': 'État non noté'}
+
+
+def _colonnes(db):
+    return {r[1] for r in db.execute('PRAGMA table_info(pseudo540_log)')}
+
+
 def log_transmission(cfg, ps, messages):
-    """Journal local de ce qui est parti : catégories remplacées et texte TEL QU'ENVOYÉ (déjà pseudonymisé), conservé 7 jours."""
+    """Journal local de ce qui est PRÉPARÉ pour un envoi : catégories remplacées et texte déjà pseudonymisé, conservé 7 jours. Rend
+    l'identifiant de la ligne (None si rien n'est écrit) ; son état réel est noté ensuite par ``noter_etat`` (5.6.109)."""
     state = str(cfg.get('state_dir') or '')
     if not state or not Path(state).is_dir():
-        return
+        return None
     sent = '\n\n'.join('[%s]\n%s' % (m.get('role', ''), m.get('content', '')) for m in messages if isinstance(m, dict))
     try:
         db = _db(state)
         try:
+            presentes = _colonnes(db)
+            _colonnes_journal(db, [c for c in COLONNES_JOURNAL if c[0] not in presentes])     # écriture : jamais pendant une lecture
             db.execute('DELETE FROM pseudo540_log WHERE at<?', ((datetime.now(timezone.utc) - timedelta(days=7)).isoformat(),))
-            db.execute('INSERT INTO pseudo540_log(at,provider,model,purpose,counts,characters,sample) VALUES(?,?,?,?,?,?,?)',
-                       (datetime.now(timezone.utc).isoformat(), str(cfg.get('provider_id') or cfg.get('id') or ''), str(cfg.get('model') or ''),
-                        str(cfg.get('purpose') or ''), json.dumps(ps.summary()), len(sent), sent[:20000]))
+            ident = db.execute('INSERT INTO pseudo540_log(at,provider,model,purpose,counts,characters,sample,etat,revision,detecteur) VALUES(?,?,?,?,?,?,?,?,?,?)',
+                               (datetime.now(timezone.utc).isoformat(), str(cfg.get('provider_id') or cfg.get('id') or ''), str(cfg.get('model') or ''),
+                                str(cfg.get('purpose') or ''), json.dumps(ps.summary()), len(sent), sent[:20000], 'prepare',
+                                int(getattr(ps.known, 'revision', None) or 0), VERSION_DETECTEUR)).lastrowid
             db.execute('DELETE FROM pseudo540_log WHERE id NOT IN (SELECT id FROM pseudo540_log ORDER BY id DESC LIMIT 200)')
             db.commit()
+            return ident
         finally:
             db.close()
     except sqlite3.Error:
+        return None
+
+
+def noter_etat(cfg, ident, etat, recu=None, code='', retour=''):
+    """État réel d'une ligne du journal : ``emis`` avec le reçu du corps exact (empreinte et taille, aucun contenu), ``refuse`` avec le code
+    du contrôle, ``a_verifier`` avec la réponse reçue (encore pseudonymisée : aucun nom rétabli n'y figure), ``echec``. Ne lève jamais."""
+    state = str((cfg or {}).get('state_dir') or '')
+    if not ident or not state or etat not in ETATS:
+        return
+    try:
+        db = sqlite3.connect(Path(state) / 'desk.sqlite3', timeout=10)
+        try:
+            db.execute('UPDATE pseudo540_log SET etat=?, empreinte=?, octets=?, code=?, retour=? WHERE id=?',
+                       (etat, str((recu or {}).get('sha256') or ''), int((recu or {}).get('octets') or 0), str(code or '')[:80], str(retour or '')[:20000], int(ident)))
+            db.commit()
+        finally:
+            db.close()
+    except (sqlite3.Error, ValueError, TypeError):
         pass
 
 
@@ -497,25 +1073,51 @@ def recent(state_dir, limit=20):
     try:
         db = _db(state_dir)
         try:
-            rows = db.execute('SELECT id,at,provider,model,purpose,counts,characters FROM pseudo540_log ORDER BY id DESC LIMIT ?', (limit,)).fetchall()
+            plus = [c for c in ('etat', 'empreinte', 'octets', 'code') if c in _colonnes(db)]
+            rows = db.execute('SELECT %s FROM pseudo540_log ORDER BY id DESC LIMIT ?' % ','.join(['id', 'at', 'provider', 'model', 'purpose', 'counts', 'characters'] + plus),
+                              (limit,)).fetchall()
         finally:
             db.close()
     except sqlite3.Error:
         return []
-    return [{'id': r[0], 'at': r[1], 'provider': r[2], 'model': r[3], 'purpose': r[4], 'counts': json.loads(r[5] or '{}'), 'characters': r[6]} for r in rows]
+    out = []
+    for r in rows:
+        ligne = {'id': r[0], 'at': r[1], 'provider': r[2], 'model': r[3], 'purpose': r[4], 'counts': json.loads(r[5] or '{}'), 'characters': r[6],
+                 'etat': '', 'empreinte': '', 'octets': 0, 'code': ''}
+        ligne.update(zip(plus, r[7:]))
+        out.append(ligne)
+    return out
 
 
 def sample(state_dir, ident):
     db = _db(state_dir)
     try:
-        row = db.execute('SELECT sample FROM pseudo540_log WHERE id=?', (int(ident),)).fetchone()
+        garde = 'retour' in _colonnes(db)
+        row = db.execute('SELECT sample%s FROM pseudo540_log WHERE id=?' % (',retour' if garde else ''), (int(ident),)).fetchone()
     finally:
         db.close()
-    return row[0] if row else ''
+    if not row:
+        return ''
+    if garde and row[1]:     # 5.6.109 (P04) : réponse gardée « à vérifier », telle que reçue (marqueurs non rétablis)
+        return row[0] + '\n\n--- Réponse reçue, gardée à vérifier (marqueurs non rétablis) ---\n' + row[1]
+    return row[0]
+
+
+# 5.6.109 (P01) : ce que le masquage ne sait pas reconnaître, dit tel quel partout où la pseudonymisation est annoncée.
+LIMITES = (
+    'Un nom que le cabinet ne connaît pas, écrit sans civilité ni majuscule, ou dans une langue que les règles ne couvrent pas, n’est pas reconnu : il part tel quel.',
+    'Le nom seul d’une personne du registre est masqué quand il porte une majuscule ; un prénom usuel seul, un surnom ou une abréviation ne le sont pas.',
+    'Les détails d’une affaire (dates, montants, lieux, fonctions, faits singuliers) ne sont pas masqués : ils peuvent suffire à reconnaître une personne.',
+    'Sur une image, seuls les mots lus par la lecture locale sont noircis : un visage, une signature, un tampon, un code-barres ou un mot mal lu restent visibles.',
+    'Un texte sans aucun remplacement signifie que rien n’a été reconnu, pas qu’il ne contient aucune donnée personnelle.',
+)
+NOTE_APERCU = ('Ce qui n’a pas été remplacé ci-dessus partirait tel quel : relisez le texte transmis. Un aperçu sans remplacement ne prouve pas '
+               'l’absence de donnée personnelle.')
 
 
 def preview(config, text, matter=''):
-    """Aperçu : texte tel qu'il partirait, et tableau des remplacements (affiché à l'avocat seulement, jamais envoyé)."""
+    """Aperçu : texte tel qu'il partirait, et tableau des remplacements (affiché à l'avocat seulement, jamais envoyé). 5.6.109 (P01) :
+    l'aperçu dit aussi ce qu'il couvre (nombres seulement) et ce que le masquage ne sait pas reconnaître."""
     text = str(text or '')
     if not 1 <= len(text) <= 60000:
         from .common import Stop
@@ -523,4 +1125,8 @@ def preview(config, text, matter=''):
     ps = Pseudonymizer(config)
     sent = ps.text(text)
     table = [{'token': tok, 'original': original, 'category': LABELS.get(tok[1:].rsplit('_', 1)[0], '')} for tok, original in ps.back.items()]
-    return {'sent': sent, 'replacements': table, 'counts': ps.summary(), 'restored_ok': ps.restore(sent) == text}
+    return {'sent': sent, 'replacements': table, 'counts': ps.summary(), 'restored_ok': ps.restore(sent) == text,
+            'limites': list(LIMITES), 'note': NOTE_APERCU, 'litteraux': sorted(ps.litteraux | ps.echappes),
+            'couverture': {'identites': len(ps.known), 'registres': dict(getattr(ps.known, 'registres', {}) or {}),
+                           'tronques': list(getattr(ps.known, 'tronques', ()) or ()), 'revision': getattr(ps.known, 'revision', None),
+                           'detecteur': VERSION_DETECTEUR}}

@@ -245,6 +245,9 @@ def carte_source(p, contexte='parametres', session=''):
     out = ('<article class="s5632-card s5697-card" data-provider="%s" data-mode="%s"><h3>%s <small>%s</small></h3>'
            '<p class="s5697-badges">%s<span class="s5697-mode">%s</span></p><p>%s</p><p class="f5632-hint">%s</p>') % (
         pid, e(mode, quote=True), e(p['name']), status, badges, th('src97.mode.' + mode), e(p['coverage']), e(p['note']))
+    if p.get('etat_source'):   # 5.6.109 (lot S, F11) : état explicite (préconfiguré, vérification en cours, prêt, hors ligne, corpus absent…)
+        from .sources_publiques56109 import etat_html
+        out += etat_html(p)
     if p.get('note_5697'):
         out += '<p class="f5632-hint">%s</p>' % e(p['note_5697'])
     if mode == 'integre':

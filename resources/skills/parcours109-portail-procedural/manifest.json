@@ -1,0 +1,20 @@
+{
+  "id": "builtin.parcours109.portail_procedural",
+  "name": "Collecter les messages de procedure et preparer les suites",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub proposition de développement",
+  "license": "AGPL-3.0",
+  "description": "Consulter un portail judiciaire autorisé dans le navigateur supervisé, collecter les exports, classer et préparer dates et courriels d'information.",
+  "instructions": ["SKILL.md"],
+  "jurisdictions": ["FR"],
+  "role": "specialisation",
+  "allowed_phases": ["analyse", "redaction_document", "redaction_courriel", "controle"],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": ["e barreau", "ebarreau", "rpva", "portalis", "messages de procedure"],
+  "enabled_default": true,
+  "requires": {"analysis": ["ai.generate"]},
+  "activation_note": "Méthode préinstallée ; exécution seulement après qualification du portail, de la session et des capacités du poste. Aucune API officielle ni autorisation de dépôt procédural."
+}

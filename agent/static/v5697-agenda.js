@@ -375,6 +375,7 @@
       ligne(zone, 'Visio : lien fourni (non vérifié par AxiorHub).'); zone.appendChild(lienExterne('Rejoindre la visio', d.lien_fourni));
     }
     if (d.speakr_url) zone.appendChild(lienExterne('Ouvrir Speakr', d.speakr_url));
+    if (d.rappel_client) ligne(zone, d.rappel_client);   // 5.6.109 (I2) : rappel au client constaté envoyé (Bland), texte posé par le serveur
     if (d.nouvelle_demande && d.nouvelle_demande.href) {   // § 16 : même formulaire de demande que Courriels et Dossiers
       var nd = document.createElement('a'); nd.className = 'ax-btn ghost'; nd.href = d.nouvelle_demande.href; nd.textContent = d.nouvelle_demande.libelle;
       zone.appendChild(nd);

@@ -46,6 +46,7 @@ CONFIG = 'sauvegarde5688:config'
 META_CLE = 'sauvegarde5688:cle'           # sel et paramètres publics de scrypt, jamais la phrase ni la clé
 REUSSITE = 'sauvegarde5688:derniere_reussite'
 ESSAI = 'auto:sauvegarde5688'
+PLANIFICATION = 'sauvegarde5688:planification'   # 5.6.109 (lot R) : dernier refus de mise en file (motif), jamais avalé en silence
 DEFAUTS = {'actif': False, 'heure': 2, 'dossier': '', 'quotidiennes': 7, 'hebdomadaires': 4, 'taille_max_go': 100, 'distant': {'type': ''}}
 PHRASE_MIN, PHRASE_MAX = 16, 200
 SCRYPT = {'n': 2 ** 16, 'r': 8, 'p': 1}   # 64 Mio de mémoire ; dérivée une fois au réglage, pas à chaque sauvegarde
@@ -331,12 +332,84 @@ def plan(desk, cfg=None):
     return entrees, avertissements
 
 
-def _est_sqlite(chemin):
+SUFFIXES_BASE = ('.sqlite3', '.sqlite', '.db')
+ENTETE_SQLITE = b'SQLite format 3\x00'
+
+
+def _est_base(chemin):
+    """5.6.109 (lot R) : une base se reconnaît à son NOM. Jusqu'à la 5.6.108, ``_est_sqlite`` ouvrait le fichier VIVANT par ``open()`` puis le
+    refermait, dans le worker qui garde des connexions SQLite sur ce fichier : sous Linux, ce ``close()`` annule tous les verrous POSIX du processus
+    sur la base (hypothèse de l'incident d'un serveur de production en 5.6.108, essai : ``tests/essai_verrous56109.py``). L'en-tête n'est plus lu
+    que sur la COPIE temporaire, après la copie par l'API de sauvegarde."""
+    return Path(chemin).name.lower().endswith(SUFFIXES_BASE)
+
+
+_est_sqlite = _est_base      # nom historique, sans ouverture du fichier
+
+
+# Copie d'une base dans un PROCESSUS ENFANT COURT (lot R) : aucune autre connexion n'y existe, le verrou et le cache de la copie (et du
+# quick_check d'une base de plusieurs Go) disparaissent avec lui, et un échec n'atteint jamais le worker. Rien que sqlite3 (pas d'import du
+# produit, interpréteur isolé -I). Codes : 0 copie faite (verdict du quick_check rendu), 4 base illisible, 5 base occupée, 6 autre erreur.
+COPIE_ENFANT = r'''
+import json, sqlite3, sys
+from pathlib import Path
+def motif(e):
+    t = str(e).lower()
+    if 'malformed' in t or 'not a database' in t or getattr(e, 'sqlite_errorname', '') in ('SQLITE_CORRUPT', 'SQLITE_NOTADB'):
+        return 4, 'base_illisible'
+    if 'locked' in t or 'busy' in t:
+        return 5, 'base_occupee'
+    return 6, 'copie_impossible'
+try:
+    src = sqlite3.connect(Path(sys.argv[1]).resolve().as_uri() + '?mode=ro', uri=True, timeout=30)
+    dst = sqlite3.connect(sys.argv[2])
     try:
-        with open(chemin, 'rb') as f:
-            return f.read(16) == b'SQLite format 3\x00'
+        src.backup(dst)
+        dst.execute('PRAGMA journal_mode=DELETE')
+        v = dst.execute('PRAGMA quick_check(1)').fetchone()
+        dst.commit()
+    finally:
+        src.close()
+        dst.close()
+except sqlite3.Error as e:
+    code, m = motif(e)
+    print(json.dumps({'ok': False, 'motif': m}))
+    sys.exit(code)
+print(json.dumps({'ok': True, 'quick_check': bool(v and v[0] == 'ok')}))
+'''
+MOTIFS_COPIE = {'base_illisible': 'base endommagée ou non reconnue', 'base_occupee': 'base occupée pendant toute la copie',
+                'copie_impossible': 'copie impossible', 'delai_depasse': 'copie trop longue, arrêtée', 'controle_non_satisfait': 'contrôle rapide non satisfait',
+                'entete_absent': 'la copie n’est pas une base SQLite'}
+
+
+def copier_base(source, cible):
+    """Copie cohérente d'une base, de préférence dans un processus enfant (voir ``COPIE_ENFANT``) ; rend {'ok', 'quick_check', 'motif'}.
+    L'original n'est jamais ouvert autrement qu'en lecture seule par SQLite. Interpréteur figé (pas de ``python`` à lancer) : copie dans ce processus."""
+    import subprocess
+    if getattr(sys, 'frozen', False) or not sys.executable:
+        try:
+            return {'ok': True, 'quick_check': copie_sqlite(source, cible), 'motif': ''}
+        except sqlite3.Error as error:
+            texte = str(error).lower()
+            return {'ok': False, 'quick_check': False, 'motif': 'base_illisible' if ('malformed' in texte or 'not a database' in texte) else
+                    ('base_occupee' if 'locked' in texte or 'busy' in texte else 'copie_impossible')}
+    try:
+        taille = Path(source).stat().st_size
     except OSError:
-        return False
+        return {'ok': False, 'quick_check': False, 'motif': 'copie_impossible'}
+    delai = 600 + taille // (2 * 1024 * 1024)        # 2 Mo/s au pire, plus dix minutes : 2,9 Go → environ 34 min au plus
+    try:
+        fini = subprocess.run([sys.executable, '-I', '-c', COPIE_ENFANT, str(source), str(cible)], capture_output=True, text=True, timeout=delai,
+                              creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    except subprocess.TimeoutExpired:
+        return {'ok': False, 'quick_check': False, 'motif': 'delai_depasse'}
+    except OSError:
+        return {'ok': False, 'quick_check': False, 'motif': 'copie_impossible'}
+    try:
+        verdict = json.loads((fini.stdout or '').strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        verdict = {'ok': False, 'motif': 'copie_impossible'}
+    return {'ok': bool(verdict.get('ok')) and fini.returncode == 0, 'quick_check': bool(verdict.get('quick_check')), 'motif': str(verdict.get('motif') or '')}
 
 
 def copie_sqlite(source, cible):
@@ -377,7 +450,7 @@ def ecrire_archive(desk, cible, cle, kdf, ident, entrees, avertissements, verifi
     """Écrit l'archive chiffrée ; rend {'taille', 'sha256', 'fichiers', 'avertissements'}. ``verifier`` est appelé entre deux fichiers (demande d'arrêt)."""
     travail = Path(desk.c['state_dir']) / TRAVAIL
     travail.mkdir(mode=0o700, exist_ok=True)
-    manifeste, signales = [], list(avertissements)
+    manifeste, signales, echecs = [], list(avertissements), []
     with open(cible, 'wb') as sortie:
         chiffre = Ecriture(sortie, cle, kdf, ident, _garde_disque(Path(cible).parent))
         compresse = gzip.GzipFile(filename='', fileobj=chiffre, mode='wb', compresslevel=3, mtime=0)   # niveau modéré : la nuit, mais sans lourdeur
@@ -388,10 +461,21 @@ def ecrire_archive(desk, cible, cle, kdf, ident, entrees, avertissements, verifi
             copie = travail / uuid.uuid4().hex
             try:
                 mtime = chemin.stat().st_mtime
-                if _est_sqlite(chemin):
-                    if not copie_sqlite(chemin, copie):
-                        signales.append('Base à examiner (contrôle rapide non satisfait) : ' + nom)
-                    with open(copie, 'rb') as flux:
+                if _est_base(chemin):
+                    # 5.6.109 (lot R) : copie dans un processus enfant, contrôle rapide et en-tête sur la COPIE ; l'original n'est jamais ouvert par open()
+                    verdict = copier_base(chemin, copie)
+                    motif = verdict['motif'] if not verdict['ok'] else ('' if verdict['quick_check'] else 'controle_non_satisfait')
+                    with open(copie, 'rb') if copie.is_file() else io.BytesIO(b'') as flux:   # lot R : hors service (copie temporaire, jamais l'original)
+                        if not motif and flux.read(16) != ENTETE_SQLITE:   # lot R : hors service
+                            motif = 'entete_absent'
+                        if motif:
+                            if nom == 'etat/desk.sqlite3':   # sans la base principale, une archive ne vaut pas sauvegarde
+                                raise Stop('base_principale_illisible')
+                            echecs.append(nom)
+                            signales.append('Base non sauvegardée (%s) : %s' % (MOTIFS_COPIE.get(motif, motif), nom)
+                                            + (' — base à examiner' if motif in ('controle_non_satisfait', 'base_illisible') else ''))
+                            continue
+                        flux.seek(0)
                         manifeste.append({**_ajouter(tar, nom, flux, copie.stat().st_size, mtime), 'type': 'sqlite'})
                     continue
                 if chemin.stat().st_size <= FICHIER_MEMOIRE:
@@ -417,7 +501,7 @@ def ecrire_archive(desk, cible, cle, kdf, ident, entrees, avertissements, verifi
         chiffre.close()
         sortie.flush()
         os.fsync(sortie.fileno())
-    return {'taille': chiffre.taille, 'sha256': chiffre.sha.hexdigest(), 'fichiers': len(manifeste), 'avertissements': signales}
+    return {'taille': chiffre.taille, 'sha256': chiffre.sha.hexdigest(), 'fichiers': len(manifeste), 'avertissements': signales, 'bases_en_echec': echecs}
 
 
 def _version():
@@ -577,8 +661,17 @@ def a_conserver(noms, quotidiennes=7, hebdomadaires=4):
     return garde
 
 
-def purger_local(dest, cfg, courante=''):
-    """Rétention locale : seuls les noms exacts d'AxiorHub sont touchés. ``courante`` doit être présente : sinon on ne supprime rien."""
+def _id_archive(chemin):
+    try:
+        return str(_entete(chemin).get('id') or '')
+    except (Stop, OSError):
+        return ''
+
+
+def purger_local(dest, cfg, courante='', protegees=()):
+    """Rétention locale : seuls les noms exacts d'AxiorHub sont touchés. ``courante`` doit être présente (elle vient d'être relue avec succès :
+    ``executer`` n'appelle la rétention qu'après ``controler``) : sinon on ne supprime rien. 5.6.109 (lot R) : une archive dont l'identifiant
+    est dans ``protegees`` (celle d'où vient la base remise en place) n'est jamais retirée."""
     dest = Path(dest)
     presents = [p for p in dest.iterdir() if p.is_file() and not p.is_symlink()]
     noms = [p.name for p in presents if NOM.match(p.name)]
@@ -588,6 +681,8 @@ def purger_local(dest, cfg, courante=''):
         return retires
     for p in presents:
         if PARTIE.match(p.name) or (NOM.match(p.name) and p.name not in garde and p.name != courante):
+            if NOM.match(p.name) and protegees and _id_archive(p) in protegees:
+                continue
             p.unlink(missing_ok=True)
             retires.append(p.name)
     return retires
@@ -707,7 +802,100 @@ def etat(desk):
     derniere = desk.db.execute('SELECT * FROM sauvegardes5688 ORDER BY debut DESC LIMIT 1').fetchone()
     running = desk.db.execute("SELECT 1 FROM jobs WHERE kind=? AND status IN ('pending','running') LIMIT 1", (JOB,)).fetchone()
     return {'config': cfg, 'phrase': phrase_definie(desk), 'derniere': dict(derniere) if derniere else None, 'reussite': desk.settings(REUSSITE, ''),
-            'alerte': alerte(desk), 'en_cours': bool(running), 'dossier': str(dossier(desk, cfg)), 'archives': archives_locales(desk, cfg)}
+            'alerte': alerte(desk), 'en_cours': bool(running), 'dossier': str(dossier(desk, cfg)), 'archives': archives_locales(desk, cfg),
+            'planification': desk.settings(PLANIFICATION, None), 'garde': garde_active(desk)}
+
+
+# ------------------------------------------------------------------------------------------------ reprise après un arrêt ou une restauration (lot R)
+# Fait constaté sur un serveur de production en 5.6.108 : la base contenue dans une archive est copiée PENDANT le travail de sauvegarde ; elle
+# porte donc ce travail « en cours » et l'ancienne dernière réussite. Remise en place, elle rendait la sauvegarde « due » dès le premier passage
+# de la boucle (dernière réussite de la veille, dernier essai de plus de 6 h) : une sauvegarde partait une minute après le redémarrage, et la
+# rétention (une archive par jour) retirait l'archive saine du jour, celle qui venait de servir. Désormais une ligne « en cours » trouvée sans
+# sauvegarde réellement active (verrou libre) est close « interrompue », aucune sauvegarde automatique ne part avant l'heure planifiée suivante,
+# et l'archive d'origine est protégée de la rétention pendant 72 heures.
+GARDE = 'sauvegarde5688:garde'                  # {'motif', 'depuis', 'jusqu_a', 'archive'} : pas de sauvegarde automatique avant 'jusqu_a'
+PROTEGEES = 'sauvegarde5688:protegees'          # {identifiant d'archive: fin de protection (ISO)}
+RESTAURATION = 'sauvegarde5688:restauration'    # repère posé par « secours56109 preparer-remise » dans la base remise en place
+PROTECTION_HEURES = 72
+MOTIFS_GARDE = {'base_restauree': 'base remise en place depuis une archive ; l’archive d’origine est protégée de la rétention',
+                'interrompue_au_demarrage': 'sauvegarde précédente interrompue (arrêt du service ou base remise en place depuis une archive)'}
+
+
+def heure_suivante(desk, now, cfg=None):
+    """Prochaine heure planifiée, au moins une heure après ``now`` (UTC)."""
+    from datetime import timedelta
+    cfg = cfg or config(desk)
+    local = now.astimezone(_tz(desk))
+    cand = local.replace(hour=int(cfg['heure']), minute=0, second=0, microsecond=0)
+    while cand <= local + timedelta(hours=1):
+        cand += timedelta(days=1)
+    return cand.astimezone(timezone.utc)
+
+
+def poser_garde(desk_ou_db, motif, now, jusqu_a, archive=''):
+    """Écrit la garde et la protection de l'archive d'origine (``desk.setting`` ou connexion sqlite3 brute, pour l'outil de secours)."""
+    from datetime import timedelta
+    garde = {'motif': motif, 'depuis': now.isoformat(timespec='seconds'), 'jusqu_a': jusqu_a.isoformat(timespec='seconds'), 'archive': archive}
+    ecrire = getattr(desk_ou_db, 'setting', None)
+    lire = getattr(desk_ou_db, 'settings', None)
+    if lire:
+        protegees = dict(lire(PROTEGEES, {}) or {})
+    else:
+        row = desk_ou_db.execute('SELECT value FROM settings WHERE key=?', (PROTEGEES,)).fetchone()
+        protegees = dict(json.loads(row[0])) if row else {}
+    if archive:
+        protegees[archive] = (now + timedelta(hours=PROTECTION_HEURES)).isoformat(timespec='seconds')
+    protegees = {k: v for k, v in protegees.items() if (_parse(v) or now) > now}
+    if ecrire:
+        ecrire(GARDE, garde)
+        ecrire(PROTEGEES, protegees)
+    else:
+        desk_ou_db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)', (GARDE, json.dumps(garde)))
+        desk_ou_db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)', (PROTEGEES, json.dumps(protegees)))
+    return garde
+
+
+def garde_active(desk, now=None):
+    garde = desk.settings(GARDE, None)
+    if not isinstance(garde, dict):
+        return None
+    jusqu_a = _parse(garde.get('jusqu_a'))
+    return garde if jusqu_a and (now or datetime.now(timezone.utc)) < jusqu_a else None
+
+
+def protegees(desk, now=None):
+    now = now or datetime.now(timezone.utc)
+    return {k for k, v in (desk.settings(PROTEGEES, {}) or {}).items() if (_parse(v) or now) > now}
+
+
+def reprise(desk, now=None):
+    """Lignes « en cours » d'une sauvegarde qui ne tourne pas (verrou libre) : closes « interrompue », garde jusqu'à l'heure planifiée suivante,
+    archive d'origine protégée. Rend la garde posée, ou ``None`` s'il n'y avait rien à reprendre (ou si une sauvegarde tourne réellement)."""
+    now = now or datetime.now(timezone.utc)
+    try:
+        lignes = desk.db.execute("SELECT id FROM sauvegardes5688 WHERE statut='en_cours'").fetchall()
+    except sqlite3.OperationalError:          # table absente : rien n'a encore jamais été sauvegardé
+        return None
+    if not lignes:
+        return None
+    try:
+        with verrou(desk):
+            repere = desk.settings(RESTAURATION, None)
+            recente = isinstance(repere, dict) and _parse(repere.get('le')) and (now - _parse(repere.get('le'))).total_seconds() < 7 * 86400
+            motif = 'base_restauree' if recente else 'interrompue_au_demarrage'
+            ids = [r[0] for r in lignes]
+            desk.db.executemany("UPDATE sauvegardes5688 SET statut='interrompue',fin=?,erreur=? WHERE id=? AND statut='en_cours'",
+                                [(desk.now(), motif, i) for i in ids])
+            desk.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE kind=? AND status IN ('pending','running','cancel_requested','suspended') "
+                            "AND COALESCE(json_extract(args,'$.declencheur'),'')='automatique' AND id<>?",
+                            (desk.now(), json.dumps({'message': 'Sauvegarde interrompue reprise au démarrage : non relancée ; la planification décide de la suivante.'},
+                                                    ensure_ascii=False), JOB, int(getattr(desk, 'active_job_id', 0) or 0)))
+            desk.db.commit()
+            garde = poser_garde(desk, motif, now, heure_suivante(desk, now), ids[-1])
+            desk.audit('sauvegarde5688_reprise', {'interrompues': ids[:10], 'motif': motif, 'jusqu_a': garde['jusqu_a']})
+            return garde
+    except Stop:                              # une sauvegarde tourne vraiment : sa ligne « en cours » est la sienne
+        return None
 
 
 # ------------------------------------------------------------------------------------------------ planification (boucle des automatismes)
@@ -716,6 +904,8 @@ def due(desk, now=None):
     if not cfg['actif'] or not phrase_definie(desk):
         return False
     now = now or datetime.now(timezone.utc)
+    if garde_active(desk, now):                # 5.6.109 (lot R) : après une reprise ou une restauration, rien avant l'heure planifiée suivante
+        return False
     if now.timestamp() - float(desk.settings(ESSAI, 0) or 0) < REESSAI_SECONDES:
         return False
     local = now.astimezone(_tz(desk))
@@ -729,13 +919,23 @@ def due(desk, now=None):
 def schedule(desk, now_ts=None):
     """Une tentative par jour (nouvel essai 6 h après un échec). Origine « control » : la pause de l'IA n'arrête pas les sauvegardes, qui n'appellent aucun modèle."""
     now = datetime.fromtimestamp(now_ts, timezone.utc) if now_ts else datetime.now(timezone.utc)
-    if not due(desk, now):
+    if reprise(desk, now) or not due(desk, now):   # 5.6.109 (lot R) : une sauvegarde interrompue n'est jamais relancée d'office
         return False
     from . import cadence5662
     derniere = _parse(desk.settings(REUSSITE, ''))
     if cadence5662.busy(desk, now.timestamp()) and derniere and (now - derniere).total_seconds() < RATTRAPAGE_HEURES * 3600:
         return False                       # file chargée : reporté, sauf si la dernière réussite commence à dater
-    desk.enqueue(JOB, {'declencheur': 'automatique'}, priority=85, origin='control')
+    try:
+        # 5.6.109 (lot R) : travail de contrôle, une fois par jour : il ne compte pas dans le plafond des travaux automatiques (chained=True) ;
+        # avant, une file de 60 travaux automatiques le refusait (« file_attente_pleine ») et l'erreur était avalée par la boucle des automatismes.
+        desk.enqueue(JOB, {'declencheur': 'automatique'}, priority=85, origin='control', chained=True)
+    except Stop as error:
+        # refus visible (Paramètres, diagnostic, « python3 -m agent.secours56109 sauvegardes ») et nouvel essai dans 10 minutes, pas à chaque passage
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        desk.setting(PLANIFICATION, {'le': desk.now(), 'motif': str(error).split(':')[0]})
+        desk.setting(ESSAI, now.timestamp() - REESSAI_SECONDES + 600)
+        return False
     desk.setting(ESSAI, now.timestamp())
     return True
 
@@ -767,7 +967,7 @@ def _espace(desk, cfg, dest, entrees):
         except OSError:
             continue
         total += taille
-        if _est_sqlite(chemin):
+        if _est_base(chemin):          # 5.6.109 (lot R) : par le nom, sans ouvrir le fichier vivant
             plus_grosse = max(plus_grosse, taille)
     if total > int(cfg['taille_max_go']) * 1024 ** 3:
         raise Stop('sauvegarde_trop_volumineuse')
@@ -793,8 +993,13 @@ def executer(desk, declencheur='automatique', liaison=None):
     from .pause5629 import checkpoint
     meta = desk.settings(META_CLE)
     cfg = config(desk)
+    schema(desk)
+    if declencheur == 'automatique' and (reprise(desk) or garde_active(desk)):
+        # 5.6.109 (lot R) : travail automatique resté en file d'avant un arrêt ou une restauration : il ne part pas ; la planification décide
+        garde = garde_active(desk) or {}
+        return {'sauvegarde': '', 'statut': 'differee', 'sans_controle': True,
+                'message': 'Sauvegarde automatique différée jusqu’à l’heure planifiée suivante (%s).' % MOTIFS_GARDE.get(garde.get('motif'), 'reprise')}
     with verrou(desk):
-        schema(desk)
         desk.db.execute("UPDATE sauvegardes5688 SET statut='interrompue',fin=?,erreur='travail_interrompu' WHERE statut='en_cours'", (desk.now(),))
         ident = uuid.uuid4().hex
         desk.db.execute("INSERT INTO sauvegardes5688(id,debut,declencheur,statut) VALUES (?,?,?,'en_cours')", (ident, desk.now(), str(declencheur)[:40]))
@@ -827,9 +1032,17 @@ def executer(desk, declencheur='automatique', liaison=None):
             if partie is not None:
                 Path(partie).unlink(missing_ok=True)
             shutil.rmtree(travail, ignore_errors=True)
+        if ecrit.get('bases_en_echec'):
+            # 5.6.109 (lot R) : une base dont la copie échoue rend la sauvegarde « en échec », motif lisible ; l'archive (relue) garde le reste des
+            # données, mais ni la rétention ni le second emplacement ne s'appliquent : une archive incomplète ne fait jamais disparaître une bonne.
+            _fin(desk, ident, statut='echec', erreur='copie_base_impossible', nom=nom, taille=ecrit['taille'], sha256=ecrit['sha256'], fichiers=ecrit['fichiers'],
+                 emplacement=str(dest), avertissements=json.dumps(ecrit['avertissements'], ensure_ascii=False))
+            desk.audit('sauvegarde5688_terminee', {'id': ident, 'statut': 'echec', 'erreur': 'copie_base_impossible', 'bases': ecrit['bases_en_echec'][:20],
+                                                   'declencheur': str(declencheur)[:40]})
+            raise Stop('copie_base_impossible')
         statut, distant, erreur = 'reussie', '', ''
         try:
-            retires = purger_local(dest, cfg, nom)     # seulement ici : l'archive du jour existe et a été relue
+            retires = purger_local(dest, cfg, nom, protegees(desk))     # seulement ici : l'archive du jour existe et a été relue
         except OSError:
             retires, statut, erreur = [], 'partielle', 'retention_impossible'
         if (cfg['distant'] or {}).get('type'):

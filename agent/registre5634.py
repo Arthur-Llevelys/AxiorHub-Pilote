@@ -57,6 +57,8 @@ def status(desk):
             item = extensions.get(p['connector']) or next((x for x in extensions.values() if isinstance(x, dict) and x.get('provider') == pid), None)
             if not item:
                 reason = 'Non configurée (Paramètres › Sources juridiques).'
+            elif not item.get('enabled') and item.get('activation_demandee'):   # 5.6.109 (lot S, F11) : préconfigurée ou demandée, jamais « désactivée »
+                reason = 'Non configurée pour l’usage : activation demandée, vérification automatique en cours (Paramètres › Sources juridiques).'
             elif not item.get('enabled'):
                 reason = 'Désactivée.'
             elif (item.get('last_test') or {}).get('status') != 'ok':

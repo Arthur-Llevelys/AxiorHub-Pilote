@@ -444,9 +444,10 @@ def prepare(desk, actor, role, kind, mid, data, request_key=''):
         if data.get('personne') is not None:                  # 5.6.88 : facture limitée aux temps d'une personne
             entries = [x for x in entries if (x.get('author') or '') == str(data['personne'])]
         chosen = set(data.get('temps') or [e['id'] for e in entries])
+        from .gestion56109 import quantite_heures              # 5.6.109 (G01) : quantité à 6 décimales, ligne = montant du temps validé
         for e in entries:
             if e['id'] in chosen:
-                snap['lignes'].append({'nature': 'honoraires', 'libelle': e['label'] or 'Diligences', 'quantite': str((Decimal(e['minutes']) / 60).quantize(Decimal('0.01'))),
+                snap['lignes'].append({'nature': 'honoraires', 'libelle': e['label'] or 'Diligences', 'quantite': str(quantite_heures(e['minutes'])),
                                        'unite': 'heure', 'prix_unitaire_ht_cents': e['rate_cents'], 'periode': e['day'],
                                        'sources': [{'type': 'temps', 'id': e['id'], 'auteur': e.get('author') or ''}]})
         if not snap['lignes']:
@@ -540,6 +541,30 @@ def _active_convention(desk, mid):
                              "'en_signature') ORDER BY CASE state WHEN 'signe' THEN 0 ELSE 1 END, updated DESC LIMIT 1", (str(mid),)):
         return get(desk, r['id'])
     return None
+
+
+def convention_qualifiee(desk, doc_id):
+    """5.6.109 (G02) : qualification d'une convention ou lettre de mission — état, version, périmètre, preuve. ``_active_convention`` retient
+    aussi « approuvé », « envoyé », « en signature » : ce n'est pas une preuve d'engagement. « signee » exige l'état ``signe`` ET la preuve
+    enregistrée par l'avocat (événement ``etat_signe``) ; sinon « envoyee », « approuvee » ou « autre »."""
+    d = get(desk, doc_id)
+    if d['kind'] not in ('convention', 'lettre_mission'):
+        raise Stop('document_financier_absent')
+    preuve = ''
+    for ev in desk.db.execute("SELECT detail_json FROM b53_events WHERE document=? AND kind='etat_signe' ORDER BY id DESC LIMIT 1", (d['id'],)):
+        preuve = str(json.loads(ev['detail_json'] or '{}').get('preuve') or '').strip()
+    if d['state'] == 'signe' and preuve:
+        etat = 'signee'
+    elif d['state'] in ('envoye', 'en_signature', 'signe'):
+        etat = 'envoyee'                                       # « signé » sans preuve enregistrée : jamais présenté comme signé
+    elif d['state'] == 'approuve':
+        etat = 'approuvee'
+    else:
+        etat = 'autre'
+    snap = d['snapshot']
+    return {'id': d['id'], 'matter': d['matter'], 'numero': d['number'] or '', 'version': d['version'], 'etat_registre': d['state'], 'etat': etat,
+            'preuve': preuve, 'perimetre': (snap.get('textes') or {}).get('perimetre_inclus', ''), 'montant_ht_cents': (snap.get('totaux') or {}).get('ht_cents'),
+            'libelle': STATES.get(d['state'], d['state'])}
 
 
 def _credited(desk, origin_id, exclude=''):

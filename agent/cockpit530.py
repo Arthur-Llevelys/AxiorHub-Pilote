@@ -1074,7 +1074,7 @@ def routines_html(desk, prefix, owner='cabinet'):
     panels += '<div class="c530-panel" role="tabpanel" data-panel="docs" hidden>%s</div>' % (
         ('<ul class="c530-list">%s</ul>' % docs) if docs else '<p class="c530-empty">Aucun document en attente.</p>')
     buttons = ''.join('<button type="button" role="tab" class="c530-pill" data-tab="%s" aria-selected="%s">%s</button>' % (k, 'true' if k == 'briefing' else 'false', e(n)) for k, n in tabs)
-    return ('<div class="c530-head"><h2 id="c530-t-routines">Comptes rendus des routines</h2><div class="c530-pills" role="tablist" aria-label="Comptes rendus des routines">%s</div></div>%s'
+    return ('<div class="c530-head"><h2 id="c530-t-routines">Comptes rendus — Mes routines | Mes agents IA</h2><div class="c530-pills" role="tablist" aria-label="Comptes rendus — Mes routines | Mes agents IA">%s</div></div>%s'
             '<p class="c530-note"><a href="%s">Heures, jours, signature et exclusions</a></p>') % (buttons, panels, e(prefix + '/aujourdhui?vue=essentiel'))
 
 
@@ -1177,7 +1177,7 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
             from .aujourdhui56101 import attente
             return _page5689(desk, prefix, owner, when, header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix),
                              routines_bar_html(desk, prefix, {'owner': owner}, compact=True, formulaires_differes=True), matin,
-                             '<h2 class="c530-sr" id="c530-t-routines">Comptes rendus des routines</h2>' + attente('briefing', prefix), queue)
+                             '<h2 class="c530-sr" id="c530-t-routines">Comptes rendus — Mes routines | Mes agents IA</h2>' + attente('briefing', prefix), queue)
         except Exception as ex:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
             import logging
             logging.getLogger(__name__).exception('accueil 5.6.89 : %s', ex)

@@ -405,5 +405,12 @@ def section_html(desk, prefix):
             '<label class="m5-field">Analyses automatiques par jour <input type="number" name="daily_jobs" min="1" max="500" value="%d"></label>'
             '<button type="submit">Enregistrer</button></form>'
             '<p class="vf-note">Aujourd’hui : %d analyse(s) automatique(s) lancée(s) sur %d · %d différée(s) (reprise automatique le lendemain).</p>%s'
-            '<h3>Consommation des 7 derniers jours</h3>%s</section>') % (
-        ' checked' if on else '', quota(desk), used_today(desk), quota(desk), len(deferred(desk)), suggestion, consumption_html)
+            '%s</section>') % (
+        ' checked' if on else '', quota(desk), used_today(desk), quota(desk), len(deferred(desk)), suggestion,
+        # 5.6.109 (I2) : nouvelle interface : le tableau renvoie à la section unique « Consommation et coûts » ; interrupteur éteint : inchangé
+        _renvoi56109(desk, '<h3>Consommation des 7 derniers jours</h3>' + consumption_html, prefix))
+
+
+def _renvoi56109(desk, ancien, prefix):
+    from .consommation56109 import lien_section, renvoi_html
+    return renvoi_html(desk, ancien, lien_section(prefix))

@@ -80,8 +80,11 @@ def rerank(rows,scores,query_tokens,limit=10,kinds=None,min_relative=0.0):
 
 
 class DocumentIndex:
-    def __init__(self,state_dir,rag=None,ollama=None):
-        self.db=sqlite3.connect(Path(state_dir)/'documents.sqlite3',timeout=30)
+    def __init__(self,state_dir,rag=None,ollama=None,fichier=None):
+        # 5.6.109 (lot Q, G23 et F13) : ``fichier`` = collection distincte du même index (même code FTS5/BM25, mêmes empreintes facultatives) :
+        # fonds juridique public (un fichier par lot publié) et fichiers locaux autorisés hors affaire. Stockées à part, ces collections ne
+        # sont jamais lues par la recherche du cabinet ni par celle d'un dossier (pièces privées) ; aucun second moteur.
+        self.db=sqlite3.connect(Path(fichier) if fichier else Path(state_dir)/'documents.sqlite3',timeout=30)
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('CREATE TABLE IF NOT EXISTS docs (matter TEXT,path TEXT,etag TEXT,modified TEXT,text TEXT,error TEXT,PRIMARY KEY(matter,path))')
         self.db.execute('CREATE VIRTUAL TABLE IF NOT EXISTS search USING fts5(matter UNINDEXED,path,text,tokenize="unicode61 remove_diacritics 2")')
@@ -322,6 +325,20 @@ class DocumentIndex:
             for row in self.db.execute('SELECT * FROM knowledge_chunks WHERE matter=? ORDER BY modified DESC,indexed_at DESC LIMIT 30',(mid,)):
                 key=(row[1],row[6]);rows[key]=row;scores[key]=0
         return rerank(rows,scores,tokens,limit,kinds,min_relative),semantic_error
+
+    def lexical_keys(self,matter,terms,limit=200):
+        """5.6.109 (lot Q) : passages (source, extrait) trouvés par le plein texte dans une partition. ``ranked_chunks`` rend, faute de
+        correspondance, les passages les plus récents (score nul) : utile pour un aperçu de dossier, mais une collection consultée pour une
+        question doit pouvoir dire « non trouvé dans le périmètre consulté » au lieu de rendre des passages sans rapport."""
+        tokens=lexical_terms(terms)
+        if not tokens:return set()
+        query=' OR '.join('"'+t+'"' for t in tokens)
+        try:
+            return {(r[0],r[1]) for r in self.db.execute('SELECT source_id,chunk_no FROM knowledge_fts WHERE knowledge_fts MATCH ? AND matter=? '
+                                                        'ORDER BY bm25(knowledge_fts) LIMIT ?',
+                                                        (query,matter['id'] if isinstance(matter,dict) else matter,int(limit)))}
+        except sqlite3.OperationalError:
+            return set()
 
     classer5695=None   # 5.6.95 (R01) : posé par l'appelant (``recherche5695.classeur``) ; signatures de ``sources`` et ``fast_sources`` inchangées
 

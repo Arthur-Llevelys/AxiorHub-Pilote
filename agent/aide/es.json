@@ -1329,7 +1329,8 @@
 "Pulse «Guardar los cambios».",
 "Pruebe con «Probar IMAP», «Probar Nextcloud / agendas» o «Probar Ollama».",
 "Para una IA externa: guarde su clave, pulse «Charger les modèles» y elija el modelo; la tarifa conocida y los topes vienen rellenados.",
-"Para elegir cómo trabaja la IA: abra «Mode de l’IA» y elija la suscripción ChatGPT, la API de Mistral, la API de Claude, solo local o automático. AxiorHub toma luego, para cada tarea, el modelo más económico que convenga."
+"Para elegir cómo trabaja la IA: abra «Mode de l’IA» y elija la suscripción ChatGPT, la API de Mistral, la API de Claude, solo local o automático. AxiorHub toma luego, para cada tarea, el modelo más económico que convenga.",
+"API o suscripción: una suscripción para particulares (Google AI Pro o Ultra, Mistral Le Chat Pro, ChatGPT Plus o Pro) no es una clave de API. Para Google Gemini, cree una clave en Google AI Studio (facturada por uso, aparte de cualquier suscripción) y luego, en la tarjeta «Google Gemini · clé API»: pruebe la conexión, guarde la clave, indique la tarifa y la autorización de envío, y active. Una conexión no probada nunca se usa. El inicio de sesión mediante Gemini CLI no se incluye en esta versión. Mistral: la clave Studio existente sirve para la API. Según el plan de su organización, el uso mensual puede repartirse entre Studio, la API y Vibe Code, y facturarse después según sus ajustes de Mistral (Gestionar el uso de Mistral). AxiorHub no usa Vibe: solo se llama a la clave Studio, y Mistral no facilita la cuota restante."
 ],
 "result": "Los ajustes guardados, sin recargar la página.",
 "verify": "El mensaje de la prueba indica lo que se ha verificado realmente.",
@@ -1498,7 +1499,10 @@
 "Abra Enrutamiento híbrido.",
 "Estime con «Calcular el enrutamiento y el coste».",
 "Vea los datos transmitidos con «Mostrar los datos y el coste».",
-"Pulse «Guardar la política»."
+"Pulse «Guardar la política».",
+"Fijar un modelo para una tarea: Ajustes › Modelos de IA, tabla «Modelos locales y enrutamiento». En la fila de la función, elija la conexión (IA local o conexión externa activada) y el modelo exacto, y luego «Guardar». Ese modelo se llama entonces solo para esta función: ni enrutador automático, ni conmutación, ni recurso; si falla, el mensaje nombra la función y el modelo.",
+"Lo que la elección no permite: nunca amplía las autorizaciones. En modo «Solo IA local», o para una conexión desactivada o sin autorización de envío, la elección de un modelo externo se rechaza con su motivo; una solicitud que exige el local (expediente excluido de los envíos externos) sigue siendo local. Para volver atrás: «Según el modo general» en la fila, o «Volver todo al modo general».",
+"Reducir el contexto de una tarea: en la misma fila, «Contexto transmitido»: «Reducido» envía menos pasajes, correos, hechos y nombres de archivo (los más pertinentes o recientes, próximas fechas primero); los documentos que usted eligió o adjuntó se transmiten siempre. El detalle de la misión indica el tamaño transmitido en cada llamada y lo que no se transmitió. «Normal» mantiene los límites habituales."
 ],
 "result": "Una política de enrutamiento aplicada antes de cualquier envío.",
 "verify": "Las últimas decisiones de enrutamiento se listan.",
@@ -2311,6 +2315,45 @@
 "example": "Cerrar las facturas a la IA y mantener los documentos del expediente DOS-001.",
 "buttons": [
 "Enregistrer"
+],
+"version": "5.6.36"
+},
+"telephonie_bland": {
+"objective": "Conectar AxiorHub al servicio Bland (agentes de voz, llamadas, SMS) con la clave API del despacho; usted confirma cada acción.",
+"when": "Para que un agente de voz tome citas, recordar una cita a un cliente o hacer una llamada preparada.",
+"prerequisites": "Una cuenta de Bland y una clave API de organización con acceso completo; debe ser administrador para introducirla.",
+"steps": [
+"Cree la cuenta y la clave con los dos enlaces de la tarjeta «Bland — telefonía con IA» (Ajustes › Conexiones API).",
+"Pegue la clave y guárdela: va a la caja fuerte y nunca se vuelve a mostrar.",
+"Haga clic en «Probar la conexión» y después en «Activar el conector» si el estado es «Listo».",
+"Pida una acción: se convierte en una solicitud que muestra el número, el texto y el importe; confírmela.",
+"Para el recordatorio de citas, configure la rutina en «Mis rutinas | Mis agentes de IA» y registre el consentimiento del cliente."
+],
+"result": "Las llamadas, los SMS y los agentes solo salen tras su confirmación; los costes aparecen en «Consumo y costes».",
+"verify": "La tarjeta muestra «Listo» y el número de herramientas descubiertas; una solicitud no confirmada sigue «Por confirmar».",
+"errors": [
+[
+"Clave rechazada",
+"Use una clave de organización con acceso completo: las claves restringidas no se conectan."
+],
+[
+"Modo local estricto",
+"La conexión a Bland se rechaza mientras el modo de datos siga siendo local estricto."
+],
+[
+"Envío automático suspendido",
+"Se perdió una respuesta de Bland («por verificar») o se retiró el derecho «enviar»: verifique y vuelva a validar la plantilla."
+],
+[
+"Lugar ausente del recordatorio",
+"El lugar libre de la agenda nunca se copia: configure la dirección del despacho en la rutina."
+]
+],
+"example": "Recordar por SMS al Sr. DURAND, en el 01 00 00 00 05, su cita dos días antes.",
+"buttons": [
+"Enregistrer la clé",
+"Tester la connexion",
+"Activer le connecteur"
 ],
 "version": "5.6.36"
 }

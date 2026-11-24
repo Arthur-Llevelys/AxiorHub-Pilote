@@ -67,7 +67,7 @@ def api(env, desk, auth, prefix, name, args, method):
         except Stop as ex:
             if str(ex) in ('consigne_routine_requise', 'dossiers_routine_requis'):
                 fields = {'schedule_json': json.dumps(rt.normalize_schedule({'freq': data.get('freq'), 'time': data.get('time'), 'monthday': data.get('monthday'),
-                                                                             'date': data.get('date'), 'days': ''.join(k for k, _ in rt.DAYS
+                                                                             'date': data.get('date'), 'interval_days': data.get('interval_days'), 'anchor': data.get('anchor'), 'days': ''.join(k for k, _ in rt.DAYS
                                                                                                                       if data.get('day_' + k) in (True, 'true', 'on'))})),
                           'timezone': data.get('timezone')}
             else:
@@ -136,7 +136,9 @@ def _form(desk, prefix, action, row=None, matters=()):
             '<input type="hidden" name="dossiers" value="%s"><label>Dossiers concernés (facultatif)<select data-r52-matters multiple size="4">%s</select></label>'
             '<fieldset class="r52-when"><legend>Quand</legend><label>Fréquence<select name="freq">%s</select></label><div class="r52-days">%s</div>'
             '<label>Heure<input name="time" type="time" value="%s" required></label><label>Jour du mois<input name="monthday" type="number" min="1" max="28" value="%s"></label>'
-            '<label>Date (une seule fois)<input name="date" type="date" value="%s"></label></fieldset>'
+            '<label>Date (une seule fois)<input name="date" type="date" value="%s"></label>'
+            '<label>Intervalle en jours (fréquence Tous les N jours)<input name="interval_days" type="number" min="1" max="30" value="%s"></label>'
+            '<label>Premier jour de la cadence<input name="anchor" type="date" value="%s"></label></fieldset>'
             '<details class="r52-advanced"><summary>Réglages avancés</summary><label>Fuseau horaire<input name="timezone" value="%s" maxlength="60"></label>'
             '<label>Rattrapage après un arrêt (heures)<input name="catchup_hours" type="number" min="0" max="72" value="%s"></label>'
             '<label>Dossiers traités au plus par passage<input name="max_matters" type="number" min="1" max="50" value="%s"></label>'
@@ -148,6 +150,7 @@ def _form(desk, prefix, action, row=None, matters=()):
         action, hidden, templates, e(row.get('title', ''), quote=True), ' disabled' if legacy else '', types, e(row.get('objective', ''), quote=True),
         e(row.get('instruction', '')), e('\n'.join(sorted(chosen)), quote=True), opts, freqs, _days_boxes('', sched.get('days', '12345')),
         e(sched.get('time', '08:30'), quote=True), e(str(sched.get('monthday', 1)), quote=True), e(sched.get('date', ''), quote=True),
+        e(str(sched.get('interval_days', 3)), quote=True), e(sched.get('anchor', ''), quote=True),
         e(row.get('timezone') or str(rt.cabinet_tz(desk)), quote=True), e(str(row.get('catchup_hours', 4)), quote=True), e(str(row.get('max_matters', 10)), quote=True),
         ' disabled' if legacy else '', ' selected' if row.get('scope', 'personnel') == 'personnel' else '', ' selected' if row.get('scope') == 'cabinet' else '')
 
@@ -189,6 +192,8 @@ def routines_block(desk, auth, prefix, role=None, compact=False, formulaires_dif
             matters = []
     cards, strip = [], []
     for r in data['routines']:
+        if r['task_type'] in rt.TYPES_FERMES:   # 5.6.109 (lot B) : agents IA et rappel de rendez-vous ont leurs propres cartes (montage ci-dessous)
+            continue
         legacy = r['legacy_kind']
         nxt = r['next'][0]['label'] if r['next'] else ''
         last = r['last']
@@ -255,22 +260,24 @@ def routines_block(desk, auth, prefix, role=None, compact=False, formulaires_dif
                              ('<span class="r99-manque" title="%s" aria-label="%s">⚠</span>' % ((e('Manque : ' + ', '.join(rt.CAP_LABELS.get(c, c) for c in caps), quote=True),) * 2)) if caps else '',
                              run.replace('>Lancer</button>', ' aria-label="%s" title="Lancer">▶</button>' % e('Lancer : ' + r['title'], quote=True), 1)))
     from .routine_message56106 import monter_cartes as _o106; _o106(desk, prefix, owner, role, compact, cards, strip)   # 5.6.106 (lot O) : routines « sur message » (pause, modifier, supprimer, historique)
+    from .bland56109 import monter_cartes as _b109; _b109(desk, prefix, owner, role, compact, cards, strip)   # 5.6.109 (lot B) : agents IA et rappel de rendez-vous (état réel)
+    from .collecte_portail56109 import monter_cartes as _g4; _g4(desk, prefix, owner, role, compact, cards, strip)   # 5.6.109 (lot G4) : collecte de portail, offre et PDF joint, documents Pappers
     paused = bool(desk.settings('missions567:pause', False))
     add = ''
     if role in ('administrateur', 'avocat'):
         add = '<details class="r52-add" id="r52-add"><summary class="ax-btn">Ajouter une routine</summary>%s</details>' % (
             _formulaire_differe(prefix) if formulaires_differes else _form(desk, prefix, 'routine/creer', None, matters))
     if compact:
-        return ('<section class="c5614-routines r52 r99-bandeau" id="c5614-routines" aria-label="Routines du cabinet"><div class="r99-ligne">'
-                '<h2 class="r99-titre">Routines</h2><ul class="r99-liste">%s</ul></div>'
-                '<details class="r99-detail"><summary>Détail</summary><div class="r52-top"><h2 class="r52-title">Routines du cabinet</h2>'
+        return ('<section class="c5614-routines r52 r99-bandeau" id="c5614-routines" aria-label="Mes routines | Mes agents IA"><div class="r99-ligne">'
+                '<h2 class="r99-titre">Mes routines | Mes agents IA</h2><ul class="r99-liste">%s</ul></div>'
+                '<details class="r99-detail"><summary>Détail</summary><div class="r52-top"><h2 class="r52-title">Mes routines | Mes agents IA</h2>'
                 '<div class="c5614-side">%s<button type="button" class="ax-btn %s" id="c5614-pause" data-paused="%s" aria-pressed="%s">%s</button>'
                 '<a class="ax-btn ghost" href="%s">Réglages</a></div></div><div class="c5614-bar r52-cards">%s</div><!--r99-detail--></details>'
                 '<p id="c5614-routines-status" role="status" class="c530-sr"></p></section>') % (
             ''.join(strip) or '<li class="r99-vide">Aucune routine.</li>',
             add, 'warn' if paused else 'ghost', '1' if paused else '0', 'true' if paused else 'false', 'IA en pause — reprendre' if paused else 'Pause de l’IA',
             e(prefix + '/aujourdhui?vue=essentiel', quote=True), ''.join(cards) or '<p class="ax-muted">Aucune routine.</p>')
-    return ('<section class="c5614-routines r52" id="c5614-routines" aria-label="Routines du cabinet"><div class="r52-top"><h2 class="r52-title">Routines du cabinet</h2>'
+    return ('<section class="c5614-routines r52" id="c5614-routines" aria-label="Mes routines | Mes agents IA"><div class="r52-top"><h2 class="r52-title">Mes routines | Mes agents IA</h2>'
             '<div class="c5614-side">%s<button type="button" class="ax-btn %s" id="c5614-pause" data-paused="%s" aria-pressed="%s">%s</button>'
             '<a class="ax-btn ghost" href="%s">Réglages</a></div></div><div class="c5614-bar r52-cards">%s</div>'
             '<p id="c5614-routines-status" role="status" class="c530-sr"></p></section>') % (

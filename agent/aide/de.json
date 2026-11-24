@@ -1329,7 +1329,8 @@
 "Klicken Sie auf „Änderungen speichern“.",
 "Testen Sie mit „IMAP testen“, „Nextcloud / Kalender testen“ oder „Ollama testen“.",
 "Für eine externe KI: Schlüssel speichern, auf „Charger les modèles“ klicken, Modell wählen; bekannter Tarif und Obergrenzen sind vorausgefüllt.",
-"So legen Sie die Arbeitsweise der KI fest: Öffnen Sie „Mode de l’IA“ und wählen Sie das ChatGPT-Abonnement, die Mistral-API, die Claude-API, nur lokal oder automatisch. AxiorHub nimmt dann für jede Aufgabe das sparsamste geeignete Modell."
+"So legen Sie die Arbeitsweise der KI fest: Öffnen Sie „Mode de l’IA“ und wählen Sie das ChatGPT-Abonnement, die Mistral-API, die Claude-API, nur lokal oder automatisch. AxiorHub nimmt dann für jede Aufgabe das sparsamste geeignete Modell.",
+"API oder Abonnement: Ein Verbraucher-Abonnement (Google AI Pro oder Ultra, Mistral Le Chat Pro, ChatGPT Plus oder Pro) ist kein API-Schlüssel. Für Google Gemini erstellen Sie einen Schlüssel in Google AI Studio (nach Nutzung abgerechnet, getrennt von jedem Abonnement) und dann in der Karte „Google Gemini · clé API“: Verbindung testen, Schlüssel speichern, Tarif und Übermittlungserlaubnis angeben, dann aktivieren. Eine nicht getestete Verbindung wird nie verwendet. Die Anmeldung über Gemini CLI ist in dieser Version nicht enthalten. Mistral: Der vorhandene Studio-Schlüssel dient der API. Je nach Angebot Ihrer Organisation kann die monatliche Nutzung zwischen Studio, API und Vibe Code geteilt und dann nach Ihren Mistral-Einstellungen abgerechnet werden (Mistral-Nutzung verwalten). AxiorHub verwendet Vibe nicht: Nur der Studio-Schlüssel wird aufgerufen, und das verbleibende Kontingent wird von Mistral nicht angegeben."
 ],
 "result": "Gespeicherte Einstellungen, ohne die Seite neu zu laden.",
 "verify": "Die Testmeldung nennt, was tatsächlich geprüft wurde.",
@@ -1498,7 +1499,10 @@
 "Öffnen Sie „Hybrides Routing“.",
 "Schätzen Sie mit „Routing und Kosten berechnen“.",
 "Sehen Sie die übermittelten Daten mit „Daten und Kosten anzeigen“.",
-"Klicken Sie auf „Richtlinie speichern“."
+"Klicken Sie auf „Richtlinie speichern“.",
+"Ein Modell für eine Aufgabe festlegen: Einstellungen › KI-Modelle, Tabelle „Lokale Modelle und Routing“. Wählen Sie in der Zeile der Funktion die Verbindung (lokale KI oder aktivierte externe Verbindung) und das genaue Modell, dann „Speichern“. Dieses Modell wird dann allein für diese Funktion aufgerufen: kein automatischer Router, kein Umschalten, kein Ausweichen; bei einem Fehler nennt die Meldung Funktion und Modell.",
+"Was die Wahl nicht erlaubt: Sie erweitert nie die Berechtigungen. Im Modus „Nur lokale KI“, bei einer deaktivierten Verbindung oder einer ohne Sendeerlaubnis wird die Wahl eines externen Modells begründet abgelehnt; eine Anfrage, die lokale Verarbeitung verlangt (von externem Versand ausgeschlossene Akte), bleibt lokal. Zurück: „Gemäß dem allgemeinen Modus“ in der Zeile oder „Alles auf den allgemeinen Modus zurücksetzen“.",
+"Den Kontext einer Aufgabe verringern: in derselben Zeile „Übermittelter Kontext“: „Reduziert“ sendet weniger Passagen, E-Mails, Fakten und Dateinamen (die relevantesten oder neuesten, nächste Termine zuerst); die von Ihnen gewählten oder angehängten Dokumente werden immer gesendet. Die Details der Mission zeigen die bei jedem Aufruf gesendete Größe und was nicht gesendet wurde. „Normal“ behält die üblichen Grenzen."
 ],
 "result": "Eine vor jedem Versand angewandte Routing-Richtlinie.",
 "verify": "Die letzten Routing-Entscheidungen werden aufgelistet.",
@@ -2311,6 +2315,45 @@
 "example": "Rechnungen für die KI sperren und die Dokumente der Akte DOS-001 offen lassen.",
 "buttons": [
 "Enregistrer"
+],
+"version": "5.6.36"
+},
+"telephonie_bland": {
+"objective": "AxiorHub mit dem Dienst Bland verbinden (Sprachagenten, Anrufe, SMS), mit dem API-Schlüssel der Kanzlei; jede Aktion bestätigen Sie.",
+"when": "Um Termine durch einen Sprachagenten vereinbaren zu lassen, einen Mandanten an einen Termin zu erinnern oder einen vorbereiteten Anruf zu tätigen.",
+"prerequisites": "Ein Bland-Konto und ein Organisations-API-Schlüssel mit Vollzugriff; zum Eingeben müssen Sie Administrator sein.",
+"steps": [
+"Erstellen Sie Konto und Schlüssel über die beiden Links der Karte „Bland — KI-Telefonie“ (Einstellungen › API-Verbindungen).",
+"Fügen Sie den Schlüssel ein und speichern Sie ihn: er kommt in den Tresor und wird nie wieder angezeigt.",
+"Klicken Sie auf „Verbindung testen“, dann auf „Connector aktivieren“, wenn der Status „Bereit“ ist.",
+"Fordern Sie eine Aktion an: sie wird zu einer Anfrage mit Nummer, Text und Betrag; bestätigen Sie sie.",
+"Für die Terminerinnerung stellen Sie die Routine in „Meine Routinen | Meine KI-Agenten“ ein und erfassen die Einwilligung des Mandanten."
+],
+"result": "Anrufe, SMS und Agenten gehen erst nach Ihrer Bestätigung hinaus; die Kosten erscheinen unter „Verbrauch und Kosten“.",
+"verify": "Die Karte zeigt „Bereit“ und die Zahl der gefundenen Werkzeuge; eine unbestätigte Anfrage bleibt „Zu bestätigen“.",
+"errors": [
+[
+"Schlüssel abgelehnt",
+"Verwenden Sie einen Organisationsschlüssel mit Vollzugriff: eingeschränkte Schlüssel verbinden sich nicht."
+],
+[
+"Strikter lokaler Modus",
+"Die Verbindung zu Bland wird abgelehnt, solange der Datenmodus strikt lokal bleibt."
+],
+[
+"Automatischer Versand ausgesetzt",
+"Eine Antwort von Bland ging verloren („zu prüfen“) oder das Recht „senden“ wurde entzogen: prüfen und die Vorlage erneut freigeben."
+],
+[
+"Ort fehlt in der Erinnerung",
+"Der freie Ortstext des Kalenders wird nie übernommen: hinterlegen Sie die Kanzleiadresse in der Routine."
+]
+],
+"example": "Herrn DURAND zwei Tage vorher per SMS an 01 00 00 00 05 an seinen Termin erinnern.",
+"buttons": [
+"Enregistrer la clé",
+"Tester la connexion",
+"Activer le connecteur"
 ],
 "version": "5.6.36"
 }

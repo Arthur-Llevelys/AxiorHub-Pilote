@@ -29,11 +29,20 @@ from . import dossiers5697 as D
 
 GROUPES = (('clients', 'Clients', ('client',)),
            ('adverses', 'Parties adverses', ('adverse',)),
+           # 5.6.109 (C11) : la contrepartie d'un contrat (vendeur, bailleur, cessionnaire…) n'est pas une partie adverse ; le rôle envers le
+           # cabinet (ici) reste distinct de la qualité dans l'acte (champ « Qualité », ``QUALITES``)
+           ('contractants', 'Cocontractants et tiers', ('cocontractant', 'tiers')),
            ('avocats', 'Avocats', ('avocat_client', 'conseil_adverse', 'avocat_postulant')),
            ('autres', 'Autres intervenants', ('expert', 'commissaire_justice', 'mandataire_judiciaire', 'notaire', 'assureur', 'correspondant',
                                               'autre', 'juridiction')))
 GROUPE_DU_ROLE = {r: g for g, _, roles in GROUPES for r in roles}
-ROLES_AVOCATS = GROUPES[2][2]
+ROLES_AVOCATS = next(roles for g, _, roles in GROUPES if g == 'avocats')
+# 5.6.109 (C11) : qualités proposées à la saisie (le champ reste libre) : qualités de procédure puis qualités contractuelles
+QUALITES = ('demandeur', 'défendeur', 'appelant', 'intimé', 'intervenant volontaire', 'intervenant forcé', 'requérant', 'partie civile', 'prévenu',
+            'vendeur', 'acquéreur', 'cédant', 'cessionnaire', 'bailleur', 'preneur', 'prêteur', 'emprunteur', 'mandant', 'mandataire', 'prestataire',
+            'employeur', 'salarié', 'promettant', 'bénéficiaire', 'caution', 'franchiseur', 'franchisé', 'associé', 'fournisseur', 'distributeur',
+            'sous-traitant', 'donneur d’ordre', 'maître d’ouvrage', 'entrepreneur', 'cocontractant', 'tiers', 'représentant légal', 'gérant', 'président')
+PROVENANCES_PARTIE = {'manuel': 'Saisie par le cabinet', 'piece': 'Lue dans une pièce, validée par le cabinet'}
 ROLES_HORS_FORMULAIRE = ('juridiction',)   # ancienne saisie : affichée et conservée ; la juridiction a désormais son onglet
 TYPES_PERSONNE = {'': 'Non précisé', 'physique': 'Personne physique', 'morale': 'Personne morale'}
 DEGRES = {'premiere_instance': 'Première instance', 'refere': 'Référé', 'appel': 'Appel', 'cassation': 'Cassation', 'renvoi': 'Renvoi après cassation',
@@ -44,14 +53,18 @@ COLONNES_PARTIES = (('qualite', "TEXT NOT NULL DEFAULT ''"), ('type_personne', "
                     ('adresse', "TEXT NOT NULL DEFAULT ''"), ('siren', "TEXT NOT NULL DEFAULT ''"), ('avocat_id', "TEXT NOT NULL DEFAULT ''"),
                     ('note', "TEXT NOT NULL DEFAULT ''"), ('version', 'INTEGER NOT NULL DEFAULT 1'), ('modifie_le', "TEXT NOT NULL DEFAULT ''"),
                     ('modifie_par', "TEXT NOT NULL DEFAULT ''"), ('conflit_id', "TEXT NOT NULL DEFAULT ''"), ('conflit_statut', "TEXT NOT NULL DEFAULT ''"),
-                    ('conflit_resume', "TEXT NOT NULL DEFAULT ''"), ('conflit_le', "TEXT NOT NULL DEFAULT ''"))
+                    ('conflit_resume', "TEXT NOT NULL DEFAULT ''"), ('conflit_le', "TEXT NOT NULL DEFAULT ''"),
+                    # 5.6.109 (C11) : provenance de la partie (saisie, ou lue dans une pièce puis validée), ses sources, et qui a choisi son rôle
+                    ('provenance', "TEXT NOT NULL DEFAULT 'manuel'"), ('source_json', "TEXT NOT NULL DEFAULT ''"),
+                    ('role_par', "TEXT NOT NULL DEFAULT ''"), ('role_le', "TEXT NOT NULL DEFAULT ''"))
 CHAMPS_PARTIE = ('nom', 'role', 'qualite', 'type_personne', 'courriel', 'telephone', 'adresse', 'siren', 'avocat_id', 'note')
 CHAMPS_INSTANCE = ('degre', 'juridiction', 'chambre', 'rg', 'portalis', 'nature', 'saisine', 'magistrat', 'greffe', 'etat', 'principale')
 CONFLITS = {'aucun_resultat': 'Aucun rapprochement', 'information': 'Information (même côté)', 'a_examiner': 'À examiner',
             'non_verifie': 'Vérification impossible pour le moment'}
 MAX_PROFONDEUR = 6       # sous-répertoires sous le répertoire du dossier
 PAR_PAGE = 50            # entrées affichées par page
-MAX_LUES = 2000          # entrées lues dans un répertoire (au-delà : signalé « liste tronquée »)
+MAX_LUES = 2000          # entrées lues dans un sous-répertoire pour le compter (au-delà : compte dit incomplet)
+MAX_INVENTAIRE = 50000   # 5.6.109 (F02) : entrées du répertoire affiché triées en une fois, avant la pagination (au-delà : tri dit « partiel »)
 MAX_COMPTES = 25         # sous-répertoires dont le contenu est compté (une lecture chacun)
 ABSENT = ('fichier_nextcloud_introuvable', 'repertoire_absent', 'http_404', 'chemin_absent', 'chemin_est_un_fichier')
 
@@ -243,9 +256,11 @@ def ajouter_partie(desk, acteur, ident, donnees, cle):
                              v['adresse'], v['siren'], v['avocat_id'], v['note'], quand, a.compte))
         except sqlite3.IntegrityError:
             raise D.Refus('partie_en_double', {'nom': 'Cette personne figure déjà dans le dossier avec ce rôle.'}) from None
+        desk.db.execute('UPDATE dossier_parties5697 SET role_par=?, role_le=? WHERE id=?', (a.compte, quand, pid))   # 5.6.109 (C11) : qui a choisi le rôle
         D._journal(desk, did, a.compte, 'partie_ajoutee', {'partie': pid, 'role': v['role']})
         recu = _recu_partie(desk, did, pid, 'partie_ajouter', cle, quand, '%s ajouté(e) : %s' % (D.ROLES_PARTIES[v['role']], v['nom']))
         D._enregistrer_commande(desk, cabinet, a, 'partie_ajouter:' + did, cle, empreinte, recu)
+        from . import pseudo540 as _p56109; _p56109.invalider(desk, 'partie_ajoutee')   # 5.6.109 (lot P, P02) : identité connue dès la prochaine émission externe
     if v['role'] in ('adverse', 'client'):
         _inscrire_conflits(desk, did, v)
     if v['role'] == 'adverse':
@@ -327,12 +342,15 @@ def modifier_partie(desk, acteur, ident, pid, version, donnees, cle):
                              v['siren'], v['avocat_id'], v['note'], quand, a.compte, pid, version))
         except sqlite3.IntegrityError:
             raise D.Refus('partie_en_double', {'nom': 'Cette personne figure déjà dans le dossier avec ce rôle.'}) from None
+        if row['role'] != v['role']:   # 5.6.109 (C11) : un rôle changé garde son auteur et sa date (la provenance de la partie ne change pas)
+            desk.db.execute('UPDATE dossier_parties5697 SET role_par=?, role_le=? WHERE id=?', (a.compte, quand, pid))
         if row['role'] in ROLES_AVOCATS and v['role'] not in ROLES_AVOCATS:   # n'est plus avocat : plus personne n'est « représenté par » lui
             desk.db.execute("UPDATE dossier_parties5697 SET avocat_id='', version=version+1, modifie_le=? WHERE dossier_id=? AND avocat_id=?", (quand, did, pid))
         champs = sorted(k for k in CHAMPS_PARTIE if str(row[k] if k in row.keys() else '') != str(v[k]))
         D._journal(desk, did, a.compte, 'partie_modifiee', {'partie': pid, 'champs': champs, 'version': version + 1})
         recu = _recu_partie(desk, did, pid, 'partie_modifier', cle, quand, 'Partie enregistrée : %s' % v['nom'])
         D._enregistrer_commande(desk, cabinet, a, 'partie_modifier:' + str(pid), cle, empreinte, recu)
+        from . import pseudo540 as _p56109; _p56109.invalider(desk, 'partie_modifiee')   # 5.6.109 (lot P, P02)
     adverse_nouvelle = v['role'] == 'adverse' and (row['role'] != 'adverse' or D._plier(row['nom']) != D._plier(v['nom']))
     if v['role'] in ('adverse', 'client') and (adverse_nouvelle or row['role'] != v['role']):
         _inscrire_conflits(desk, did, v)
@@ -364,19 +382,44 @@ def retirer_partie(desk, acteur, ident, pid, version, cle):
         recu = {'id': pid, 'dossier': did, 'version': version, 'etat': 'retiree', 'message': 'Partie retirée du dossier : %s' % row['nom'],
                 'recu': {'operation': 'partie_retirer', 'cle': cle, 'quand': quand}}
         D._enregistrer_commande(desk, cabinet, a, 'partie_retirer:' + str(pid), cle, empreinte, recu)
+        from . import pseudo540 as _p56109; _p56109.invalider(desk, 'partie_retiree')   # 5.6.109 (lot P, P02)
     return recu
 
 
 def parties_proposees(desk, did, inscrites):
-    """Parties lues dans les pièces (``modele5651``, sans IA) absentes du registre du dossier : proposées, jamais ajoutées."""
+    """Parties lues dans les pièces (``modele5651``, sans IA) absentes du registre du dossier : proposées, jamais ajoutées.
+
+    5.6.109 (C11, F04) : le rôle envers le cabinet n'est jamais déduit — « client » seulement si la mention a été désignée comme cliente,
+    sinon vide (à choisir) ; jamais « adverse » par défaut, un vendeur ou un bailleur n'étant pas un adversaire. Les candidats de la
+    projection commune (``projection56109`` : parties extraites non rapprochées et comparutions de contrats) complètent la liste avec leur
+    identifiant, leurs sources, leurs doublons possibles et, pour une ancienne extraction fautive, le nettoyage proposé."""
     from .resume5659 import representation
     connus = {D._plier(p['nom']) for p in inscrites}
-    out = []
+    try:
+        from .projection56109 import CANDIDAT, rapprocher
+        candidats = {c['id']: c for c in rapprocher(desk, did)[1]}
+    except Exception:   # noqa: BLE001 — projection indisponible : les mentions restent proposées comme avant, sans leurs compléments
+        CANDIDAT, candidats = None, None
+    out, vus = [], set()
+
+    def ligne(nom, qualite, conseil, role, sources, c=None):
+        c = c or {}
+        return {'nom': nom[:160], 'qualite': (qualite or '')[:160], 'conseil': conseil or '', 'role': role, 'sources': sources or [],
+                'id': c.get('id', ''), 'version': c.get('version', 0), 'nettoyage': c.get('nettoyage', ''), 'revu': c.get('revu', ''),
+                'representant': c.get('representant', ''), 'doublons': c.get('doublons_possibles', []), 'nature_personne': c.get('nature_personne', '')}
+
     for p in representation(desk, did):
-        if not p['nom'] or D._plier(p['nom']) in connus:
+        if not p['nom'] or D._plier(p['nom']) in connus or p.get('origine') == 'registre':
             continue
-        out.append({'nom': p['nom'][:160], 'qualite': (p['qualite'] or '')[:160], 'conseil': p['conseil'] or '', 'role': 'client' if p['client'] else 'adverse',
-                    'sources': p.get('sources') or []})
+        ident = str(p.get('id') or '')
+        if candidats is not None and CANDIDAT.fullmatch(ident) and ident not in candidats:
+            continue   # mention déjà rattachée à une partie inscrite (même sous un nom corrigé) ou écartée par l'avocat
+        c = (candidats or {}).get(ident)
+        vus.add(ident)
+        out.append(ligne(p['nom'], (c or {}).get('qualite') or p['qualite'], p['conseil'], 'client' if p['client'] else '', (c or {}).get('sources') or p.get('sources'), c))
+    for ident, c in (candidats or {}).items():
+        if ident not in vus and D._plier(c['nom']) not in connus:
+            out.append(ligne(c['nom'], c['qualite'], c['conseil'], c['role_suggere'], c['sources'], c))
     return out[:40]
 
 
@@ -580,23 +623,25 @@ def chemin_relatif(rel):
     return rel
 
 
-def jour(valeur):
-    """Date d'une entrée (RFC 1123 du WebDAV ou ISO du stockage local) → ``AAAA-MM-JJ`` ; illisible : ``''``."""
-    valeur = str(valeur or '').strip()
-    if not valeur:
-        return ''
-    if re.match(r'\d{4}-\d{2}-\d{2}', valeur):
-        return valeur[:10]
-    try:
-        return parsedate_to_datetime(valeur).date().isoformat()
-    except (TypeError, ValueError, IndexError):
-        return ''
+def jour(valeur, fuseau=None):
+    """Date d'une entrée (RFC 1123 du WebDAV ou ISO du stockage local) → ``AAAA-MM-JJ`` ; illisible : ``''``. 5.6.109 (C02) : une date
+    avec heure est convertie dans le fuseau du cabinet avant d'être réduite au jour (23 h 30 GMT le 14 est déjà le 15 à Paris) ; elle
+    n'est jamais coupée à dix caractères."""
+    from .tri56109 import jour_cabinet
+    return jour_cabinet(valeur, fuseau)
 
 
-def _lire(client, chemin):
-    """Entrées directes de ``chemin`` (contrôlées : sous ce chemin, jamais lui-même) ; ``(entrées, tronquée)``."""
-    entrees = [x for x in client.list_folder(chemin) or [] if x.get('path') and under(x['path'], chemin) and clean_path(x['path']) != chemin]
-    return entrees[:MAX_LUES], len(entrees) > MAX_LUES
+def _lire(client, chemin, limite=None):
+    """Entrées directes de ``chemin`` (contrôlées : sous ce chemin, jamais lui-même) ; ``(entrées, tronquée)``. ``limite`` : ``MAX_LUES``
+    par défaut (compte d'un sous-répertoire) ; le répertoire affiché est lu jusqu'à ``MAX_INVENTAIRE`` pour être trié en entier."""
+    limite = MAX_LUES if limite is None else int(limite)
+    entrees = _toutes(client, chemin)
+    return entrees[:limite], len(entrees) > limite
+
+
+def _toutes(client, chemin):
+    """Toutes les entrées directes de ``chemin`` rendues par le stockage (une seule lecture), contrôlées : sous ce chemin, jamais lui-même."""
+    return [x for x in client.list_folder(chemin) or [] if x.get('path') and under(x['path'], chemin) and clean_path(x['path']) != chemin]
 
 
 def _etat_erreur(ex):
@@ -608,12 +653,24 @@ def _etat_erreur(ex):
     return 'hors_ligne', 'Stockage injoignable pour le moment : la liste des fichiers n’a pas pu être lue (ce n’est pas un répertoire vide).'
 
 
-def arborescence(desk, base, rel='', page=1, client=None):
+def arborescence(desk, base, rel='', page=1, client=None, tri=None, sens=None, comptes=True, fuseau=None):
     """Contenu d'un répertoire du dossier, en lecture seule et borné. ``etat`` : ``ok``, ``sans_repertoire``, ``refuse``, ``absent`` ou
-    ``hors_ligne`` (avec ``motif``) ; jamais une liste vide pour un stockage qui ne répond pas."""
+    ``hors_ligne`` (avec ``motif``) ; jamais une liste vide pour un stockage qui ne répond pas.
+
+    5.6.109 (F02) : l'inventaire COMPLET du répertoire (une lecture du stockage) est trié AVANT la pagination par ``tri56109.trier`` :
+    ``tri`` = nom, modifie, cree, taille ou type, ``sens`` = asc ou desc (toute autre valeur : tri par nom, jamais une erreur), répertoires
+    en premier. Les valeurs complètes des dates (heure et fuseau) servent au tri ; leur jour, dans le fuseau du cabinet (``fuseau``), à
+    l'affichage (C02). Une métadonnée inconnue est dite inconnue (``''`` ou ``None``) et rangée à la fin dans les deux sens. Au-delà de
+    ``MAX_INVENTAIRE`` entrées, seules les premières lues sont triées : ``partiel`` (et ``tronquee``) le disent, ``presents`` donne le
+    nombre rendu par le stockage. ``comptes=False`` : aucun sous-répertoire n'est lu à l'ouverture (comptage à la demande) ; ``resume``
+    décrit toujours le répertoire lu. La taille d'un répertoire reste inconnue (``taille_complete`` : ``None``) : ``taille`` n'est que la
+    somme de ses fichiers directs, jamais présentée comme sa taille."""
     from .workspace import allowed
+    from . import tri56109 as T
+    tri, sens = T.reglage(tri, sens)
     out = {'etat': 'ok', 'motif': '', 'base': '', 'rel': '', 'chemin': '', 'fil': [], 'dossiers': [], 'fichiers': [], 'total': 0, 'page': 1, 'pages': 1,
-           'tronquee': False, 'non_comptes': 0}
+           'tronquee': False, 'non_comptes': 0, 'tri': tri, 'sens': sens, 'partiel': False, 'presents': 0, 'cree_origine': '',
+           'resume': {'fichiers': 0, 'sous_dossiers': 0, 'octets_directs': 0, 'partiel': False}}
     if not base:
         out.update(etat='sans_repertoire', motif='Aucun répertoire n’est rattaché à ce dossier.')
         return out
@@ -634,45 +691,66 @@ def arborescence(desk, base, rel='', page=1, client=None):
         out['fil'].append({'nom': morceau, 'rel': '/'.join(acc)})
     try:
         client = client or D._client_stockage(desk)
-        entrees, out['tronquee'] = _lire(client, chemin)
+        presentes = _toutes(client, chemin)
     except Stop as ex:
         out['etat'], out['motif'] = _etat_erreur(ex)
         return out
     except (OSError, ValueError):
         out['etat'], out['motif'] = 'hors_ligne', _etat_erreur(Stop('stockage_injoignable'))[1]
         return out
-    nom = lambda x: clean_path(x['path']).rsplit('/', 1)[-1]
-    reps = sorted((x for x in entrees if x.get('directory')), key=lambda x: nom(x).casefold())
-    fics = sorted((x for x in entrees if not x.get('directory')), key=lambda x: nom(x).casefold())
-    tout = reps + fics
+    if fuseau is None:
+        try:
+            from .acces5683 import today_of
+            fuseau = today_of(desk)[1]
+        except Exception:   # noqa: BLE001 — fuseau illisible : celui du cabinet par défaut (``tri56109``)
+            fuseau = None
+    entrees = presentes[:MAX_INVENTAIRE]
+    out['presents'] = len(presentes)
+    out['tronquee'] = out['partiel'] = len(presentes) > len(entrees)
+    out['cree_origine'] = str(getattr(client, 'ORIGINE_CREATION', '') or '')
+
+    def taille_de(x):
+        valeur = x.get('size')
+        return int(valeur) if isinstance(valeur, (int, float)) and not isinstance(valeur, bool) and valeur >= 0 else None
+    lignes = []
+    for x in entrees:
+        chemin_x = clean_path(x['path'])
+        n, rep = chemin_x.rsplit('/', 1)[-1], bool(x.get('directory'))
+        lignes.append({'nom': n, 'chemin': chemin_x, 'dossier': rep, 'modifie': x.get('modified') or None, 'cree': x.get('created') or None,
+                       'taille': None if rep else taille_de(x), 'type': T.type_de(n, rep)})
+    fichiers_directs = [l for l in lignes if not l['dossier']]
+    out['resume'] = {'fichiers': len(fichiers_directs), 'sous_dossiers': len(lignes) - len(fichiers_directs),
+                     'octets_directs': sum(l['taille'] or 0 for l in fichiers_directs), 'partiel': out['partiel']}
+    tout = T.trier(lignes, tri, sens)               # tout le répertoire, puis la page
     out['total'] = len(tout)
     out['pages'] = max(1, (len(tout) + PAR_PAGE - 1) // PAR_PAGE)
     page = min(max(1, int(page or 1)), out['pages'])
     out['page'] = page
-    comptes = 0
+    comptes_faits = 0
     profondeur = len(rel.split('/')) if rel else 0
-    for x in tout[(page - 1) * PAR_PAGE: page * PAR_PAGE]:
-        n = nom(x)
-        sous_rel = (rel + '/' + n) if rel else n
-        if x.get('directory'):
-            item = {'nom': n, 'rel': sous_rel, 'chemin': clean_path(x['path']), 'modifie': jour(x.get('modified')), 'fichiers': None, 'sous_dossiers': None,
-                    'taille': None, 'ouvrable': profondeur + 1 <= MAX_PROFONDEUR}
-            if comptes < MAX_COMPTES:
-                comptes += 1
+    for l in tout[(page - 1) * PAR_PAGE: page * PAR_PAGE]:
+        n = l['nom']
+        dates = {'modifie': jour(l['modifie'], fuseau), 'modifie_source': str(l['modifie'] or ''), 'cree': jour(l['cree'], fuseau),
+                 'cree_source': str(l['cree'] or '')}
+        if l['dossier']:
+            item = {'nom': n, 'rel': (rel + '/' + n) if rel else n, 'chemin': l['chemin'], **dates, 'fichiers': None, 'sous_dossiers': None,
+                    'taille': None, 'taille_complete': None, 'type': '', 'ouvrable': profondeur + 1 <= MAX_PROFONDEUR}
+            if comptes and comptes_faits < MAX_COMPTES:
+                comptes_faits += 1
                 try:
                     contenu, coupe = _lire(client, item['chemin'])
                     fichiers = [c for c in contenu if not c.get('directory')]
                     item.update(fichiers=len(fichiers), sous_dossiers=len(contenu) - len(fichiers), taille=sum(int(c.get('size') or 0) for c in fichiers),
                                 incomplet=coupe)
-                    dates = [jour(c.get('modified')) for c in contenu] + [item['modifie']]
-                    item['modifie'] = max((d for d in dates if d), default='')
+                    jours = [jour(c.get('modified'), fuseau) for c in contenu] + [item['modifie']]
+                    item['modifie'] = max((d for d in jours if d), default='')
                 except (Stop, OSError, ValueError):
                     item['illisible'] = True
-            else:
+            elif comptes:
                 out['non_comptes'] += 1
             out['dossiers'].append(item)
         else:
-            out['fichiers'].append({'nom': n, 'chemin': clean_path(x['path']), 'modifie': jour(x.get('modified')), 'taille': int(x.get('size') or 0)})
+            out['fichiers'].append({'nom': n, 'chemin': l['chemin'], **dates, 'taille': l['taille'], 'type': l['type']})
     return out
 
 

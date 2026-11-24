@@ -1,0 +1,20 @@
+/* AxiorHub 5.6.109 (lot S, F11, G18, G19, G21) — état des sources publiques (Paramètres et guide), services étrangers (Connexions API),
+   registre étranger et documents publics de la fiche de contact. Couleurs par les variables communes (clair et sombre) ; focus visible. */
+.s56109-etat { margin: 4px 0 8px; padding: 4px 10px; border-left: 3px solid var(--ax-border, #c9ced6); background: var(--ax-surface-2, #f3f4f6);
+  color: var(--ax-text, #1b1f24); border-radius: 4px; }
+.s56109-etat[data-etat="pret"] { border-left-color: var(--ax-success-text, #1a7f37); }
+.s56109-etat[data-etat="hors_ligne"], .s56109-etat[data-etat="indisponible"], .s56109-etat[data-etat="quota"], .s56109-etat[data-etat="corpus_absent"],
+.s56109-etat[data-etat="outils_a_valider"], .s56109-etat[data-etat="verification_en_cours"] { border-left-color: var(--ax-warning, #9a6700); }
+.s56109-etat[data-etat="refuse"], .s56109-etat[data-etat="bloque_local_strict"], .s56109-etat[data-etat="restreint_politique"] { border-left-color: var(--ax-danger, #b42318); }
+.s56109-detail { display: inline-block; margin-left: 6px; color: var(--ax-muted, #57606a); font-size: .9em; }
+.s56109-reverifier { display: inline-block; margin: 0 0 8px; }
+.s56109-installation ul { padding-left: 20px; }
+.s56109-acces { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px; margin: 4px 0 10px; }
+.cx52-etrangers { margin: 16px 0; }
+.i56109-identite { margin: 8px 0; }
+.i56109-dossier { margin: 10px 0 0; padding: 8px 12px; border: 1px solid var(--ax-border, #c9ced6); border-radius: 8px; background: var(--ax-surface, #fff);
+  color: var(--ax-text, #1b1f24); }
+.i56109-dossier h3 { margin: 0 0 6px; font-size: 1em; }
+.s56109-reverifier button:focus-visible, .s56109-acces button:focus-visible, .s56109-acces input:focus-visible, .i56109 summary:focus-visible,
+.i56109 button:focus-visible, .i56109 input:focus-visible, .cx52-etrangers a:focus-visible { outline: 2px solid var(--ax-focus, #0b57d0); outline-offset: 2px; }
+@media (max-width: 720px) { .s56109-acces { display: block; } }

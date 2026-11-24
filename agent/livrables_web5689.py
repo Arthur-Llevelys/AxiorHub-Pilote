@@ -162,7 +162,12 @@ def _lecture(desk, prefix, parts, args, owner, role, hidden, droits):
     version = str(args.get('version') or '')
     row = liv.charger(desk, parts[1], hidden, version_id=version or None, droits=droits)
     if len(parts) == 2:
-        return _out({'view': apercu.vue(desk, row, owner, role), 'card': liv.carte(row, *liv._labels(desk), (), desk, prefix), 'verification': verification.vue(desk, row), 'versions': _versions(desk, row)})
+        out = {'view': apercu.vue(desk, row, owner, role), 'card': liv.carte(row, *liv._labels(desk), (), desk, prefix), 'verification': verification.vue(desk, row), 'versions': _versions(desk, row)}
+        if row['source_service'] == 'artefacts56109':     # 5.6.109 (lot V, F08) : contenu structuré de CETTE version (sources relues avec les droits courants)
+            from .artefacts56109 import contenu_de_version
+            c = contenu_de_version(desk, row, hidden, droits)
+            out['contenu'] = {'revision': c['revision'], 'sha256': c['sha256'], 'format': c['format'], 'payload': c['payload']} if c else None
+        return _out(out)
     action = parts[2]
     if action == 'comparer':      # 5.6.100 (lot E, § 23.2) : deux versions lues chacune pour elle-même ; une version illisible est signalée
         from .produire56100 import comparer
@@ -401,8 +406,11 @@ def _detail_page(desk, env, auth, prefix, ident, args, shell):
         review += _bouton_form(base + '/controler', 'Relancer les contrôles', {})
         from .registre_web5693 import suivi_html      # 5.6.93 (N05, N06) : suivi du fichier (Réessayer, Retrouver, Retirer du suivi) et doublon suggéré
         review += suivi_html(desk, row, prefix, role)
+    if row['source_service'] == 'artefacts56109':      # 5.6.109 (lot V, F08) : livrable structuré — même lecteur, édition des lignes, exports de données
+        from .artefacts56109 import edition_html
+        review = edition_html(desk, prefix, row, owner, role) + review
     versions = _versions(desk, row)
-    history = ''.join('<li>%s version %d — %s, %s (%s)</li>' % ('<strong>Affichée :</strong>' if v['version_id'] == row['version_id'] else '<a href="%s">Voir</a>' % e('%s/livrables/%s?%s' % (prefix, row['document_id'], urlencode({'version': v['version_id'], 'retour': retour})), quote=True), v['version'], e(liv.STATE[v['state']]), e(liv.REVIEW[v['review']]), e(_date(v['at']))) for v in versions)
+    history =''.join('<li>%s version %d — %s, %s (%s)</li>' % ('<strong>Affichée :</strong>' if v['version_id'] == row['version_id'] else '<a href="%s">Voir</a>' % e('%s/livrables/%s?%s' % (prefix, row['document_id'], urlencode({'version': v['version_id'], 'retour': retour})), quote=True), v['version'], e(liv.STATE[v['state']]), e(liv.REVIEW[v['review']]), e(_date(v['at']))) for v in versions)
     depot = ('<p>État de dépôt : <strong>%s</strong></p>' % e(DEPOT.get(row['deposit_state'], row['deposit_state']))) if row['deposit_state'] else ''
     reserve = ('<p class="l89-alerte"><strong>Réserves.</strong> %s</p>' % e(row['reserve_note'] or 'Document à compléter.')) if row['reserve'] else ''
     replaced = ('<p class="l89-alerte">Cette version a été remplacée. <a href="%s">Voir la dernière version</a></p>' % e(prefix + '/livrables/' + row['document_id'], quote=True)) if row['lifecycle'] == 'replaced' else ''

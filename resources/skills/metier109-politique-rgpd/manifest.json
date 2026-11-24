@@ -1,0 +1,41 @@
+{
+  "id": "builtin.metier109.politique_rgpd",
+  "name": "Cadrage des politiques de confidentialité",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub adaptation méthodologique des fichiers transmis par le cabinet",
+  "license": "AGPL-3.0",
+  "description": "Complément court de méthode pour cadrage des politiques de confidentialité",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "role": "specialisation",
+  "allowed_phases": [
+    "analyse",
+    "redaction_document",
+    "controle"
+  ],
+  "target_kinds": [],
+  "situations": [],
+  "auto_select_tags": [
+    "politique de confidentialité",
+    "politique de confidentialite",
+    "audit rgpd",
+    "information rgpd"
+  ],
+  "enabled_default": false,
+  "activation_suggeree": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  },
+  "source_note": "Archive outils prompts et skills.zip, 20 novembre 2026 ; méthode reformulée, aucun script tiers exécuté.",
+  "source_authors": [
+    "Malik Taiar"
+  ]
+}
