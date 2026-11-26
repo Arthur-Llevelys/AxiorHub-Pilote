@@ -368,6 +368,14 @@ def page_html(desk, auth, acteur, prefix):
             if config['editeur'][k])
     except Exception:   # noqa: BLE001 — la page reste utilisable sans ces actions
         pass
+    try:   # 5.6.110 (lot E) : .xlsx, .pdf, .pptx sélectionné : GridCraft, PdfCraft ou DeckCraft (page dédiée, droits et format relus par elle)
+        from . import craft56109
+        craft = craft56109.config_fichiers(desk, prefix, acteur[1])
+        if craft:
+            config['craft'] = craft
+            editeur += _bouton('craft', craft56109.libelle_fichiers(craft), 'Classeur .xlsx, PDF ou présentation .pptx : nouvelle version à côté de l’original, après contrôle')
+    except Exception:   # noqa: BLE001
+        pass
     volets = _volet(0, options, editeur) + ('' if simple else _volet(1, options, editeur))
     bascule = '' if simple else (
         '<div class="f103-bascule" role="tablist" aria-label="Volets">'

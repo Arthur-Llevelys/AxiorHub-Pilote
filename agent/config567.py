@@ -49,10 +49,10 @@ FIELDS = (
  ('document_agents568.incoming_paths','Dossiers d’arrivée à surveiller, dans les racines autorisées','paths',[],'Agents documentaires'),
  ('google_calendar568.client_id','Client OAuth Google Calendar','text','','Google Calendar'),
  ('google_calendar568.client_secret_file','Secret OAuth Google Calendar','secret','','Google Calendar'),
- ('google_calendar568.redirect_uri','URI de retour OAuth HTTPS (/api440/m568/google/callback)','url','https://agent.example.com/api440/m568/google/callback','Google Calendar'),
- ('google5697.client_id','Client OAuth Google « Application Web » (Gmail, agenda)','text','','Google (Gmail)'),   # 5.6.97 (lot gmail)
+ ('google_calendar568.redirect_uri','URI de retour OAuth (/api440/m568/google/callback) : sur un serveur, adresse HTTPS déclarée à l’identique chez Google ; sur un poste, laisser vide (adresse locale calculée par AxiorHub)','oauth_retour','https://agent.example.com/api440/m568/google/callback','Google Calendar'),   # 5.6.110 (lot G)
+ ('google5697.client_id','Client OAuth Google (Gmail, agenda) : « Application Web » sur un serveur ; « Application de bureau » ou « Application Web » sur un poste','text','','Google (Gmail)'),   # 5.6.97 (lot gmail) ; 5.6.110 (lot G) : poste
  ('google5697.client_secret_file','Secret du client OAuth Google (fichier du coffre du serveur)','secret','','Google (Gmail)'),
- ('google5697.redirect_uri','URI de retour OAuth HTTPS, déclarée à l’identique chez Google (…/api440/m5689/oauth/google/callback)','url','https://agent.example.com/api440/m5689/oauth/google/callback','Google (Gmail)'),
+ ('google5697.redirect_uri','URI de retour OAuth (…/api440/m5689/oauth/google/callback) : sur un serveur, adresse HTTPS déclarée à l’identique chez Google ; sur un poste, laisser vide (adresse locale calculée par AxiorHub)','oauth_retour','https://agent.example.com/api440/m5689/oauth/google/callback','Google (Gmail)'),   # 5.6.110 (lot G)
  ('ollama.url','Adresse Ollama (locale ou réseau du cabinet, ex. http://192.168.1.10:11434)','local_url','http://127.0.0.1:11434','Intelligence artificielle'),
  ('ollama.model','Modèle Ollama','text','qwen3:8b','Intelligence artificielle'),
  ('rag.qdrant_url','Index vectoriel Qdrant, facultatif (ex. http://127.0.0.1:6333) ; vide : recherche intégrée','optional_local_url','','Intelligence artificielle'),
@@ -68,9 +68,9 @@ FIELDS = (
  ('llm.repeat_penalty','repeat_penalty','llm_number',1.0,'Profil du modèle'),
  ('llm.repeat_last_n','repeat_last_n','llm_number',64,'Profil du modèle'),
  ('llm.context_mode','Fenêtre de contexte','context_mode','auto','Profil du modèle'),
- ('audio.enabled','Activer la dictée locale','bool',False,'Voix'),
- ('audio.bridge_base_url','Passerelle Whisper / Vocal (locale ou réseau du cabinet)','local_url','http://127.0.0.1:9011','Voix'),
- ('audio.bridge_token_file','Jeton de la passerelle vocale','secret','','Voix'),
+ ('audio.enabled','Activer l’ancienne passerelle de dictée d’un serveur (facultative ; inutile quand la dictée sur ce poste est active)','bool',False,'Voix'),   # 5.6.110 (lot D)
+ ('audio.bridge_base_url','Adresse de l’ancienne passerelle Whisper / Vocal d’un serveur (facultative)','local_url','http://127.0.0.1:9011','Voix'),
+ ('audio.bridge_token_file','Jeton de l’ancienne passerelle vocale','secret','','Voix'),
  ('speech568.provider','Synthèse vocale : brindille (dans le navigateur, par défaut), kokoro, espeak, chatterbox ou elevenlabs','voice_provider','brindille','Synthèse vocale'),
  ('speech568.fallback_provider','Voix de repli du serveur si la voix du navigateur ne démarre pas : espeak, kokoro ou chatterbox','voice_fallback','espeak','Synthèse vocale'),   # 5.6.94 (V06)
  ('speech568.url','API TTS Kokoro / Chatterbox (locale ou réseau du cabinet, base sans /v1)','local_url','http://127.0.0.1:8880','Synthèse vocale'),
@@ -269,6 +269,12 @@ def _validate(kind,value,key):
     if kind=='optional_local_url':   # 5.6.80 : service local facultatif (Qdrant) : vide = non utilisé
         if not value:return ''
         kind='local_url'
+    if kind=='oauth_retour':   # 5.6.110 (lot G) : retour OAuth Google : vide (poste : adresse calculée), HTTPS, ou bouclage http (127.0.0.1 / [::1]) ;
+        if not value:return ''   # port et chemin exacts revérifiés à l'usage contre le poste (google5697.adresse_retour), jamais admis sur un serveur
+        p=urlsplit(value)
+        if not p.netloc or p.username or p.password or p.query or p.fragment:raise Stop('url_connexion_invalide')
+        if p.scheme!='https' and not (p.scheme=='http' and p.hostname in ('127.0.0.1','::1')):raise Stop('https_obligatoire')
+        return value.rstrip('/')
     if kind in ('url','local_url'):
         p=urlsplit(value)
         if not p.netloc or p.username or p.password or p.query or p.fragment:raise Stop('url_connexion_invalide')
@@ -351,6 +357,11 @@ def save(desk,data,env):
         raise
 
 
+VOIX_SECOURS={   # 5.6.110 (lot D) : ce que teste « Tester la voix de secours » ; la dictée se vérifie dans sa propre carte
+    True:'Voix de secours présente (eSpeak NG) : elle lit le texte à voix haute si la voix choisie ne démarre pas. Ce test ne concerne pas la dictée : voir la carte « Dictée sur ce poste ».',
+    False:'Voix de secours absente (eSpeak NG) : la lecture à voix haute dépend de la seule voix choisie. Ce test ne concerne pas la dictée : voir la carte « Dictée sur ce poste ».'}
+
+
 def test(desk,data):
     kind=str(data.get('connector') or '')
     try:
@@ -377,9 +388,11 @@ def test(desk,data):
             from .workstation import refresh_unpaid_invoices
             out=refresh_unpaid_invoices(desk)
             return {'ok':bool(out.get('complete',True)),'connector':kind,'message':'Factures lues ; aucune facture créée ni envoyée.','result':out,'writes':0}
-        if kind=='voice':
-            import shutil
-            return {'ok':bool(portable.which('espeak-ng')),'connector':kind,'message':'Synthèse locale disponible.' if portable.which('espeak-ng') else 'Installer espeak-ng (présent dans l’image 5.6.8).','dictation_configured':bool(desk.c.get('audio',{}).get('enabled')),'writes':0}
+        if kind=='voice':   # 5.6.110 (lot D) : ce test porte sur la voix de secours de la lecture à voix haute (eSpeak NG), pas sur la dictée
+            from .dictee56110 import active as _poste56110
+            present=bool(portable.which('espeak-ng'))
+            return {'ok':present,'connector':kind,'message':VOIX_SECOURS[present],'dictation_configured':bool(desk.c.get('audio',{}).get('enabled')),
+                    'dictation_poste':_poste56110(desk.c),'writes':0}
         raise Stop('connecteur_test_inconnu')
     except (Stop,OSError,ValueError) as error:
         code=str(error) if isinstance(error,Stop) else 'connexion_indisponible'

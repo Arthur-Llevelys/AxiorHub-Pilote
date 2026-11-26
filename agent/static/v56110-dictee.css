@@ -1,0 +1,17 @@
+/* AxiorHub 5.6.110 (lot D) — carte « Dictée sur ce poste » (Paramètres › Voix). Couleurs reprises des jetons du thème (clair et sombre). */
+.d110-carte .d110-etat{margin:.5rem 0;padding-left:1.25rem}
+.d110-carte .d110-etat li{margin:.15rem 0}
+.d110-carte fieldset{border:1px solid var(--ax-border,#c6c6c6);border-radius:6px;padding:.5rem .75rem;margin:.5rem 0;min-width:0}
+.d110-carte .d110-modele{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:.6rem;row-gap:.1rem;align-items:start;margin:.45rem 0;cursor:pointer}
+.d110-carte .d110-modele input[type=radio]{grid-column:1;grid-row:1/span 3;width:auto;min-width:0;height:auto;margin:.2rem 0 0;flex:none}
+.d110-carte .d110-modele>:not(input){grid-column:2}
+.d110-carte .d110-conseil,.d110-carte .d110-statut{color:var(--ax-muted,#525252)}
+.d110-carte .d110-langue{display:inline-flex;flex-wrap:wrap;gap:.25rem .5rem;align-items:center;margin:.25rem 0 .5rem}
+.d110-carte .d110-installer button{white-space:normal;max-width:100%}
+.d110-carte .d110-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0}
+.d110-carte .d110-progression progress{width:min(100%,24rem);height:1rem;vertical-align:middle}
+.d110-carte .d110-essai{margin-top:.75rem}
+.d110-carte .d110-essai label{display:block;margin-bottom:.25rem}
+.d110-carte .d110-essai textarea{width:100%;box-sizing:border-box;max-width:100%}
+.d110-carte a:focus-visible,.d110-carte button:focus-visible,.d110-carte input:focus-visible,.d110-carte select:focus-visible,.d110-carte textarea:focus-visible{outline:2px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.d110-carte{overflow-wrap:anywhere}

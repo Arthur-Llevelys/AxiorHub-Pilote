@@ -9,6 +9,10 @@ DICTATION_ERRORS={'http_500':'transcription_locale_en_echec','http_502':'transcr
 
 
 def dictate(config,raw,content_type):
+    from .dictee56110 import active as _poste56110   # 5.6.110 (lot D) : dictée sur ce poste (whisper.cpp, WAV) ; sinon la passerelle, inchangée
+    if _poste56110(config):
+        from .dictee56110 import dicter
+        return dicter(config,raw,content_type)
     audio=config.get('audio',{})
     if not audio.get('enabled'):raise Stop('dictee_locale_non_configuree')
     if content_type not in ('audio/webm','audio/ogg','audio/mp4','audio/wav'):raise Stop('format_audio_refuse')

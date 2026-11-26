@@ -90,7 +90,8 @@ MESSAGES = {
     'gmail_client_id_invalide': 'Identifiant client illisible : copiez-le tel que Google l’affiche (il se termine par .apps.googleusercontent.com).',
     'gmail_secret_requis': 'Collez le secret client affiché par Google à la création du client (il n’est montré qu’une fois chez Google).',
     'gmail_secret_invalide': 'Secret client illisible : collez-le sans espace ni retour à la ligne.',
-    'gmail_uri_retour_invalide': 'L’URI de retour doit être en HTTPS, sans paramètre, et se terminer par /oauth/google/callback (exactement celle déclarée chez Google).',
+    'gmail_uri_retour_invalide': 'L’URI de retour doit être en HTTPS, sans paramètre, et se terminer par /oauth/google/callback (exactement celle déclarée chez Google). '
+                                 'Sur un poste : gardez l’adresse locale proposée par AxiorHub, identique à celle déclarée chez Google.',
     'gmail_audience_interne_a_confirmer': 'Cochez « J’ai choisi l’audience Interne » : cette méthode ne vaut que pour une application interne au domaine Workspace du cabinet.',
     'configuration_modifiee_recharger': 'La configuration a été modifiée par un autre écran depuis l’affichage : rechargez la page, puis recommencez.',
     'cle_idempotence_requise': 'Page incomplète : rechargez-la.', 'cle_idempotence_deja_utilisee': 'Cette demande a déjà été traitée avec d’autres valeurs : rechargez la page.',
@@ -360,10 +361,17 @@ def enregistrer(desk, env, owner, role, data):
                        'Brouillons ». Rien n’est envoyé par AxiorHub.' % d['drafts']}
 
 
-def _uri_valide(uri):
-    p = urlsplit(uri)
-    return (p.scheme == 'https' and bool(p.hostname) and not p.username and not p.password and not p.query and not p.fragment
-            and p.path.endswith('/oauth/google/callback') and len(uri) <= 400)
+def _uri_valide(uri, config=None):
+    """5.6.110 (lot G) : même règle que le connecteur (``google5697.adresse_retour``) : HTTPS sur un serveur (exemple refusé) ; sur un poste,
+    aussi l'adresse de bouclage exacte du poste. La valeur saisie doit être celle réellement envoyée chez Google."""
+    from . import google5697 as gg
+    if not uri or len(uri) > 400:
+        return False
+    try:
+        adresse, _origine = gg.adresse_retour(config or {}, uri, gg.RETOUR, gg.CHEMIN_POSTE)
+    except Stop:
+        return False
+    return adresse == uri
 
 
 def enregistrer_application(desk, env, owner, role, data):
@@ -379,7 +387,7 @@ def enregistrer_application(desk, env, owner, role, data):
     if not CLIENT_ID.fullmatch(client):
         raise Stop('gmail_client_id_invalide')
     uri = str(data.get('redirect_uri') or '').strip()
-    if not _uri_valide(uri):
+    if not _uri_valide(uri, desk.c):
         raise Stop('gmail_uri_retour_invalide')
     secret = str(data.get('secret') or '').strip()
     deja = etat_application(desk)['configure'] or bool(((desk.c.get('google5697') or {}).get('client_secret_file')))
@@ -549,7 +557,7 @@ def etapes_application_html(uri):
 
 
 def _uri_suggeree(desk, env, prefix):
-    deja = etat_application(desk)['uri_retour']
+    deja = etat_application(desk)['uri_retour']   # 5.6.110 (lot G) : sur un poste, adresse de bouclage calculée (réglage vide ou d'exemple)
     if deja:
         return deja
     from .microsoft5636 import redirect_uri

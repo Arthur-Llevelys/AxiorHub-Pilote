@@ -5,7 +5,7 @@
 <p align="center"><strong>The AI execution agent for law firms</strong><br>
 Emails, case files, exhibits, deadlines, calendar and draft documents, on your own server, with a local AI or a pseudonymised external AI.</p>
 
-<p align="center">Created by <strong>Timo RAINIO</strong>, member of the Lyon Bar · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.109</p>
+<p align="center">Created by <strong>Timo RAINIO</strong>, member of the Lyon Bar · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.110</p>
 
 <p align="center"><a href="README.md">Français</a> · <strong>English</strong> · <a href="README.de.md">Deutsch</a> · <a href="README.es.md">Español</a></p>
 
@@ -236,7 +236,8 @@ OpenRouter), always pseudonymised. Email triage and checks remain local.
 ### And also
 
 - **Mobile app** (installable from the browser) with notifications: emails to approve, deadlines, search.
-- **Local voice dictation** (optional gateway) for instructions and corrections.
+- **Dictation on the workstation** (5.6.110, Windows 11 and Ubuntu 24.04): speech is transcribed on the computer, with no outside
+  service; engine included, model downloaded from Settings › Voice ([docs/DICTEE-POSTE.md](docs/DICTEE-POSTE.md), in French).
 - **Integrations** with Roundcube (button in the webmail) and Open WebUI (tool for conversations).
 - **Verified updates** (SHA-256 manifest, signature, rollback) and **automatic acceptance tests** after each installation.
 - **Interface in four languages** (French by default, English, German, Spanish), "All functions" menu and user guide
@@ -307,12 +308,12 @@ sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y git python3 python3-venv
 
 # 2. Download AxiorHub Pilote and build the verified archive (checksum manifest checked by the installer)
-sudo git clone --branch v5.6.109 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.110 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.109.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.110.tar.gz
 
 # 3. Install (or update): code in /opt/axiorhub-mail-agent, configuration in /etc/axiorhub-mail-agent
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.109.tar.gz && cd axiorhub-mail-agent-5.6.109
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.110.tar.gz && cd axiorhub-mail-agent-5.6.110
 sudo bash install.sh
 
 # 4. Configure the mailbox, Nextcloud, calendars and the AI (passwords typed hidden), then check
@@ -323,18 +324,18 @@ sudo axiorhub-mail doctor
 sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py
 ```
 
-Alternative: the Debian package `axiorhub-pilote_5.6.109_all.deb` (`sudo apt install ./axiorhub-pilote_5.6.109_all.deb`, built by
+Alternative: the Debian package `axiorhub-pilote_5.6.110_all.deb` (`sudo apt install ./axiorhub-pilote_5.6.110_all.deb`, built by
 `scripts/build-deb.py`, see [Development](#development)) replaces step 3; steps 4 and 5 remain. To update, run the new version's archive
 (`sudo bash install.sh`); if it fails, the previous version stays active (rollback: `sudo python3 upgrade.py --rollback`).
 
 ### 2. Windows 11 workstation
 
 **Requirements**: 64-bit Windows 11 and Microsoft Edge (built in); [Ollama for Windows](https://ollama.com/download/windows) or an
-external AI provider; optional: Tesseract OCR, LibreOffice. Python is included.
+external AI provider; optional: Tesseract OCR, LibreOffice, Microsoft Visual C++ runtime (dictation). Python is included.
 
-1. Download `AxiorHub-Pilote-Setup-5.6.109.exe` and its `.sha256` file from the repository's *Releases* page, or build them
+1. Download `AxiorHub-Pilote-Setup-5.6.110.exe` and its `.sha256` file from the repository's *Releases* page, or build them
    (`python scripts\build-windows.py dist\windows`).
-2. Check the checksum in PowerShell: `Get-FileHash .\AxiorHub-Pilote-Setup-5.6.109.exe -Algorithm SHA256`.
+2. Check the checksum in PowerShell: `Get-FileHash .\AxiorHub-Pilote-Setup-5.6.110.exe -Algorithm SHA256`.
 3. Run the installer (no administrator rights needed). If SmartScreen shows “Windows protected your PC”: **More info › Run anyway**.
 4. Open **AxiorHub Pilote** from the Start menu: the window opens, already signed in, on the first settings.
 
@@ -351,8 +352,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen3:8b
 
 # AxiorHub Pilote (package and its .sha256 from the repository's Releases page)
-sha256sum -c axiorhub-pilote-poste_5.6.109_amd64.deb.sha256
-sudo apt install ./axiorhub-pilote-poste_5.6.109_amd64.deb
+sha256sum -c axiorhub-pilote-poste_5.6.110_amd64.deb.sha256
+sudo apt install ./axiorhub-pilote-poste_5.6.110_amd64.deb
 ```
 
 Start **AxiorHub Pilote** from the applications menu (or `axiorhub-pilote` in a terminal): the window opens, already signed in, on the
@@ -470,8 +471,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (in French).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.109.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.109_all.deb --archive dist/axiorhub-mail-agent-5.6.109.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.110.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.110_all.deb --archive dist/axiorhub-mail-agent-5.6.110.tar.gz
 python scripts/build-windows.py dist/windows   # on Windows, after pip install -r scripts/windows-requirements.txt
 ```
 

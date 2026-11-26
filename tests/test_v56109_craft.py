@@ -1,9 +1,9 @@
-"""5.6.109, lot V (F16) : éditeurs Craft facultatifs (GridCraft, PdfCraft, DeckCraft) — désactivés par défaut, activables seulement si les
-ressources compilées sont présentes et vérifiées ; séances, candidats contrôlés, exports distincts, commandes IA validées par le serveur.
+"""5.6.109, lot V (F16) : éditeurs Craft (GridCraft, PdfCraft, DeckCraft) — séances, candidats contrôlés, exports distincts, commandes IA
+validées par le serveur. 5.6.110 (lot E) : éditeurs EMBARQUÉS et proposés par défaut (désactivables par l'administrateur, jamais proposés
+si leurs fichiers manquent) ; l'installation par archive déposée a disparu ; commandes de l'IA refusées par la route (validation gardée).
 
-Faux WebDAV en mémoire (``test_v56103_fichiers.FakeNC``), classeur et présentation fictifs (DURAND, MARTIN, DOS-001) ; aucune archive réelle :
-une archive d'ESSAI est fabriquée ici et son empreinte substituée en mémoire à celle de la release publiée. Aucun réseau, aucun binaire,
-aucun navigateur : le rendu et la fidélité réelle des formats XLSX, PDF et PPTX ne sont PAS qualifiés par ces tests.
+Faux WebDAV en mémoire (``test_v56103_fichiers.FakeNC``), classeur et présentation fictifs (DURAND, MARTIN, DOS-001) ; aucun réseau, aucun
+navigateur ici (le parcours ``scripts/parcours_p110e.py`` fait tourner les vraies applications ; empreintes : ``test_v56110_craft``).
 
 Identifiants : F16 = ticket F16 ; R05 = aucune écriture pendant une lecture.
 """
@@ -55,19 +55,6 @@ def pptx(textes=('Synthèse fictive MARTIN',)):
     return out.getvalue()
 
 
-def archive_essai(app='gridcraft', extra=None):
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, 'w') as z:
-        z.writestr('%s-web-0123abcd.js' % app, 'export default async function init(){ return 1; }')
-        z.writestr('%s-web-0123abcd_bg.wasm' % app, b'\x00asm\x01\x00\x00\x00')
-        z.writestr('index.html', '<!doctype html><title>essai</title>')
-        z.writestr('LICENSE-MIT', 'licence fictive')
-        z.writestr('outil.exe', b'MZ')                 # type non admis : ni décompressé ni servi
-        for n, d in (extra or {}).items():
-            z.writestr(n, d)
-    return out.getvalue()
-
-
 class Base(BaseEditeur):
     def setUp(self):
         super().setUp()
@@ -75,20 +62,8 @@ class Base(BaseEditeur):
         self.nc.put(XLSX, xlsx())
         self.nc.put(PPTX, pptx())
 
-    def deposer_archive(self, app='gridcraft', data=None):
-        data = data or archive_essai(app)
-        racine = C.racine(self.desk)
-        racine.mkdir(parents=True, exist_ok=True)
-        r = C.RELEASES[app]
-        (racine / r['archive']).write_bytes(data)
-        p = patch.dict(C.RELEASES[app], {'taille': len(data), 'sha256': hashlib.sha256(data).hexdigest()})
-        p.start()
-        self.addCleanup(p.stop)
-        return data
-
     def activer(self, app='gridcraft'):
-        self.deposer_archive(app)
-        C.installer(self.desk, ADMIN[0], ADMIN[1], app)
+        """5.6.110 (lot E) : éditeurs embarqués et proposés par défaut ; le réglage explicite reste celui de l'administrateur."""
         C.regler(self.desk, ADMIN[0], ADMIN[1], app, True)
 
     def craft(self, route, data=None, acteur=DURAND, methode='POST', args=None, binaire=None):
@@ -104,79 +79,76 @@ class Base(BaseEditeur):
         return out
 
 
-# ====================================================================================== garde-fou : désactivé par défaut
-class Desactive(Base):
-    def test_F16_desactive_par_defaut_rien_propose(self):
-        self.assertEqual(C.reglages(self.desk), {'gridcraft': False, 'pdfcraft': False, 'deckcraft': False})
-        self.assertTrue(all(not C.actif(self.desk, a) for a in C.RELEASES))
+# ====================================================================================== réglage : proposé par défaut, désactivable
+class Reglage(Base):
+    def test_F16_propose_par_defaut_desactivable_par_l_administrateur(self):
+        self.assertEqual(C.reglages(self.desk), {'gridcraft': True, 'pdfcraft': True, 'deckcraft': True})       # 5.6.110 (lot E)
+        self.assertTrue(all(C.actif(self.desk, a) for a in C.RELEASES))
+        self.assertIn('Modifier dans GridCraft', C.bouton_html(self.desk, PREFIX, 'nextcloud', XLSX, 'avocat'))
+        self.assertEqual(C.bouton_html(self.desk, PREFIX, 'nextcloud', XLSX, 'lecture'), '')                     # rôle sans édition : rien
+        C.regler(self.desk, ADMIN[0], ADMIN[1], 'gridcraft', False)
         self.assertEqual(C.bouton_html(self.desk, PREFIX, 'nextcloud', XLSX, 'avocat'), '')
         self.assertNotIn('GridCraft', WC.boutons_html(self.desk, None, PREFIX, 'nextcloud', XLSX, 'avocat'))
         out = self.craft('seances', {'app': 'gridcraft', 's': 'nextcloud', 'p': XLSX, 'cle': self.cle()})
         self.assertEqual((out['status'], out['json']['error']), ('403 Forbidden', 'craft_desactive'))
-        self.assertTrue(all(v['etat'] == 'absent' for v in C.detecter(self.desk).values()))
+        self.assertIn('Modifier dans DeckCraft', C.bouton_html(self.desk, PREFIX, 'nextcloud', PPTX, 'avocat'))   # les autres restent proposés
 
-    def test_F16_garde_fou_activation_refusee_sans_ressources_compilees(self):
-        with self.assertRaisesRegex(Stop, 'ressources_craft_absentes'):
-            C.regler(self.desk, ADMIN[0], ADMIN[1], 'gridcraft', True)
-        self.assertFalse(C.reglages(self.desk)['gridcraft'])
-        # même un réglage forcé dans la base ne propose rien sans ressources installées et vérifiées
-        self.desk.setting(C.REGLAGE, {'gridcraft': True})
-        self.assertFalse(C.actif(self.desk, 'gridcraft'))
-        self.assertEqual(self.craft('reglage', {'app': 'gridcraft', 'active': True, 'cle': self.cle()}, acteur=ADMIN)['json']['error'], 'ressources_craft_absentes')
-        self.assertEqual(self.craft('reglage', {'app': 'gridcraft', 'active': True, 'cle': self.cle()})['status'], '403 Forbidden')   # avocat : jamais
+    def test_F16_garde_fou_fichiers_absents_rien_propose(self):
+        with patch.object(C, 'disponible', return_value=False):
+            with self.assertRaisesRegex(Stop, 'ressources_craft_absentes'):
+                C.regler(self.desk, ADMIN[0], ADMIN[1], 'gridcraft', True)
+            self.assertFalse(C.actif(self.desk, 'gridcraft'))                                    # même un réglage actif ne propose rien
+            self.assertEqual(C.bouton_html(self.desk, PREFIX, 'nextcloud', XLSX, 'avocat'), '')
+            self.assertEqual(self.craft('reglage', {'app': 'gridcraft', 'active': True, 'cle': self.cle()}, acteur=ADMIN)['json']['error'], 'ressources_craft_absentes')
+        self.assertEqual(self.craft('reglage', {'app': 'gridcraft', 'active': False, 'cle': self.cle()})['status'], '403 Forbidden')   # avocat : jamais
 
-    def test_F16_aucun_binaire_livre_ni_telechargement(self):
-        statiques = ROOT / 'agent' / 'static'
-        self.assertFalse([p for p in statiques.rglob('*') if any(a in p.name.lower() for a in C.RELEASES) and p.suffix in ('.wasm', '.zip', '.js')])
+    def test_F16_reglage_illisible_rien_propose(self):
+        with patch.object(self.desk, 'settings', side_effect=RuntimeError('base illisible')):
+            self.assertEqual(C.reglages(self.desk), {'gridcraft': False, 'pdfcraft': False, 'deckcraft': False})
+
+    def test_F16_aucun_telechargement_ni_compilation(self):
         src = (ROOT / 'agent' / 'craft56109.py').read_text(encoding='utf-8')
         for interdit in ('urlopen', 'urllib.request', 'requests', 'http.client', 'socket', 'subprocess', 'cargo', 'rustup'):
             self.assertNotIn(interdit, src.split('"""', 2)[2])
+        # binaires des éditeurs : seulement dans les dossiers embarqués déclarés (empreintes vérifiées par test_v56110_craft)
+        statiques = ROOT / 'agent' / 'static'
+        dossiers = {'%s-%s' % (a, r['version']) for a, r in C.RELEASES.items()}
+        hors = [p for p in statiques.rglob('*') if p.is_file() and any(a in p.name.lower() for a in C.RELEASES) and p.suffix in ('.wasm', '.zip')
+                and p.relative_to(statiques).parts[0] not in dossiers]
+        self.assertEqual(hors, [])
 
 
-# ====================================================================================== ressources compilées : détection, installation
+# ====================================================================================== fichiers servis
 class Ressources(Base):
-    def test_F16_archive_detectee_installee_puis_servie_selon_le_manifeste(self):
-        self.deposer_archive()
-        self.assertEqual(C.detecter(self.desk)['gridcraft']['etat'], 'archive_verifiee')
-        out = self.craft('installer', {'app': 'gridcraft', 'cle': self.cle()}, acteur=ADMIN)
-        self.assertEqual(out['json']['etat'], 'installe', out['json'])
-        self.assertEqual(C.detecter(self.desk)['gridcraft']['etat'], 'installe')
-        dossier = C.dossier_version(self.desk, 'gridcraft')
-        self.assertFalse((dossier / 'outil.exe').exists())
-        C.regler(self.desk, ADMIN[0], ADMIN[1], 'gridcraft', True)
-        data, kind = C.ressource(self.desk, 'gridcraft-0.19.1', 'gridcraft-web-0123abcd_bg.wasm')
+    def test_F16_fichiers_servis_a_leur_empreinte_seulement(self):
+        fichier, kind = C.ressource(self.desk, 'gridcraft-0.19.1', 'gridcraft-web-fdc723373f2aa0d8_bg.wasm')
         self.assertEqual(kind, 'application/wasm')
-        for absent in ('LICENSE-MIT', 'outil.exe', '../manifeste-axiorhub.json', 'manifeste-axiorhub.json'):
+        self.assertEqual(fichier.stat().st_size, 26298748)
+        for absent in ('LICENSE-MIT', 'index.html', 'NOTICE', '../craft56109.py', 'HOSTING.md', 'manifeste-axiorhub.json'):
             with self.assertRaises(Stop):
                 C.ressource(self.desk, 'gridcraft-0.19.1', absent)
-        (dossier / 'gridcraft-web-0123abcd.js').write_text('modifié', encoding='utf-8')     # fichier altéré après installation : jamais servi
         with self.assertRaises(Stop):
-            C.ressource(self.desk, 'gridcraft-0.19.1', 'gridcraft-web-0123abcd.js')
+            C.ressource(self.desk, 'gridcraft-0.19.0', 'gridcraft-web-fdc723373f2aa0d8.js')       # autre version : introuvable
+        faux = dict(C.RELEASES['gridcraft']['fichiers'])
+        faux['gridcraft-web-fdc723373f2aa0d8.js'] = ('text/javascript', '0' * 64, 174295)         # empreinte différente : jamais servi
+        with patch.dict(C.RELEASES['gridcraft'], {'fichiers': faux}):
+            with self.assertRaises(Stop):
+                C.ressource(self.desk, 'gridcraft-0.19.1', 'gridcraft-web-fdc723373f2aa0d8.js')
+        C.regler(self.desk, ADMIN[0], ADMIN[1], 'gridcraft', False)
+        with self.assertRaises(Stop):
+            C.ressource(self.desk, 'gridcraft-0.19.1', 'gridcraft-web-fdc723373f2aa0d8.js')        # éditeur désactivé : rien servi
+        cadre = C._cadre(self.desk, PREFIX, 'gridcraft-0.19.1')
+        self.assertTrue(cadre['status'].startswith('404'))
+
+    def test_F16_cadre_csp_stricte(self):
         cadre = C._cadre(self.desk, PREFIX, 'gridcraft-0.19.1')
         self.assertIn("frame-ancestors 'self'", cadre['csp'])
-        self.assertNotIn('unsafe-inline', cadre['csp'])
-        self.assertIn('data-c109-glue="gridcraft-web-0123abcd.js"', cadre['body'])
-        self.assertEqual(C.bouton_html(self.desk, PREFIX, 'nextcloud', XLSX, 'avocat').count('GridCraft'), 1)
-        self.assertEqual(C.bouton_html(self.desk, PREFIX, 'nextcloud', PPTX, 'avocat'), '')   # DeckCraft non installé
-
-    def test_F16_archive_differente_ou_dangereuse_refusee(self):
-        r = C.RELEASES['gridcraft']
-        racine = C.racine(self.desk)
-        racine.mkdir(parents=True, exist_ok=True)
-        (racine / r['archive']).write_bytes(archive_essai())                                # empreinte publiée réelle : différente
-        self.assertEqual(C.detecter(self.desk)['gridcraft']['etat'], 'archive_differente')
-        with self.assertRaisesRegex(Stop, 'archive_craft_non_verifiee'):
-            C.installer(self.desk, ADMIN[0], ADMIN[1], 'gridcraft')
-        self.deposer_archive(data=archive_essai(extra={'../echappe.js': 'x'}))
-        with self.assertRaisesRegex(Stop, 'archive_craft_refusee'):
-            C.installer(self.desk, ADMIN[0], ADMIN[1], 'gridcraft')
-        self.assertFalse(C.dossier_version(self.desk, 'gridcraft').exists())
-        self.assertFalse((racine.parent / 'echappe.js').exists())
-        with self.assertRaisesRegex(Stop, 'role_interdit'):
-            C.installer(self.desk, DURAND[0], DURAND[1], 'gridcraft')
+        self.assertIn("connect-src 'self'", cadre['csp'])
+        self.assertNotRegex(cadre['csp'], r"https?:|\*|'unsafe-inline'|'unsafe-eval'")
+        self.assertIn('data-c109-glue="gridcraft-web-fdc723373f2aa0d8.js"', cadre['body'])
+        self.assertIn('<canvas id="gridcraft_canvas"', cadre['body'])
 
     def test_F16_desactiver_sans_perte(self):
-        self.activer()
         s = C.ouvrir(self.desk, self.ident(), DURAND, 'gridcraft', 'nextcloud', XLSX, self.src())
         C.regler(self.desk, ADMIN[0], ADMIN[1], 'gridcraft', False)
         self.assertFalse(C.actif(self.desk, 'gridcraft'))
@@ -272,14 +244,22 @@ class Seances(Base):
         self.assertEqual(self.desk.db.total_changes, avant)
 
 
-# ====================================================================================== commandes IA validées
+# ====================================================================================== commandes IA : désactivées (5.6.110), validation conservée
 class CommandesIA(Base):
-    def test_F16_plan_ferme_valide_par_le_serveur(self):
-        self.activer()
+    def test_F16_route_refusee_rien_applique(self):
         ident = C.ouvrir(self.desk, self.ident(), DURAND, 'gridcraft', 'nextcloud', XLSX, self.src())['seance']
-        ok = self.craft('seances/%s/actions-ia' % ident, {'plan': [{'commande': 'cell.set', 'parametres': {'sheet': 1, 'cell': 'B2', 'value': '1500'}}], 'revision': 0, 'cle': 'plan-c-0001'})
-        self.assertEqual(ok['status'], '200 OK', ok['json'])
-        self.assertEqual(ok['json']['commandes'][0]['commande'], 'cell.set')
+        out = self.craft('seances/%s/actions-ia' % ident, {'plan': [{'commande': 'cell.set', 'parametres': {'sheet': 1, 'cell': 'B2', 'value': '1500'}}],
+                                                          'revision': 0, 'cle': 'plan-c-0001'})
+        self.assertEqual((out['status'], out['json']['error']), ('409 Conflict', 'commandes_ia_indisponibles'))
+        self.assertFalse(C.COMMANDES_IA)
+        self.assertEqual(self.desk.db.execute('SELECT COUNT(*) FROM craft56109_plans').fetchone()[0], 0)
+        autre = self.craft('seances/%s/actions-ia' % ident, {'plan': [], 'revision': 0, 'cle': 'plan-c-0002'}, acteur=ASSISTANT)
+        self.assertEqual(autre['status'], '404 Not Found')                                   # séance d'un autre compte : 404 neutre d'abord
+
+    def test_F16_plan_ferme_valide_par_le_serveur(self):
+        ident = C.ouvrir(self.desk, self.ident(), DURAND, 'gridcraft', 'nextcloud', XLSX, self.src())['seance']
+        ok = C.valider_plan(self.desk, DURAND, ident, [{'commande': 'cell.set', 'parametres': {'sheet': 1, 'cell': 'B2', 'value': '1500'}}], 0, 'plan-c-0001')
+        self.assertEqual(ok['commandes'][0]['commande'], 'cell.set')
         refus = [([{'commande': 'file.open', 'parametres': {'path': 'C:/x'}}], 'commande_non_autorisee'),
                  ([{'commande': 'execute_command', 'parametres': {}}], 'commande_non_autorisee'),
                  ([{'commande': 'cell.set', 'parametres': {'sheet': 1, 'cell': 'B2', 'value': '=1+1'}}], 'formule_non_demandee'),
@@ -288,17 +268,16 @@ class CommandesIA(Base):
                  ([{'commande': 'cell.set', 'parametres': {'sheet': 1, 'cell': 'B2', 'value': 'x', 'script': 'y'}}], 'parametre_refuse'),
                  ([{'commande': 'cell.set', 'parametres': {'sheet': 1, 'cell': 'B2', 'value': 'x'}}] * 21, 'plan_refuse')]
         for i, (plan, code) in enumerate(refus):
-            out = self.craft('seances/%s/actions-ia' % ident, {'plan': plan, 'revision': 0, 'cle': 'plan-r-%04d' % i})
-            self.assertEqual(out['json']['error'], code, plan)
-        self.assertEqual(self.craft('seances/%s/actions-ia' % ident, {'plan': [{'commande': 'cell.set', 'parametres': {'sheet': 1, 'cell': 'B3', 'value': 'x'}}],
-                                                                       'revision': 5, 'cle': 'plan-p-0001'})['json']['error'], 'version_perimee')
+            with self.assertRaisesRegex(Stop, code):
+                C.valider_plan(self.desk, DURAND, ident, plan, 0, 'plan-r-%04d' % i)
+        with self.assertRaisesRegex(Stop, 'version_perimee'):
+            C.valider_plan(self.desk, DURAND, ident, [{'commande': 'cell.set', 'parametres': {'sheet': 1, 'cell': 'B3', 'value': 'x'}}], 5, 'plan-p-0001')
 
     def test_F16_ia_en_pause_commandes_refusees_saisie_manuelle_possible(self):
-        self.activer()
         ident = C.ouvrir(self.desk, self.ident(), DURAND, 'gridcraft', 'nextcloud', XLSX, self.src())['seance']
         with patch('agent.arret5643.manual_paused', return_value=True):
-            out = self.craft('seances/%s/actions-ia' % ident, {'plan': [{'commande': 'range.read', 'parametres': {'sheet': 1, 'range': 'A1:B2'}}], 'revision': 0, 'cle': 'plan-z-0001'})
-            self.assertEqual(out['json']['error'], 'ia_en_pause')
+            with self.assertRaisesRegex(Stop, 'ia_en_pause'):
+                C.valider_plan(self.desk, DURAND, ident, [{'commande': 'range.read', 'parametres': {'sheet': 1, 'range': 'A1:B2'}}], 0, 'plan-z-0001')
             cand = self.craft('seances/%s/candidats' % ident, args={'revision': '0', 'cle': 'cand-z-0001'}, binaire=xlsx(('x', '1')))
             self.assertEqual(cand['status'], '200 OK')                                       # l'enregistrement manuel reste possible
 
@@ -309,14 +288,15 @@ class PontJavaScript(unittest.TestCase):
             self.skipTest('Node absent : contrats du pont non exécutés ici')
         r = subprocess.run(['node', str(ROOT / 'tests' / 'craft56109.cjs')], capture_output=True, text=True, encoding='utf-8')
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn('pass 25', r.stdout)
+        self.assertIn('pass 26', r.stdout)
 
     def test_F16_pont_sans_module_es_ni_html_injecte(self):
         js = (ROOT / 'agent' / 'static' / 'v56109-craft-host.js').read_text(encoding='utf-8')
         self.assertNotIn('innerHTML', js)
         self.assertNotRegex(js, r'^\s*(?:import|export)\s', )
         self.assertIn('event.origin !== this.origin || event.source !== this.frame.contentWindow', js)
-        self.assertNotIn("postMessage(", js.replace("postMessage({ type: app + ':host'", '').replace("postMessage({ type: app + ':saved'", '')
+        self.assertNotIn(":host'", js)                                                       # 5.6.110 : aucun message hors du contrat documenté
+        self.assertNotIn("postMessage(", js.replace("postMessage({ type: app + ':saved'", '')
                          .replace("postMessage({ type: this.app + ':open'", '').replace("postMessage({ type: appCadre + ':failed'", ''))
 
 

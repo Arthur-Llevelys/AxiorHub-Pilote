@@ -3,6 +3,77 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.110 — dictée sur chaque poste, tableur, PDF et présentations intégrés, serveur de documents en un clic, Google sur un poste
+
+Retours d'essai du cabinet du 24/11/2026 sur la 5.6.109 (postes Windows 11 et Ubuntu 24.04). Le détail, lot par lot, avec ce qui
+a réellement tourné et ce qui ne l'a pas été, est dans `VALIDATION-5.6.110.json`.
+
+**Dictée sur chaque poste (nouveau)**
+- Constat : en 5.6.109, la dictée ne pouvait être installée sur aucun poste. La case « Activer la dictée locale » n'installait rien ;
+  elle supposait une passerelle de transcription qu'aucun paquet ne fournissait, et le bouton « Tester Voix locale » ne vérifiait que
+  la voix de secours de la lecture à voix haute (message « Installer espeak-ng », sans rapport avec la dictée).
+- Le moteur de transcription whisper.cpp (version `b5907`, licence MIT) est maintenant fourni avec l'application Windows et avec le
+  paquet Ubuntu du poste (12 et 21 Mo). Il est lancé une fois par dictée : aucun service permanent, aucun port ouvert. Rien ne quitte
+  le poste ; l'enregistrement est effacé dès que le texte est prêt, même en cas d'erreur, et le texte dicté n'est écrit dans aucun journal.
+- Paramètres › Voix, carte « Dictée sur ce poste » : choix du modèle (Rapide 60 Mo, Équilibré 190 Mo, Précis 574 Mo), téléchargé à la
+  demande de l'administrateur depuis huggingface.co, vérifié par sa taille et son empreinte SHA-256 ; « Vérifier le moteur » ; zone
+  d'essai au micro ; retrait et désactivation. Un modèle déposé à la main (poste sans réseau) est contrôlé par son empreinte.
+- Le navigateur convertit l'enregistrement en WAV 16 kHz mono avant l'envoi. Un silence rend un texte vide sans lancer le moteur ; les
+  phrases que le modèle invente sur du silence sont écartées. Dix minutes au plus par dictée dans les zones de texte et la rédaction,
+  avec un avertissement trente secondes avant.
+- Windows : le moteur a besoin du composant gratuit « Microsoft Visual C++ », non fourni avec AxiorHub ; s'il manque, l'écran le dit
+  et donne le lien officiel. Ubuntu : le paquet du poste dépend maintenant de `libgomp1`.
+- Les anciens réglages « dictée locale » et « passerelle Whisper / Vocal » sont présentés pour ce qu'ils sont : une ancienne passerelle
+  de serveur, facultative. Notice : `docs/DICTEE-POSTE.md`.
+
+**Tableur, PDF et présentations intégrés par défaut**
+- Constat : GridCraft, PdfCraft et DeckCraft n'étaient ni livrés ni installables. L'écran demandait de déposer une archive à la main,
+  et le code refusait tout fichier de plus de 25 Mo alors que leur fichier principal pèse 26, 33 et 61 Mo ; l'intégration avait été
+  écrite sans les vraies applications.
+- GridCraft 0.19.1, PdfCraft 0.21.1 et DeckCraft 0.18.1 sont maintenant fournis avec AxiorHub (fichiers officiels inchangés, empreinte
+  de chaque fichier contrôlée), comme WordCraft, et **proposés par défaut** : « Modifier dans GridCraft / PdfCraft / DeckCraft (version
+  d'essai) » dans l'aperçu d'un document, Fichiers et Produire. Une case par éditeur permet de le retirer (Paramètres › Documents).
+- Chaque enregistrement est contrôlé, comparé à l'original et gardé **à côté de l'original, jamais à sa place** ; un export (PDF d'un
+  classeur) est un fichier distinct. Document de 20 Mo au plus.
+- Ce sont des versions « alpha » selon leurs auteurs : la comparaison porte sur la structure et le texte, pas sur la mise en forme.
+  Les commandes de l'IA dans ces éditeurs sont **désactivées** : celles écrites en 5.6.109 ne correspondent pas aux vraies applications.
+- Chaque paquet grossit d'environ 56 Mo (136 Mo une fois installé). Notice : `docs/EDITEURS-INTEGRES-CRAFT.md`.
+
+**Serveur de documents en un clic sur un poste**
+- Paramètres › Documents, sur un poste et pour l'administrateur : « Installer le serveur de documents sur ce poste ». AxiorHub pilote
+  Docker à la place de l'avocat : image Euro-Office figée par son empreinte, secret créé et jamais affiché, démarrage en local
+  (`127.0.0.1`), réglages d'AxiorHub remplis, test du serveur. Puis « Démarrer », « Arrêter », « Tester », « Désinstaller ».
+- Docker reste à installer par l'utilisateur (Docker Desktop sous Windows 11) : la carte donne le lien et dit quoi faire.
+- Les réglages d'un autre serveur de documents (serveur commun du cabinet) ne sont jamais remplacés sans confirmation ; ils sont gardés
+  et « Revenir au serveur précédent » les remet. AxiorHub ne touche qu'au conteneur qu'il a créé.
+- Sur un serveur, rien ne change : le guide `docs/INSTALLATION-EDITEUR-DOCUMENTS.md` reste la voie.
+
+**Google Agenda et Gmail sur un poste (« Erreur 400 : redirect_uri_mismatch »)**
+- Constat : la connexion Google n'acceptait qu'une adresse de retour en `https`, prévue pour un serveur ; la valeur d'exemple partait
+  telle quelle chez Google, qui répondait par cette erreur. Même avec une bonne adresse, le retour de Google n'aurait pas retrouvé la
+  session de la fenêtre du poste.
+- Sur un poste, AxiorHub calcule l'adresse de retour locale (`http://127.0.0.1:<port>/…`), l'affiche avec un bouton « Copier » et dit
+  quoi créer chez Google (client « Application de bureau », ou adresse à déclarer pour un client « Application Web »). Le retour se
+  fait en deux temps : la réponse de Google est seulement déposée, puis la connexion se termine dans la fenêtre AxiorHub avec la session
+  de l'avocat. Les contrôles existants (état à usage unique, dix minutes, personne, session, PKCE) sont inchangés.
+- Sur un serveur, la règle `https` est inchangée ; la valeur d'exemple est refusée avant l'envoi chez Google, avec un message clair.
+- Non essayé avec un vrai compte Google : la marche à suivre est dans `docs/GOOGLE-SUR-UN-POSTE.md`.
+
+**Corrections**
+- Application du poste (Windows 11, Ubuntu 24.04) : « au bout d'un certain temps », elle demandait de se connecter à
+  `http://127.0.0.1:<port>`. La session de la fenêtre durait douze heures fixes, même pendant le travail. Elle est maintenant prolongée
+  par l'usage (sept jours sans activité au plus, trente jours au plus depuis l'ouverture). Si elle expire malgré tout, plus de demande
+  d'identifiants : une page dit de rouvrir AxiorHub Pilote depuis le menu.
+- Clé Mistral, première connexion : « Tester aussi une génération » rendait « fournisseur externe non autorisé ». La case est grisée
+  tant que l'envoi de données à Mistral n'est pas autorisé, avec l'explication ; le refus est lisible.
+- Essais : quatre essais de la 5.6.109 échouaient dans la recette GitHub (trois lisaient l'historique Git du dépôt de travail, un
+  dépendait de l'ordre de passage). Corrigés ; le logiciel n'était pas en cause.
+
+**Non vérifié dans cette version**
+- Micro réel, vrai compte Google, poste Ubuntu réel (le moteur de dictée et le paquet ont été essayés dans un conteneur Ubuntu 24.04),
+  poste Windows sans le composant Microsoft Visual C++, téléchargement réel de l'image du serveur de documents (elle était déjà
+  présente sur le poste d'essai), fidélité des éditeurs intégrés sur des documents réels du cabinet.
+
 ## 5.6.109 — incident de sauvegarde corrigé, confidentialité avant une IA externe, fiche et honoraires, gestion du cabinet, parcours supervisés, téléphonie Bland
 
 Cahier des charges et dossier technique du cabinet du 23/11/2026 (60 tickets), demandes du 23/11 (téléphonie Bland, rappel de

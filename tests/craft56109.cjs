@@ -155,3 +155,11 @@ test('plan vide ou mal formé : aucune commande admise', async () => {
   await assert.rejects(commandeIA({api:{execute:async()=>calls++},command:'cell.set',params:{},schema:schemaDuPlan(null),checkpoint:()=>{},currentRevision:()=>1,expectedRevision:1}));
   assert.equal(calls,0);
 });
+test('5.6.110 : refus certain du serveur expliqué, saisie suivante possible ; nom refusé sans blocage', async () => {
+  let n=0;const b=banc({sauvegarder:async p=>{n++;if(n===1){const e=new Error('Le fichier reçu n’est pas lisible');e.certain=true;throw e;}return{durable:true,revision:p.expectedRevision+1};}});
+  await b.ready();
+  const r1=await b.save();assert.equal(r1.saved,false);assert.equal(r1.refus,true);assert.equal(b.host.erreur,'');
+  const r2=await b.save('../a.xlsx');assert.equal(r2.saved,false);assert.equal(b.host.erreur,'');
+  const r3=await b.save();assert.equal(r3.saved,true);assert.equal(b.host.revision,1);
+  assert.equal(b.calls.some(x=>/:host$/.test(x[0].type)),false);
+});

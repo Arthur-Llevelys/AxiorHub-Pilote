@@ -15,6 +15,7 @@ s'ouvre avec Microsoft Edge en mode application et se connecte par un jeton à u
 | LibreOffice | conversions de documents Word et PDF | non |
 | eSpeak NG | voix de secours | non |
 | Poppler | lecture des PDF ; sinon `pypdf` et PDFium, inclus, prennent le relais (aperçus Word compris) | non |
+| Dictée sur le poste : moteur inclus ; modèle téléchargé depuis Paramètres › Voix ; composant Microsoft Visual C++ (souvent déjà présent) | transcription de la voix sur le poste, voir [DICTEE-POSTE.md](DICTEE-POSTE.md) | non |
 
 Python n'est pas nécessaire : il est inclus dans l'application.
 
@@ -24,7 +25,7 @@ Python n'est pas nécessaire : il est inclus dans l'application.
 2. Vérifiez l'empreinte dans PowerShell ; elle doit être identique au contenu du fichier `.sha256` :
 
    ```powershell
-   Get-FileHash .\AxiorHub-Pilote-Setup-5.6.109.exe -Algorithm SHA256
+   Get-FileHash .\AxiorHub-Pilote-Setup-5.6.110.exe -Algorithm SHA256
    ```
 
 3. Double-cliquez sur l'installateur. L'application n'étant pas signée par un éditeur, Windows SmartScreen peut afficher
@@ -42,7 +43,7 @@ L'installation se fait pour l'utilisateur courant, sans droits d'administrateur 
 Installation sans fenêtre, par exemple pour un déploiement sur plusieurs postes :
 
 ```powershell
-.\AxiorHub-Pilote-Setup-5.6.109.exe --silencieux --demarrage
+.\AxiorHub-Pilote-Setup-5.6.110.exe --silencieux --demarrage
 ```
 
 Options : `--sans-bureau`, `--sans-raccourcis`, `--demarrage` (lancement à l'ouverture de session), `--lancer`
@@ -58,7 +59,7 @@ périodique de l'agent) démarrent en arrière-plan et la fenêtre s'ouvre sur *
 3. **Messagerie** (facultative) : IMAP, dossier Brouillons ;
 4. **Agendas** (facultatifs) : Nextcloud, CalDAV ou Google Agenda.
 
-**Configurer l’IA locale (5.6.109)** : Paramètres › IA › « Configurer l’IA locale » (et l’étape « IA » du guide) cherche Ollama
+**Configurer l’IA locale (5.6.110)** : Paramètres › IA › « Configurer l’IA locale » (et l’étape « IA » du guide) cherche Ollama
 (adresse réglée, puis `127.0.0.1:11434`) et l’exécutable dans `%LOCALAPPDATA%\Programs\Ollama`, sans rien lancer : installé mais
 arrêté, démarrez Ollama depuis le menu Démarrer ; absent, installez-le depuis [ollama.com/download](https://ollama.com/download). Il
 lit la mémoire et la carte graphique du poste (registre Windows en lecture, `nvidia-smi` s’il existe), liste les modèles installés,
@@ -71,7 +72,7 @@ active.
 
 **Application Nextcloud « AxiorHub Pilote » sur un poste : mode découverte, pour des tests seulement.** La version poste n’écoute que son propre ordinateur. *Nextcloud installé sur ce même ordinateur* (ou dans Docker Desktop sous Windows) : dans AxiorHub, Paramètres › Connexions › Application Nextcloud, cochez « Autoriser la liaison des comptes depuis Nextcloud (même ordinateur) » ; dans Nextcloud, Paramètres personnels › AxiorHub Pilote, adresse `http://127.0.0.1:8769/agent-courriel` (Docker Desktop : `http://host.docker.internal:8769/agent-courriel`), cochez « Moteur sur ce serveur (adresse locale) », puis l’identifiant et le mot de passe locaux affichés sur la même page d’AxiorHub ; l’interface s’affiche dans Nextcloud avec un bandeau d’avertissement permanent. *Nextcloud hébergé* : saisissez `http://127.0.0.1:8769/agent-courriel/` dans « Adresse de mon AxiorHub local » ; l’entrée « Mon AxiorHub local » ouvre AxiorHub dans un onglet du navigateur (ni Pilote, ni recherche, ni affichage dans Nextcloud). **Avertissement** : AxiorHub n’est alors joignable que depuis cet ordinateur, s’arrête avec lui, et les échanges locaux ne sont pas chiffrés (HTTP) ; pour le travail du cabinet, installez la version serveur (Linux, HTTPS), plus sûre. Sur un poste, AxiorHub peut aussi utiliser les fichiers de votre Nextcloud (Guide d’installation › Documents) ou un dossier synchronisé par le client Nextcloud.
 
-**Modifier les documents Word dans AxiorHub (5.6.109)** : sans serveur de documents, AxiorHub affiche les .docx en aperçu (lecture
+**Modifier les documents Word dans AxiorHub (5.6.110)** : sans serveur de documents, AxiorHub affiche les .docx en aperçu (lecture
 seule) et les ouvre dans Word sur le poste. Pour les modifier dans AxiorHub, installez EuroOffice ou OnlyOffice dans Docker Desktop
 avec son secret JWT : [INSTALLATION-EDITEUR-DOCUMENTS.md](INSTALLATION-EDITEUR-DOCUMENTS.md), parcours B (adresse du serveur
 `http://127.0.0.1:8080`, adresse de rappel `http://host.docker.internal:8769/agent-courriel`).
@@ -96,4 +97,8 @@ python scripts\build-windows.py dist\windows
 ```
 
 Le dossier `dist\windows` contient l'installateur, une archive `.zip` de l'application (déploiement sans installateur) et
-leurs empreintes `.sha256`. L'intégration continue construit le même installateur à chaque envoi sur le dépôt.
+leurs empreintes `.sha256`.
+
+Moteur de dictée (5.6.110) : préparez sa copie réduite avec `python scripts\preparer-dictee.py ARCHIVES SORTIE`, puis définissez
+`$env:AXIORHUB_WIN_DICTEE = "SORTIE\windows"` avant la construction. Sans cette variable, l'application est construite sans moteur de
+dictée (un avertissement l'indique). Voir [DICTEE-POSTE.md](DICTEE-POSTE.md). L'intégration continue construit le même installateur à chaque envoi sur le dépôt.

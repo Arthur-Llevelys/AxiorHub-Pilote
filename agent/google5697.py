@@ -23,6 +23,21 @@ consentement, et « Se connecter à AxiorHub » reste distinct.
   demande), agenda. ``gmail.modify``, ``mail.google.com`` et ``gmail.send`` ne sont jamais demandées.
 - **Transport** : ``TRANSPORT`` (tests : faux Google) ; sinon ``common.HTTP`` vers les seules origines Google. Aucun jeton, code ni
   secret dans une URL, un journal ou une erreur.
+
+5.6.110 (lot G) : Google sur un poste (Windows 11, Ubuntu 24.04)
+--------------------------------------------------------------
+- **Adresse de retour du poste** (``poste_local``, ``adresse_retour``) : un poste n'écoute qu'en ``http://127.0.0.1:<port>`` ; une adresse
+  ``https`` ne peut pas y revenir. Sur un poste SEULEMENT (``ui-auth.json`` voisin de la configuration, ``"poste": true``, origine écrite
+  par poste.py au lancement ; jamais l'en-tête Host ni un paramètre du navigateur), l'adresse de retour peut être de bouclage en ``http`` :
+  hôte du poste (``127.0.0.1``, ou ``[::1]`` si le poste écoute là), port de l'interface, chemin exact du retour sous le préfixe. Réglage
+  vide ou valeur d'exemple (``agent.example.com``) : AxiorHub calcule cette adresse. Partout ailleurs la règle ``https`` est inchangée ;
+  ``localhost``, un nom, une adresse du réseau, un autre port ou un autre chemin sont refusés. La valeur d'exemple est refusée AVANT
+  l'envoi chez Google (serveur : ``google_uri_retour_exemple``).
+- **Retour en deux temps sur un poste** (``deposer_retour``, ``terminer_depose``) : la session de la fenêtre du poste ne revient pas avec
+  Google (cookie ``SameSite=Strict`` de la fenêtre Windows, navigateur du système sous Ubuntu). Le retour de Google, reçu sans session sur
+  l'adresse de bouclage, ne fait que DÉPOSER le code contre un état connu, non utilisé, non expiré, une seule fois ; rien n'est échangé.
+  L'échange se fait ensuite depuis la fenêtre AxiorHub (session de la personne) : état consommé une seule fois, personne ET session
+  comparées AVANT l'échange, dix minutes, PKCE et secret du client inchangés. Un dépôt d'une autre session n'est jamais terminé.
 """
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -88,7 +103,22 @@ CREATE TABLE IF NOT EXISTS google5697_connexions(id TEXT PRIMARY KEY, cabinet_id
 CREATE TABLE IF NOT EXISTS google5697_etats(etat_hash TEXT PRIMARY KEY, connexion_id TEXT NOT NULL, owner TEXT NOT NULL, session_hash TEXT NOT NULL,
   usage TEXT NOT NULL, capacites TEXT NOT NULL, verificateur TEXT NOT NULL, redirect TEXT NOT NULL, config TEXT NOT NULL, generation INTEGER NOT NULL,
   retour TEXT NOT NULL DEFAULT '', expire REAL NOT NULL, utilise INTEGER NOT NULL DEFAULT 0, cree TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS google5697_retours(etat_hash TEXT PRIMARY KEY, code TEXT NOT NULL DEFAULT '', erreur TEXT NOT NULL DEFAULT '', recu REAL NOT NULL);
 '''
+# 5.6.110 (lot G) : google5697_retours = retours de Google reçus sur le poste sans la session de la fenêtre (code déposé, jamais échangé ici)
+
+EXEMPLE = 'example.com'                     # valeur d'exemple livrée (https://agent.example.com/…) : jamais envoyée chez Google
+HOTES_BOUCLAGE = ('127.0.0.1', '::1')
+CHEMIN_POSTE = '/api440/m5689' + RETOUR      # chemin du retour sous le préfixe de l'interface du poste
+MESSAGES = {
+    'google_uri_retour_exemple': 'L’adresse de retour est encore celle de l’exemple (agent.example.com) : indiquez l’adresse publique du Pilote, '
+                                 'déclarée à l’identique chez Google. Rien n’a été envoyé chez Google.',
+    'google_uri_retour_invalide': 'Adresse de retour refusée avant l’envoi chez Google. Sur un serveur : adresse en HTTPS, sans paramètre, terminée par '
+                                  '/oauth/google/callback. Sur un poste : laissez le réglage vide, AxiorHub utilise l’adresse locale affichée dans la carte.',
+    'google_retour_absent': 'Google n’a pas encore répondu pour cette fenêtre. Autorisez l’accès dans la page Google, puis recommencez.',
+    'google_retour_poste_seulement': 'Ce retour n’est accepté que sur un poste, depuis cet ordinateur.',
+}
+
 
 
 def ensure_schema(desk):
@@ -104,31 +134,121 @@ def _hache(valeur):
 
 
 # ------------------------------------------------------------------------------------------------ configuration du serveur
-def configuration(desk, usage):
-    """Client OAuth de l'usage : section propre (``google5697_<usage>``) prioritaire, sinon section commune. Le secret n'est pas lu ici."""
-    if usage not in USAGES:
-        raise Stop('google_usage_inconnu')
+def poste_local(config):
+    """5.6.110 (lot G) : ``{'origine', 'prefixe', 'hote', 'port'}`` si AxiorHub tourne comme un poste, sinon ``None``.
+
+    Seule source : le fichier d'authentification du poste, voisin de la configuration chargée (``ui-auth.json``), qui porte ``"poste": true``
+    et l'origine locale écrite par poste.py à chaque lancement (``http://127.0.0.1:<port>``) ; l'interface et le travailleur lisent le même.
+    Jamais l'en-tête Host, jamais un paramètre du navigateur. Toute anomalie (fichier absent, origine qui n'est pas de bouclage) : ``None``,
+    donc la règle du serveur (``https``)."""
+    chemin = str((config or {}).get('_path') or '')
+    if not chemin:
+        return None
+    try:
+        auth = json.loads(Path(chemin).with_name('ui-auth.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(auth, dict) or auth.get('poste') is not True:
+        return None
+    p = urlsplit(str(auth.get('origin') or ''))
+    try:
+        port = p.port
+    except ValueError:
+        return None
+    if p.scheme != 'http' or p.hostname not in HOTES_BOUCLAGE or not port or p.path not in ('', '/') or p.query or p.fragment or p.username or p.password:
+        return None
+    prefixe = str(auth.get('prefix') or '/agent-courriel').rstrip('/')
+    if not re.fullmatch(r'(/[A-Za-z0-9._-]+)*', prefixe):
+        return None
+    return {'origine': 'http://%s:%d' % ('[::1]' if p.hostname == '::1' else p.hostname, port), 'prefixe': prefixe, 'hote': p.hostname, 'port': port}
+
+
+def _valeur_installation(valeur, poste, chemin_poste):
+    """Valeur écrite par l'installation du poste (``docker/bootstrap.py`` : ``http://127.0.0.1:<port>`` + chemin, SANS le préfixe de
+    l'interface du poste) : elle ne peut pas fonctionner ; elle est remplacée par l'adresse calculée (jamais envoyée telle quelle)."""
+    p = urlsplit(valeur)
+    return bool(poste['prefixe']) and p.scheme == 'http' and p.hostname in HOTES_BOUCLAGE and p.path == chemin_poste and not p.query and not p.fragment
+
+
+def est_exemple(adresse):
+    hote = (urlsplit(str(adresse or '')).hostname or '').lower()
+    return hote == EXEMPLE or hote.endswith('.' + EXEMPLE)
+
+
+def adresse_retour(config, configuree, suffixe, chemin_poste):
+    """5.6.110 (lot G) : adresse de retour OAuth réellement envoyée chez Google, et sa provenance (``calculee`` ou ``configuree``).
+
+    - Poste, réglage vide ou d'exemple : adresse calculée ``http://127.0.0.1:<port><préfixe><chemin_poste>``.
+    - ``https`` (serveur ou poste) : comme avant (sans paramètre, chemin terminé par ``suffixe``) ; la valeur d'exemple est refusée.
+    - ``http`` : seulement sur un poste, hôte de bouclage du poste, même port, chemin exact. Tout le reste : refus.
+    Lève ``Stop('vide' | 'exemple' | 'invalide')`` ; l'appelant traduit dans son vocabulaire."""
+    valeur = str(configuree or '').strip()
+    poste = poste_local(config)
+    if poste and (not valeur or est_exemple(valeur) or _valeur_installation(valeur, poste, chemin_poste)):
+        return poste['origine'] + poste['prefixe'] + chemin_poste, 'calculee'
+    if not valeur:
+        raise Stop('vide')
+    if len(valeur) > 400 or any(ord(c) < 33 for c in valeur):
+        raise Stop('invalide')
+    p = urlsplit(valeur)
+    try:
+        port = p.port
+    except ValueError:
+        raise Stop('invalide') from None
+    if not p.hostname or p.username or p.password or p.query or p.fragment or not p.path.endswith(suffixe):
+        raise Stop('invalide')
+    if p.scheme == 'https':
+        if est_exemple(valeur):
+            raise Stop('exemple')
+        return valeur, 'configuree'
+    if (p.scheme == 'http' and poste and p.hostname in HOTES_BOUCLAGE and p.hostname == poste['hote'] and port == poste['port']
+            and p.path == poste['prefixe'] + chemin_poste):
+        return valeur, 'configuree'
+    raise Stop('invalide')
+
+
+def _brute(desk, usage):
     cfg = dict(desk.c.get('google5697') or {})
     cfg.update({k: v for k, v in (desk.c.get('google5697_' + usage) or {}).items() if v})
-    client, fichier, retour = str(cfg.get('client_id') or '').strip(), str(cfg.get('client_secret_file') or '').strip(), str(cfg.get('redirect_uri') or '').strip()
+    return cfg
+
+
+def configuration(desk, usage):
+    """Client OAuth de l'usage : section propre (``google5697_<usage>``) prioritaire, sinon section commune. Le secret n'est pas lu ici.
+    5.6.110 (lot G) : adresse de retour par ``adresse_retour`` (bouclage calculé sur un poste, ``https`` ailleurs, exemple refusé)."""
+    if usage not in USAGES:
+        raise Stop('google_usage_inconnu')
+    cfg = _brute(desk, usage)
+    client, fichier = str(cfg.get('client_id') or '').strip(), str(cfg.get('client_secret_file') or '').strip()
+    try:
+        retour, _origine = adresse_retour(desk.c, cfg.get('redirect_uri'), RETOUR, CHEMIN_POSTE)
+    except Stop as error:
+        retour = ''
+        if str(error) != 'vide':
+            if not client or not fichier:
+                raise Stop('google_non_configure') from None
+            raise Stop('google_uri_retour_exemple' if str(error) == 'exemple' else 'google_uri_retour_invalide') from None
     if not client or not fichier or not retour:
         raise Stop('google_non_configure')
     if not re.fullmatch(r'[A-Za-z0-9._-]{8,200}', client):
         raise Stop('google_identifiant_client_invalide')
-    p = urlsplit(retour)
-    if p.scheme != 'https' or not p.hostname or p.username or p.password or p.query or p.fragment or not p.path.endswith(RETOUR):
-        raise Stop('google_uri_retour_invalide')
     return {'client_id': client, 'secret_file': fichier, 'redirect_uri': retour, 'empreinte': _hache('|'.join((usage, client, fichier, retour)))[:32]}
 
 
 def etat_configuration(desk, usage):
-    """Pour l'interface : configuré ou non, l'URI de retour à déclarer (jamais le secret, jamais l'identifiant complet)."""
+    """Pour l'interface : configuré ou non, l'URI de retour à déclarer (jamais le secret, jamais l'identifiant complet).
+    5.6.110 (lot G) : ``poste`` (vrai sur un poste) et ``uri_retour`` = adresse calculée du poste quand le réglage est vide ou d'exemple."""
+    poste = poste_local(desk.c) is not None
     try:
         cfg = configuration(desk, usage)
     except Stop as error:
-        return {'configure': False, 'code': str(error), 'uri_retour': str(((desk.c.get('google5697_' + usage) or {}).get('redirect_uri')
-                                                                             or (desk.c.get('google5697') or {}).get('redirect_uri') or ''))}
-    return {'configure': True, 'uri_retour': cfg['redirect_uri'], 'client': cfg['client_id'][:6] + '…'}
+        brute = str(_brute(desk, usage).get('redirect_uri') or '')
+        try:
+            uri = adresse_retour(desk.c, brute, RETOUR, CHEMIN_POSTE)[0]
+        except Stop:
+            uri = '' if est_exemple(brute) else brute
+        return {'configure': False, 'code': str(error), 'uri_retour': uri, 'poste': poste}
+    return {'configure': True, 'uri_retour': cfg['redirect_uri'], 'client': cfg['client_id'][:6] + '…', 'poste': poste}
 
 
 def _secret(cfg):
@@ -294,13 +414,14 @@ def demarrer(desk, owner, usage, session, capacites_voulues=None):
     return {'url': AUTORISATION + '?' + urlencode(requete), 'expire_secondes': DUREE_ETAT, 'capacites': voulues}
 
 
-def _consommer(desk, etat):
-    """Consommation atomique de l'état, à usage unique, avant tout autre contrôle : un rejeu trouve l'état déjà utilisé."""
+def _consommer(desk, etat, etat_hash=None):
+    """Consommation atomique de l'état, à usage unique, avant tout autre contrôle : un rejeu trouve l'état déjà utilisé.
+    5.6.110 (lot G) : ``etat_hash`` pour un retour déposé sur le poste (l'état n'est gardé que haché)."""
     if desk.db.in_transaction:
         desk.db.commit()
     desk.db.execute('BEGIN IMMEDIATE')
     try:
-        row = desk.db.execute('SELECT * FROM google5697_etats WHERE etat_hash=?', (_hache(etat),)).fetchone()
+        row = desk.db.execute('SELECT * FROM google5697_etats WHERE etat_hash=?', (etat_hash or _hache(etat),)).fetchone()
         if row is None or row['utilise']:
             desk.db.rollback()
             return None
@@ -319,14 +440,78 @@ def terminer(desk, owner, session, args):
     etat, code = str(args.get('state') or ''), str(args.get('code') or '')
     if not etat or len(etat) > 200 or len(code) > 3000:
         raise Stop('google_etat_invalide')
-    demande = _consommer(desk, etat)
+    return _terminer_demande(desk, owner, session, _consommer(desk, etat), code, bool(args.get('error')))
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.110 (lot G) : retour en deux temps (poste)
+def deposer_retour(desk, args):
+    """Retour de Google reçu sur l'adresse de bouclage du poste SANS la session de la fenêtre : le code est seulement déposé contre un état
+    connu, non utilisé, non expiré, une seule fois. Rien n'est échangé, rien n'est activé, l'état n'est pas consommé. Rend l'usage.
+    L'appelant (``google_web5697.retour_poste``) a déjà vérifié : poste, adresse de bouclage, GET."""
+    ensure_schema(desk)
+    if poste_local(desk.c) is None:
+        raise Stop('google_retour_poste_seulement')
+    etat, code, erreur = str(args.get('state') or ''), str(args.get('code') or ''), str(args.get('error') or '')
+    if not etat or len(etat) > 200 or len(code) > 3000 or len(erreur) > 200 or (not code and not erreur):
+        raise Stop('google_etat_invalide')
+    h, t = _hache(etat), HORLOGE()
+    if desk.db.in_transaction:
+        desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        desk.db.execute('DELETE FROM google5697_retours WHERE recu<?', (t - DUREE_ETAT,))
+        row = desk.db.execute('SELECT usage FROM google5697_etats WHERE etat_hash=? AND utilise=0 AND expire>=?', (h, t)).fetchone()
+        if row is None or desk.db.execute('SELECT 1 FROM google5697_retours WHERE etat_hash=?', (h,)).fetchone():
+            desk.db.rollback()
+            raise Stop('google_etat_invalide')                      # inconnu, déjà utilisé, expiré ou déjà déposé : rien n'est gardé
+        desk.db.execute('INSERT INTO google5697_retours(etat_hash, code, erreur, recu) VALUES(?,?,?,?)', (h, code, 'refus' if erreur else '', t))
+        desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    desk.audit('google5697_retour_depose', {'usage': row['usage']})
+    return {'usage': row['usage']}
+
+
+def _depots(desk, owner, session):
+    # sans filtre d'échéance : un dépôt expiré est terminé par un refus « expiré » (dit en clair), jamais par un échange
+    rows = desk.db.execute('SELECT e.etat_hash, e.session_hash FROM google5697_retours r JOIN google5697_etats e ON e.etat_hash=r.etat_hash '
+                           'WHERE e.owner=? AND e.utilise=0 ORDER BY r.recu DESC', (str(owner),)).fetchall()
+    return [r['etat_hash'] for r in rows if hmac.compare_digest(r['session_hash'], str(session or ''))]
+
+
+def attente_depot(desk, owner, session):
+    """Lecture seule (fenêtre AxiorHub qui attend Google) : ``recu`` si un retour de Google attend CETTE personne et CETTE session."""
+    ensure_schema(desk)
+    return {'etat': 'recu' if _depots(desk, owner, session) else 'attente'}
+
+
+def terminer_depose(desk, owner, session):
+    """Fenêtre AxiorHub (session de la personne) : termine le retour déposé pour cette personne et cette session. L'état est consommé une
+    seule fois, puis personne, session, échéance, configuration et génération sont revérifiées AVANT l'échange (comme ``terminer``)."""
+    ensure_schema(desk)
+    depots = _depots(desk, owner, session)
+    if not depots:
+        raise Stop('google_retour_absent')
+    h = depots[0]
+    retour = desk.db.execute('SELECT code, erreur FROM google5697_retours WHERE etat_hash=?', (h,)).fetchone()
+    demande = _consommer(desk, None, h)
+    desk.db.execute('DELETE FROM google5697_retours WHERE etat_hash=?', (h,))     # le code ne sert qu'une fois, même en cas d'échec
+    desk.db.commit()
+    if retour is None:
+        raise Stop('google_etat_invalide')
+    return _terminer_demande(desk, owner, session, demande, str(retour['code'] or ''), bool(retour['erreur']))
+
+
+def _terminer_demande(desk, owner, session, demande, code, refus):
     if demande is None:
         raise Stop('google_etat_invalide')                          # inconnu ou rejoué
     if demande['owner'] != str(owner) or not hmac.compare_digest(demande['session_hash'], str(session or '')):
         raise Stop('google_etat_invalide')                          # autre personne ou autre session : rien n'est dit de plus
     if demande['expire'] < HORLOGE():
         raise Stop('google_etat_expire')
-    if args.get('error'):
+    if refus:
         desk.audit('google5697_refus', {'usage': demande['usage']})
         raise Stop('google_autorisation_refusee')
     if not code:

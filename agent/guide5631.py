@@ -63,7 +63,7 @@ FIELDS = {
     'agenda': (('urls', 'calendar.urls', 'urls', False, False), ('task_urls', 'calendar.task_urls', 'urls', False, False),
                ('google_client_id', 'google_calendar568.client_id', 'text', False, True),
                ('google_secret', 'google_calendar568.client_secret_file', 'secret', False, True),
-               ('google_redirect', 'google_calendar568.redirect_uri', 'url', False, True)),
+               ('google_redirect', 'google_calendar568.redirect_uri', 'oauth_retour', False, True)),   # 5.6.110 (lot G) : vide sur un poste (adresse calculée)
     'facturation': (('enabled', 'invoice_ninja.enabled', 'bool', False, False), ('url', 'invoice_ninja.base_url', 'url', False, False),
                     ('token', 'invoice_ninja.api_token_file', 'secret', False, False), ('company', 'invoice_ninja.company_id', 'text', False, True)),
     'telephonie': (('callback', 'reception.twilio_callback_url', 'url', False, False), ('token', 'reception.twilio_auth_token_file', 'secret', False, False)),

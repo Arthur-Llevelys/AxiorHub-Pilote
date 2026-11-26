@@ -196,6 +196,12 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56106/ocr/'):   # 5.6.106 (lot W) : langues de lecture des scans (administrateur seulement)
         from .outils_ocr56106 import allowed as allowed56106w
         return allowed56106w(role, method, api)
+    if api.startswith('m56110/dictee/'):   # 5.6.110 (lot D) : dictée sur ce poste (état : tous ; écritures : administrateur seulement)
+        from .dictee56110 import allowed as allowed56110d
+        return allowed56110d(role, method, api)
+    if api.startswith('m56110/documents/'):   # 5.6.110 (lot S) : serveur de documents sur ce poste (administrateur seulement ; poste relu par le service)
+        from .documents56110 import allowed as allowed56110s
+        return allowed56110s(role, method, api)
     if api.startswith('m56106/vision/'):   # 5.6.106 (lot I) : aperçu et lecture d'une page (tous les rôles ; dossier et droits relus par le service) ; réglages : administrateur
         from .vision56106 import allowed as allowed56106i
         return allowed56106i(role, method, api)

@@ -72,7 +72,26 @@ def run(desk):
                         'Non configuré : le suivi des promesses lit le dossier Envoyés réel.', '' if sent else 'Paramètres › Connexions › IMAP › dossier Envoyés'))
     # 3. voix
     audio = desk.c.get('audio', {})
-    if audio.get('enabled'):
+    from . import dictee56110 as _d110
+    _r110 = _d110.reglages_de(desk.c.get('state_dir'))
+    if _r110['moteur'] == 'poste':   # 5.6.110 (lot D) : dictée sur ce poste : moteur et modèle contrôlés sur place (aucun service à joindre)
+        _exe110 = _d110.executable()
+        _modele110 = _d110.MODELES[_r110['modele']]
+        if _exe110 is None:
+            checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', False,
+                                _d110.TEXTES[_d110.raison_absence(desk.c)],
+                                'Paramètres › Voix › Dictée sur ce poste', level='en échec'))
+        elif not _d110.modele_installe(desk.c.get('state_dir'), _r110['modele']):
+            checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', False,
+                                'Dictée sur ce poste : moteur présent, modèle %s non installé.' % _modele110['nom'],
+                                'Paramètres › Voix › Dictée sur ce poste › Installer la dictée sur ce poste', level='configuré'))
+        else:
+            _err110 = _d110._DERNIERE['erreur']
+            checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', None if not _err110 else False,
+                                ('Dictée sur ce poste : moteur et modèle %s présents (essai : « Vérifier le moteur »).' % _modele110['nom']) if not _err110
+                                else _d110.MESSAGES.get(_err110, _err110),
+                                'Paramètres › Voix › Dictée sur ce poste › Vérifier le moteur', level='configuré, non testé' if not _err110 else 'en échec'))
+    elif audio.get('enabled'):
         try:
             HTTP(str(audio.get('bridge_base_url') or 'http://127.0.0.1:9011'), local_only=True, local_hosts=audio.get('local_hosts', ()), timeout=4).request('GET', str(audio.get('bridge_base_url') or 'http://127.0.0.1:9011').rstrip('/') + '/', limit=20000)
             checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', True, 'Passerelle vocale joignable (réponse HTTP valide).', level='accessible'))
@@ -87,10 +106,10 @@ def run(desk):
                                     '', level='accessible, non testé'))
             else:
                 checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', False, 'Passerelle injoignable : ' + code,
-                                    'sudo systemctl status axiorhub-vocal-bridge ; python3 install-vocal-bridge.py'))
+                                    'Paramètres › Voix : vérifier l’adresse de l’ancienne passerelle, ou installer la dictée sur ce poste'))   # 5.6.110 (lot D) : aucun paquet ne fournit ce service
     else:
-        checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', None, 'Non activée : la conversation vocale requiert la passerelle Whisper locale.',
-                            'Paramètres › Connexions › Voix'))
+        checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', None, 'Non activée : installez la dictée sur ce poste (Paramètres › Voix › Dictée sur ce poste).',
+                            'Paramètres › Voix › Dictée sur ce poste'))
     try:
         from .voice568 import diagnostic
         d = diagnostic(desk)
@@ -111,7 +130,7 @@ def run(desk):
                                 '' if fallback_ok else 'sudo apt-get install -y espeak-ng', level='fonctionnel' if fallback_ok else 'en échec'))
         checks.append(_item('voice_summary', 'Voix : capture / transcription / synthèse', None,
                             'Capture : testée dans le navigateur (bouton Tester le micro) · Transcription : %s · Synthèse : %s (moteur %s%s).' % (
-                                'passerelle activée' if audio.get('enabled') else 'désactivée', 'opérationnelle' if ok else 'indisponible', sp.get('provider', 'espeak'),
+                                'dictée sur ce poste' if _r110['moteur'] == 'poste' else ('passerelle activée' if audio.get('enabled') else 'désactivée'), 'opérationnelle' if ok else 'indisponible', sp.get('provider', 'espeak'),
                                 ', repli eSpeak' if sp.get('fallback_local', True) and sp.get('provider', 'espeak') != 'espeak' else ''), level='informatif'))
     except Exception as ex:
         checks.append(_item('voice_summary', 'Voix : capture / transcription / synthèse', None, 'Résumé indisponible : ' + str(ex)[:120], level='informatif'))

@@ -244,8 +244,10 @@ class Qualification(Base):
         self.assertTrue(self.item('datagouv')['activation_demandee'])
 
     def test_F11_hors_processus_de_service_aucune_sonde(self):
-        self.assertIsNone(common.EGRESS_GUARD)
-        self.assertEqual(SP.planifier(self.d, 1_000_000.0), [])
+        # La condition est posée par le test : dans une suite jouée en un seul processus (recette GitHub), un module joué avant peut avoir
+        # laissé la garde réseau d'un processus de service installée (constat de la recette publiée de la 5.6.109).
+        with patch.object(common, 'EGRESS_GUARD', None):
+            self.assertEqual(SP.planifier(self.d, 1_000_000.0), [])
 
     def test_F11_poignee_de_main_seule_ne_vaut_pas_recherche(self):
         faux = FauxMCP(outils=('search_datasets',))                   # outils revus incomplets

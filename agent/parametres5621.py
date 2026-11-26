@@ -246,6 +246,15 @@ def _voix(desk, auth, prefix, env, cap):
     if not _illustre5696(desk.c, actor(env)[0]):   # 5.6.96 (V06) : aperçu des portraits avant le choix (déjà déclaré si un portrait est choisi)
         cap.head += _avatar5696(prefix, desk.c, actor(env)[0], toujours=True)
     body = _section(_voix5694(desk, prefix, *actor(env), env))
+    try:   # 5.6.110 (lot D) : « Dictée sur ce poste », au-dessus des moteurs de voix (moteur whisper.cpp, modèle, essai)
+        from .dictee56110 import section_html as _dictee110
+        cap.head += '<script defer src="' + e(prefix, quote=True) + '/static/v56110-dictee-carte.js"></script>'
+        _carte110 = _section(_dictee110(desk, prefix, actor(env)[1]))
+        if 'data-en-cours="1"' in _carte110:   # téléchargement en cours : section dépliée, la progression se voit au retour sur la page
+            _carte110 = _carte110.replace('<details class="p5621-section', '<details open class="p5621-section', 1)
+        body += _carte110
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        body += _section('<section class="ax-card" id="dictee56110"><h2>Dictée sur ce poste</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
     connexions = _section(web567.connections_page(desk, auth, prefix, env, shell=cap, groups=VOICE_GROUPS, tests=('voice',),
                                                   heading='Moteurs de voix : dictée, transcription et synthèse'))
     connexions = re.sub(r'<label>[^<]*<input[^>]*data-config567="speech568\.(?:provider|fallback_provider)"[^>]*></label>', '', connexions)
@@ -286,6 +295,15 @@ def _auto_versions_html(desk):
 def _documents(desk, auth, prefix, env, cap):
     from . import web440, web_rules568
     body = _section(web440.settings_page(desk, auth, prefix, {}, render=cap))
+    try:   # 5.6.110 (lot S) : « Serveur de documents sur ce poste » en tête de la section 1 (poste et administrateur seulement ; rien sur un serveur)
+        from .documents56110 import inserer_carte as _documents110
+        from .web567 import actor as _actor110s
+        _avant110 = body
+        body = _documents110(body, desk, auth, prefix, _actor110s(env)[1])
+        if body != _avant110:
+            cap.head += '<script defer src="' + e(prefix, quote=True) + '/static/v56110-documents.js"></script>'
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; le guide reste la voie
+        pass
     body += _section(_auto_versions_html(desk))                 # 5.6.57 : nouvelles versions de brouillon
     body += _section(web_rules568.agendas(desk, auth, prefix, {}, shell=cap))
     body += _section(_legacy(desk, prefix, auth['csrf'], 'modeles'), 'Modèles Word')

@@ -82,7 +82,10 @@ STATIC.update({'/static/v56109-relations.js': 'text/javascript', '/static/v56109
 STATIC.update({'/static/v56109-operations.css': 'text/css'})   # 5.6.109 (lot G3) : « À finaliser », Suites et exécution, formalités supervisées, RIB CARPA (aucun script propre : formulaires communs m5-form)
 STATIC.update({'/static/v56109-gestion.css': 'text/css'})   # 5.6.109 (lot G1) : Préfacturation, Assistance régulière, Fonds, frais et débours (aucun script propre : formulaires communs d97)
 STATIC.update({'/static/v56109-parcours.css': 'text/css'})   # 5.6.109 (lot G4) : cartes de collecte de portail, d'offre et PDF joint, de documents Pappers (aucun script propre : formulaires communs m5-form)
-STATIC.update({'/static/v56109-simulation.css': 'text/css'})   # 5.6.109 (lot N, F14) : onglet « Simulation de décision » du dossier (aucun script propre : formulaires communs, tiroir Sources natif)
+STATIC.update({'/static/v56109-simulation.css': 'text/css'})
+STATIC.update({'/static/v56110-dictee.js': 'text/javascript', '/static/v56110-dictee-carte.js': 'text/javascript', '/static/v56110-dictee.css': 'text/css'})   # 5.6.110 (lot D) : conversion en WAV avant /dictation (dictée sur ce poste), carte de Paramètres › Voix   # 5.6.109 (lot N, F14) : onglet « Simulation de décision » du dossier (aucun script propre : formulaires communs, tiroir Sources natif)
+STATIC.update({'/static/v56110-google-poste.js': 'text/javascript'})   # 5.6.110 (lot G) : Google sur un poste (copier l'adresse de retour, attente du retour déposé)
+STATIC.update({'/static/v56110-documents.js': 'text/javascript', '/static/v56110-documents.css': 'text/css'})   # 5.6.110 (lot S) : carte « Serveur de documents sur ce poste » (suivi des étapes)
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -399,7 +402,7 @@ def route(env, cfg, auth, prefix, path, args, method):
         from .shell501 import set_context
         set_context(cfg)
         return signaturepdf56108.page_route(env, cfg, auth, prefix, path, args, shell)
-    if method == 'GET' and (path == '/editeur/craft' or path.startswith('/editeur/craft/')):   # 5.6.109 (lot V, F16) : éditeurs Craft facultatifs (page, cadre, ressources du manifeste ; désactivés par défaut)
+    if method == 'GET' and (path == '/editeur/craft' or path.startswith('/editeur/craft/')):   # 5.6.109 (lot V, F16) ; 5.6.110 (lot E) : éditeurs Craft embarqués (page, cadre, fichiers servis à leur empreinte ; proposés par défaut)
         from . import craft56109
         from .shell501 import set_context
         set_context(cfg)
@@ -1122,6 +1125,12 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m56106/ocr/'):   # 5.6.106 (lot W) : langues de lecture des scans (ajouter, retirer, choisir ; administrateur, 409, no-store, clé d'idempotence)
         from . import outils_ocr56106
         return outils_ocr56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56110/dictee/'):   # 5.6.110 (lot D) : dictée sur ce poste (état ; installer, retirer, régler, vérifier : administrateur, 409, no-store, clé d'idempotence)
+        from . import dictee56110
+        return dictee56110.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56110/documents/'):   # 5.6.110 (lot S) : serveur de documents sur ce poste (état, installer, démarrer, arrêter, tester, désinstaller, revenir : administrateur d'un poste, 409, no-store, clé d'idempotence)
+        from . import documents56110
+        return documents56110.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m56106/vision/'):   # 5.6.106 (lot I) : fichiers, pages, vignette, aperçu masqué, lecture d'une page, réglages (404 neutre, 409, no-store, clé d'idempotence)
         from . import vision56106
         return vision56106.api(env, desk, auth, prefix, name, args, method)
@@ -1724,6 +1733,6 @@ def settings_page(desk, auth, prefix, args, render=None):
                '<div class="ax-table"><table><thead><tr><th>Dossier</th><th>Votre rôle</th><th>Confrère</th><th>Son courriel</th><th></th></tr></thead><tbody>%s</tbody></table></div></section>') % (
         ' checked' if enabled else '', ' checked' if calendar else '', rows)
     from . import wordcraft56108   # 5.6.108 (lot W) : éditeur intégré WordCraft proposé ou non (réglage administrateur)
-    from . import craft56109   # 5.6.109 (lot V, F16) : éditeurs Craft facultatifs (installés et activés par l'administrateur ; désactivés par défaut)
+    from . import craft56109   # 5.6.109 (lot V, F16) ; 5.6.110 (lot E) : GridCraft, PdfCraft, DeckCraft embarqués, proposés par défaut, désactivables ici
     body = '<h1>Réglages de l’atelier</h1>' + office + wordcraft56108.section_reglages(desk) + craft56109.section_reglages(desk, prefix) + notices
     return (render or shell)('Réglages de l’atelier', body, prefix, auth['csrf'], '/parametres')

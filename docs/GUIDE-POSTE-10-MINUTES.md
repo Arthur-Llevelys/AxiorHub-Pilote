@@ -12,6 +12,7 @@ Rien ne quitte votre poste : l’intelligence artificielle, la voix et les donn�
 | Vos dossiers : dossier synchronisé par le client Nextcloud, partage monté, ou Nextcloud par WebDAV | pièces, actes, projets déposés | un simple dossier local suffit pour essayer |
 | Ollama avec un modèle de 8 milliards de paramètres (`qwen3:8b`) | rédaction, analyse, contrôle | sur ce poste (GPU conseillé) ou sur une machine du cabinet |
 | Facultatif : Kokoro (voix de qualité) ; sinon eSpeak NG, installé avec le paquet | lecture du briefing et des réponses | la lecture reste disponible avec eSpeak |
+| Facultatif : la dictée sur le poste (moteur fourni avec le paquet ; modèle de 60 à 574 Mo téléchargé depuis Paramètres › Voix) | vous parlez, AxiorHub écrit, sans service extérieur | voir [DICTEE-POSTE.md](DICTEE-POSTE.md) ; sans elle, tout se saisit au clavier |
 
 Comptez dix minutes pour l’installation et le premier lancement, plus le temps de téléchargement du modèle Ollama (environ 5 Go).
 
@@ -125,6 +126,7 @@ systemctl --user enable --now axiorhub-pilote
 | « Fenêtre indisponible » | bibliothèques GTK absentes | `sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1`, ou ouvrir l’adresse indiquée dans un navigateur |
 | « L’interface locale n’a pas démarré » | port 8769 occupé ou Python incomplet | `axiorhub-pilote --port 8770` ; lire `~/.local/state/axiorhub-pilote/interface.log` |
 | Test Ollama en échec | Ollama arrêté, modèle absent, adresse hors du réseau privé | `ollama list` ; l’adresse doit être locale ou sur le réseau du cabinet (10.x, 172.16–31.x, 192.168.x) |
+| La dictée ne démarre pas | modèle non installé, ou bibliothèque `libgomp1` absente | Paramètres › Voix › Dictée sur ce poste › « Vérifier le moteur » ; `sudo apt install libgomp1` ; voir [DICTEE-POSTE.md](DICTEE-POSTE.md) |
 | Pas de voix | eSpeak absent ou Kokoro arrêté | `espeak-ng` est fourni par le paquet ; Kokoro : conteneur Docker sur `127.0.0.1:8880`, voir la documentation |
 | Rien n’est produit | automatismes en pause ou messagerie non testée | Aujourd’hui › « Pause des automatismes » doit être inactif ; Paramètres › Connexions › Tester IMAP |
 

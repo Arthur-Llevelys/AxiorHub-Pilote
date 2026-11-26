@@ -249,6 +249,9 @@ REASONS['uidvalidity_requise']='Le brouillon doit être rouvert depuis sa boîte
 REASONS['ecriture_refusee_par_le_compte']='Le compte relié a refusé l’écriture lors de sa qualification : rien n’a été fait. Accordez-lui ce droit, puis relancez la qualification.'
 REASONS['transcription_trop_longue']='La transcription a pris trop de temps : le moteur Vocal du serveur est surchargé.'
 REASONS['transcription_en_cours']='Une transcription est déjà en cours. Réessayez dans quelques secondes.'
+from .dictee56110 import MESSAGES as _M56110   # 5.6.110 (lot D) : route /dictation, dictée sur ce poste (codes propres seulement ; les autres gardent leur message)
+from .erreurs5634 import DICTEE56110 as _C56110
+REASONS.update({k:_M56110[k] for k in sorted(_C56110|{'transcription_invalide','dictee_trop_volumineuse'}) if k not in REASONS})
 REASONS['autorisation_donnees_externes_requise']='Cochez l’autorisation d’envoi des données pseudonymisées pour retenir ce mode.'
 from .redaction5695 import MESSAGES as _MESSAGES5695   # 5.6.95 (D05) : choix d'une variante, marqueurs
 REASONS.update(_MESSAGES5695)
@@ -812,6 +815,14 @@ class App:
             elif _path=='/poste-session' and auth.get('poste') and env['REQUEST_METHOD']=='GET':   # 5.6.25 : jeton de lancement du poste
                 from .poste_session import exchange
                 _public=exchange(self.auth_path,env,_prefix)
+            elif auth.get('poste') and env['REQUEST_METHOD']=='GET' and _path in ('/api440/m5689/oauth/google/callback','/api440/m568/google/callback') and not self.authenticate(env,auth):
+                # 5.6.110 (lot G) : retour de Google sur le poste SANS la session de la fenêtre (cookie SameSite=Strict, navigateur du système) :
+                # le code est seulement déposé (aucun échange) ; la fenêtre AxiorHub termine ensuite avec sa session. Avec la session : route normale.
+                set_request_mode('write')
+                from .google_web5697 import retour_poste as _retour110
+                _desk110=Desk(load_config(self.config_path))
+                try:_public=_retour110(_desk110,env,_prefix,_path)
+                finally:_desk110.db.close()
             elif _path=='/static/erreurs5639.css' and env['REQUEST_METHOD'] in ('GET','HEAD'):   # 5.6.39 : pages d'erreur lisibles
                 from .erreurs_pages5639 import css as _err_css
                 _public={'status':'200 OK','kind':'text/css; charset=utf-8','body':_err_css() if env['REQUEST_METHOD']=='GET' else '',
@@ -860,9 +871,19 @@ class App:
                         status='303 See Other';body=''
                         headers.append(('Location',_prefix+('/connexion/premier-compte' if _cx48.first_run(auth) else '/connexion?suite='+_q48(_back,safe=''))))
                 else:
-                    status='401 Unauthorized';headers.append(('WWW-Authenticate','Basic realm="AxiorHub Cabinet", charset="UTF-8"'))
+                    status='401 Unauthorized'
+                    # 5.6.110 : session du poste expirée (cookie présent, non valable, aucun identifiant envoyé) : pas de demande d'identifiants
+                    # du navigateur (« Se connecter à http://127.0.0.1:… »), mais une page qui dit de rouvrir l'application.
+                    _expiree110=False
+                    if auth.get('poste') and not env.get('HTTP_AUTHORIZATION'):
+                        from .poste_session import cookie_presente as _cp110
+                        _expiree110=_cp110(env)
+                    if not _expiree110:headers.append(('WWW-Authenticate','Basic realm="AxiorHub Cabinet", charset="UTF-8"'))
                     from .erreurs_pages5639 import unauthorized as _err401
                     body=_err401(env,_prefix)   # 5.6.39 : page lisible si la fenêtre de connexion est fermée
+                    if _expiree110:
+                        from .poste_session import page_expiree as _pe110
+                        body=_pe110()
                     if _path.startswith(('/api','/live/')):
                         kind='application/json; charset=utf-8';body=json.dumps({'error':'authentification_requise'})
             elif (_deny48:=self._identity5648(env,auth,_prefix,_path)) is not None:
@@ -1001,7 +1022,8 @@ class App:
                     if env.get('HTTP_ORIGIN')!=auth['origin'] or not hmac.compare_digest(env.get('HTTP_X_CSRF_TOKEN',''),auth['csrf']):
                         raise Stop('origine_ou_csrf_refuse')
                     length=int(env.get('CONTENT_LENGTH','0') or 0)
-                    if not 0<length<=8000000:raise Stop('dictee_trop_volumineuse')
+                    from .dictee56110 import active as _poste56110, MAX_OCTETS as _max56110   # 5.6.110 (lot D) : WAV 16 kHz jusqu'à 10 min sur ce poste
+                    if not 0<length<=(_max56110 if _poste56110(cfg) else 8000000):raise Stop('dictee_trop_volumineuse')
                     from .audio import dictate
                     body=json.dumps(dictate(cfg,env['wsgi.input'].read(length),env.get('CONTENT_TYPE','').split(';')[0]))
                 elif path.startswith('/api/v1'):
@@ -2520,7 +2542,7 @@ class App:
             main+=_chrono101(c,prefix)
         except Exception:   # noqa: BLE001 — la mesure facultative ne bloque jamais une page
             pass
-        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script><script defer src="'+e(url('/static/v5636.js'))+'"></script><script defer src="'+e(url('/static/v5670.js'))+'"></script><script defer src="'+e(url('/static/v5671.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
+        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script><script defer src="'+e(url('/static/v5636.js'))+'"></script><script defer src="'+e(url('/static/v5670.js'))+'"></script><script defer src="'+e(url('/static/v5671.js'))+'"></script></body></html>',prefix,auth['csrf'],__import__('agent.dictee56110',fromlist=['audio_actif']).audio_actif(c),matters,path,selected_matter)
 
 
 def fold_for_search(value):

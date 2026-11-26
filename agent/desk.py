@@ -585,6 +585,8 @@ class Desk:
         from .routine_message56106 import ensure_schema as ensure_routine56106_schema; ensure_routine56106_schema(self)   # 5.6.106 (lot O) : routines sur message, arrivées, passages, propositions, reçus
         from .outils_ocr56106 import configurer as configurer_ocr56106, ensure_schema as ensure_ocr56106_schema   # 5.6.106 (lot W) : langues de lecture des scans, reçus
         configurer_ocr56106(self.c['state_dir']); ensure_ocr56106_schema(self)
+        from .dictee56110 import configurer as configurer_dictee56110, ensure_schema as ensure_dictee56110_schema   # 5.6.110 (lot D) : dictée sur ce poste (restes anciens retirés, reçus)
+        configurer_dictee56110(self.c['state_dir']); ensure_dictee56110_schema(self)
         from .vision56106 import ensure_schema as ensure_vision56106_schema   # 5.6.106 (lot I) : journal des images transmises (jamais l'image), lectures de pages, reçus
         ensure_vision56106_schema(self)
         from .fraude56106 import ensure_schema as ensure_fraude56106_schema   # 5.6.106 (lot F) : verdicts anti-fraude du relevé, exceptions, retours, IBAN confirmés, second avis

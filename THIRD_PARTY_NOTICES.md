@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.109
+# Composants tiers et compatibilité — AxiorHub 5.6.110
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -123,6 +123,33 @@ Fichiers copiés sans modification, servis par AxiorHub depuis `agent/static/` ;
 
 Compatibilité : Apache-2.0, MIT et Unicode License v3 sont compatibles avec l'AGPL-3.0-or-later pour une distribution conjointe ; CC BY 4.0 (voix, dictionnaire) impose l'attribution, l'indication des modifications et le lien vers la licence, assurés ici et sur la page Voix. La marque Alkove n'est pas utilisée pour désigner AxiorHub.
 
+## Dictée sur le poste : whisper.cpp (5.6.110)
+
+Moteur de transcription embarqué dans l'application Windows (dossier `dictee` à côté des exécutables) et dans le paquet Ubuntu du poste
+construit avec `--dictee` (`/usr/lib/axiorhub-pilote/dictee`). Il n'est fourni ni dans le paquet serveur ni dans l'image Docker. Copie
+réduite produite par `scripts/preparer-dictee.py` à partir des archives officielles, empreintes vérifiées ; binaires repris sans
+modification ; ils ne sont pas versionnés dans le dépôt. Programme lancé comme processus distinct, une fois par dictée.
+
+- **whisper.cpp** `b5907` (commit `5eaee0cc9024eb9e9a99469199920c8b7f5cb9ec`, https://github.com/ggml-org/whisper.cpp), y compris la
+  bibliothèque **ggml** de la même publication : licence **MIT**, « Copyright (c) 2023-2026 The ggml authors ». Archives d'origine :
+  `whisper-bin-x64.zip` (9168428 octets, sha256 `ecca07b277d943e9b9f4712856a144b857271a6b333104e511e1988e80db582b`) et
+  `whisper-bin-ubuntu-x64.tar.gz` (10413708 octets, sha256 `a6199027fe5b4239c84171d2bca4c0ff44ec86a515494d5a39b237b212d429bd`).
+  Fichiers repris : `whisper-cli`, `whisper`, `ggml`, `ggml-base` et les variantes `ggml-cpu-*` choisies selon le processeur (9 sous
+  Windows, 14 sous Linux). Texte de la licence : `LICENSE-whisper.cpp.txt` ; avis : `THIRD_PARTY_NOTICES-DICTEE.txt` ; tailles et
+  empreintes : `MANIFEST-dictee.json` (tous trois à côté du moteur).
+- **Composant Microsoft Visual C++ 2015-2022** (`MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`, `VCOMP140.DLL`) : requis par le
+  moteur sous Windows, **non redistribué** par AxiorHub ; l'utilisateur l'installe au besoin depuis Microsoft
+  (https://aka.ms/vs/17/release/vc_redist.x64.exe), sous les conditions de Microsoft.
+- **libgomp1** (bibliothèque d'exécution de GCC, GPL-3.0-or-later avec exception GCC Runtime Library) : dépendance du paquet Ubuntu,
+  fournie par la distribution, jamais copiée.
+- **Modèles Whisper** (OpenAI, licence MIT), convertis au format ggml et publiés dans le dépôt Hugging Face `ggerganov/whisper.cpp`
+  (révision `5359861c739e955e79d9a303bcbc70fb988958b1`, licence MIT) : `ggml-base-q5_1.bin`, `ggml-small-q5_1.bin`,
+  `ggml-large-v3-turbo-q5_0.bin`. **Absents des paquets** : téléchargés sur le poste à la demande de l'administrateur (taille et sha256
+  vérifiées), ou déposés à la main. Voir `docs/DICTEE-POSTE.md`.
+
+Compatibilité : MIT est compatible avec l'AGPL-3.0-or-later pour une distribution conjointe ; l'avis de copyright et le texte de la
+licence accompagnent les binaires.
+
 ## Éditeur intégré WordCraft (5.6.108)
 
 **WordCraft** 0.18.1, édition web (ArtCraft Team et contributeurs, https://github.com/storytold/wordcraft), « alpha » selon ses auteurs : archive `wordcraft-web-0.18.1.zip` (sha256 `3daa7c2d1f209a7eeb2527fcefa3fe31e875848fb1970d68f54edae55fe0bc9f`, conforme au `SHA256SUMS.txt` signé de la publication), copiée sans modification dans `agent/static/wordcraft-0.18.1/` et servie par AxiorHub ; aucun CDN ni service de l'éditeur n'est contacté à l'usage (audit des requêtes : `docs/WORDCRAFT-FIDELITE-5.6.108.md`). Seuls trois fichiers sont servis (colle JavaScript, extrait `snippets/eframe-…/inline0.js`, module WebAssembly) ; empreintes dans `agent/wordcraft56108.py` (`FICHIERS`), vérifiées par `tests/test_v56108_editeur.py`. Facultatif : réglage administrateur dans Réglages de l'atelier.
@@ -132,3 +159,18 @@ Compatibilité : Apache-2.0, MIT et Unicode License v3 sont compatibles avec l'A
 - Le nom, la marque et les logos ArtCraft ne sont pas couverts par la licence du code : ils restent tels quels, dans l'éditeur non modifié, et ne désignent jamais AxiorHub.
 
 Compatibilité : MIT, Apache-2.0, OFL-1.1 (polices distribuées avec le logiciel, non vendues seules), BSD et LPPL-ou-MIT sont compatibles avec l'AGPL-3.0-or-later pour une distribution conjointe.
+
+## Éditeurs intégrés GridCraft, PdfCraft et DeckCraft (5.6.110)
+
+Éditions web officielles, « alpha » selon leurs auteurs (ArtCraft Team et contributeurs ; copyright des fichiers `LICENSE-MIT` : « Copyright (c) 2026 ArtCraft Team and the GridCraft contributors », de même pour PdfCraft et DeckCraft), copiées sans modification et servies par AxiorHub seulement (aucun CDN ni service de l'éditeur contacté à l'usage) :
+
+- **GridCraft 0.19.1** (tableur, https://github.com/storytold/gridcraft) : archive `gridcraft-web-0.19.1.zip` (sha256 `48c5d1b101befebb3c5ba3b7a14914f01c3207934813ed07dc4251b7ae116a78`) → `agent/static/gridcraft-0.19.1/`.
+- **PdfCraft 0.21.1** (PDF, https://github.com/storytold/pdfcraft) : archive `pdfcraft-web-0.21.1.zip` (sha256 `fe9708d46af191aebb56f70eb32cf8b112b0b9452d17ae6ba3a8c4a8665fe748`) → `agent/static/pdfcraft-0.21.1/`.
+- **DeckCraft 0.18.1** (présentations, https://github.com/storytold/deckcraft) : archive `deckcraft-web-0.18.1.zip` (sha256 `3196e537fcfab538aaa2e88584bc74e29bb584459b916ab584ac22fbafe32db5`) → `agent/static/deckcraft-0.18.1/`.
+
+Empreinte et taille de chaque fichier déclarées dans `agent/craft56109.py` (`RELEASES`) et vérifiées par `tests/test_v56110_craft.py` ; seuls la colle JavaScript, l'extrait `snippets/eframe-…/inline0.js`, le module WebAssembly et, pour PdfCraft, le travailleur de reconnaissance de texte et ses deux modèles sont servis.
+
+- Code : **MIT OR Apache-2.0** au choix (`LICENSE-MIT`, `LICENSE-APACHE`, `NOTICE` de chaque dossier ; GridCraft : aussi `ATTRIBUTION.md`).
+- Matériel tiers embarqué dans les modules WebAssembly, listé dans `NOTICE` (et `ATTRIBUTION.md` pour GridCraft) : polices sous **SIL Open Font License 1.1**, données sous **Unicode License v3** (GridCraft), composants sous **BSD-3-Clause** (PdfCraft) et **ISC** (DeckCraft), éléments sous **CC0-1.0**, Apache-2.0 ; aucune licence GPL, LGPL ni MPL relevée dans ces fichiers.
+- Modèles de reconnaissance de texte de PdfCraft, inchangés (`agent/static/pdfcraft-0.21.1/models/`), tels que décrits par `models/ATTRIBUTION.txt` : `text-detection.onnx` (« Ocrs text detection model ») et `text-recognition.onnx` (« Ocrs text recognition model »), « by Robert Knight (ocrs-models; trained on HierText, CC-BY-SA-4.0) », source https://github.com/robertknight/ocrs ; licence **CC-BY-SA-4.0** (Creative Commons Attribution-ShareAlike 4.0 International), texte complet dans `models/text-detection.onnx.LICENCE.txt` et `models/text-recognition.onnx.LICENCE.txt`. Distribués sans modification, avec leur attribution et leur licence.
+- Le nom, la marque et les logos ArtCraft ne sont pas couverts par la licence du code : ils restent tels quels, dans les éditeurs non modifiés, et ne désignent jamais AxiorHub.

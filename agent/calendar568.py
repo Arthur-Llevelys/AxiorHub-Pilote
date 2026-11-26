@@ -100,11 +100,22 @@ def effective_targets(desk,owner):
     return rows
 
 
+RETOUR568='/api440/m568/google/callback'
+
+
+def redirect_uri(desk):
+    """5.6.110 (lot G) : adresse de retour réellement envoyée chez Google (``google5697.adresse_retour``) : sur un poste, adresse de bouclage
+    calculée quand le réglage est vide ou d'exemple ; ``https`` ailleurs ; valeur d'exemple refusée avant tout envoi."""
+    from .google5697 import adresse_retour
+    try:return adresse_retour(desk.c,(desk.c.get('google_calendar568') or {}).get('redirect_uri'),RETOUR568,RETOUR568)[0]
+    except Stop as error:
+        raise Stop('google_redirect_exemple' if str(error)=='exemple' else 'google_redirect_invalide') from None
+
+
 def oauth_start(desk,owner):
-    c=desk.c.get('google_calendar568',{});cid=str(c.get('client_id') or '');redirect=str(c.get('redirect_uri') or '')
+    c=desk.c.get('google_calendar568',{});cid=str(c.get('client_id') or '')
     if not cid or not c.get('client_secret_file'):raise Stop('google_oauth_non_configure')
-    p=urlsplit(redirect)
-    if p.scheme!='https' or not p.hostname or p.username or p.password or p.query or p.fragment or not p.path.endswith('/api440/m568/google/callback'):raise Stop('google_redirect_invalide')
+    redirect=redirect_uri(desk)
     read_secret(c['client_secret_file']);state=secrets.token_urlsafe(32);verifier=secrets.token_urlsafe(48)
     challenge=base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('=')
     desk.db.execute('DELETE FROM google_oauth568 WHERE expires<?',(time.time(),))
@@ -126,12 +137,64 @@ def _token_request(data):
 def oauth_finish(desk,owner,args):
     token=str(args.get('state') or '');code=str(args.get('code') or '')
     if len(token)>200 or not 1<=len(code)<=3000:raise Stop('google_oauth_code_absent')
+    return _finish(desk,owner,digest(token),code)
+
+
+# 5.6.110 (lot G) : retour en deux temps sur un poste — le retour de Google arrive sans la session de la fenêtre (cookie SameSite=Strict,
+# navigateur du système sous Ubuntu) : le code est seulement déposé contre un état connu, non utilisé, non expiré, une seule fois ; l'échange
+# se fait ensuite depuis la fenêtre AxiorHub de la même personne (contrôles d'oauth_finish inchangés : personne, usage unique, dix minutes).
+_RETOURS568='CREATE TABLE IF NOT EXISTS google_retours568(state_hash TEXT PRIMARY KEY, code TEXT NOT NULL, received REAL NOT NULL)'
+
+
+def oauth_deposit(desk,args):
+    from .google5697 import poste_local
+    if poste_local(desk.c) is None:raise Stop('google_retour_poste_seulement')
+    token=str(args.get('state') or '');code=str(args.get('code') or '')
+    if not token or len(token)>200 or len(code)>3000:raise Stop('google_oauth_etat_invalide')
+    if not code:raise Stop('google_oauth_code_absent')   # refus chez Google : rien n'est déposé
+    desk.db.execute(_RETOURS568)
+    if desk.db.in_transaction:desk.db.commit()
     desk.db.execute('BEGIN IMMEDIATE')
-    r=desk.db.execute('SELECT * FROM google_oauth568 WHERE state_hash=? AND owner=? AND used=0 AND expires>?',(digest(token),owner,time.time())).fetchone()
+    try:
+        desk.db.execute('DELETE FROM google_retours568 WHERE received<?',(time.time()-600,))
+        r=desk.db.execute('SELECT owner FROM google_oauth568 WHERE state_hash=? AND used=0 AND expires>?',(digest(token),time.time())).fetchone()
+        if not r or desk.db.execute('SELECT 1 FROM google_retours568 WHERE state_hash=?',(digest(token),)).fetchone():
+            raise Stop('google_oauth_etat_invalide')
+        desk.db.execute('INSERT INTO google_retours568 VALUES(?,?,?)',(digest(token),code,time.time()));desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:desk.db.rollback()
+        raise
+    desk.audit('google_calendar568_retour_depose',{'owner':r['owner']})
+    return {'deposited':True}
+
+
+def _deposits(desk,owner):
+    desk.db.execute(_RETOURS568)
+    return [x['state_hash'] for x in desk.db.execute('SELECT d.state_hash FROM google_retours568 d JOIN google_oauth568 o ON o.state_hash=d.state_hash '
+        'WHERE o.owner=? AND o.used=0 ORDER BY d.received DESC',(owner,))]
+
+
+def oauth_waiting(desk,owner):
+    return {'etat':'recu' if _deposits(desk,owner) else 'attente'}
+
+
+def oauth_finish_deposit(desk,owner):
+    rows=_deposits(desk,owner)
+    if not rows:raise Stop('google_retour_absent')
+    row=desk.db.execute('SELECT code FROM google_retours568 WHERE state_hash=?',(rows[0],)).fetchone()
+    desk.db.execute('DELETE FROM google_retours568 WHERE state_hash=?',(rows[0],));desk.db.commit()   # un seul usage, même en cas d'échec
+    if not row or not 1<=len(row['code'])<=3000:raise Stop('google_oauth_code_absent')
+    return _finish(desk,owner,rows[0],row['code'])
+
+
+def _finish(desk,owner,state_hash,code):
+    if desk.db.in_transaction:desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')
+    r=desk.db.execute('SELECT * FROM google_oauth568 WHERE state_hash=? AND owner=? AND used=0 AND expires>?',(state_hash,owner,time.time())).fetchone()
     if not r:desk.db.rollback();raise Stop('google_oauth_etat_invalide')
     c=desk.c.get('google_calendar568',{})
     if r['config_hash']!=digest(str(c.get('client_id',''))+'|'+str(c.get('client_secret_file',''))):desk.db.rollback();raise Stop('google_oauth_configuration_modifiee')
-    desk.db.execute('UPDATE google_oauth568 SET used=1 WHERE state_hash=?',(digest(token),));desk.db.commit()
+    desk.db.execute('UPDATE google_oauth568 SET used=1 WHERE state_hash=?',(state_hash,));desk.db.commit()
     out=_token_request({'client_id':c['client_id'],'client_secret':read_secret(c['client_secret_file']),
         'redirect_uri':r['redirect'],'code':code,'code_verifier':r['verifier'],'grant_type':'authorization_code'})
     if set(SCOPES)-set(str(out.get('scope','')).split()):raise Stop('google_oauth_permissions_incompletes')

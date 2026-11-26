@@ -138,8 +138,13 @@
         var rec = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 64000 });
         etat.recorder = rec;
         var debut = Date.now(), note = stream.axiorhubNote ? ' ' + stream.axiorhubNote : '';
-        var horloge = setInterval(function () { dire('● Enregistrement ' + duree(Date.now() - debut) + ' (confidentiel, vocal local). Cliquez pour arrêter.' + note); }, 1000);
-        var limite = setTimeout(function () { if (rec.state === 'recording') rec.stop(); }, DUREE_MAX);
+        // 5.6.110 (lot D) : dictée sur ce poste (v56110-dictee.js chargé) : jusqu'à près de 10 minutes, annonce 30 s avant l'arrêt automatique
+        var maxi = window.ax110Dictee ? window.ax110Dictee.dureeMax : DUREE_MAX;
+        var horloge = setInterval(function () {
+          if (window.ax110Dictee && Date.now() - debut > maxi - 30000) { dire('Encore 30 secondes : l’enregistrement s’arrêtera à 10 minutes.'); return; }
+          dire('● Enregistrement ' + duree(Date.now() - debut) + ' (confidentiel, vocal local). Cliquez pour arrêter.' + note);
+        }, 1000);
+        var limite = setTimeout(function () { if (rec.state === 'recording') rec.stop(); }, maxi);
         rec.ondataavailable = function (ev) {
           etat.octets += ev.data.size;
           if (etat.octets > OCTETS_MAX) { etat.trop = true; if (rec.state === 'recording') rec.stop(); } else etat.chunks.push(ev.data);

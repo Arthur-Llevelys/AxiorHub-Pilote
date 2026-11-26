@@ -220,7 +220,8 @@
 "Abra Documentos.",
 "En «Pedir un documento al agente», describa el documento y elija el expediente.",
 "Pulse «Preparar el documento».",
-"Abra el resultado con «Mostrar» y revíselo."
+"Abra el resultado con «Mostrar» y revíselo.",
+"Para editar los documentos en AxiorHub en un equipo (Windows 11 o Ubuntu 24.04, con Docker instalado): Ajustes › Documentos y procedimiento › «Servidor de documentos en este equipo», pulse «Instalar el servidor de documentos en este equipo»; AxiorHub instala Euro-Office, configura la dirección y el secreto y lanza la prueba. En el servidor del despacho, siga la guía de instalación."
 ],
 "result": "Un proyecto de documento en el expediente elegido, nunca enviado automáticamente.",
 "verify": "El archivo aparece en «Modificados recientemente aquí».",
@@ -1338,6 +1339,10 @@
 [
 "Prueba no validada",
 "Lea la causa mostrada y corrija el ajuste correspondiente."
+],
+[
+"Google muestra «Error 400: redirect_uri_mismatch»",
+"La dirección de retorno enviada no está declarada en Google. En un equipo con AxiorHub Pilote, deje vacía la dirección de retorno: la tarjeta de Google muestra la dirección local calculada por AxiorHub (botón «Copiar»). En Google, cree un cliente «App de escritorio» o añada esta dirección exacta a los «URI de redireccionamiento autorizados» de un cliente «Aplicación web». Tras su consentimiento en Google, vuelva a la ventana de AxiorHub: la conexión se completa allí."
 ]
 ],
 "example": "Ajuste ficticio: puerto IMAP 993, cifrado automático.",
@@ -1400,6 +1405,7 @@
 "Abra Puesta en servicio.",
 "Pulse «Lanzar los controles (hasta un minuto)».",
 "Pruebe el micrófono con «Probar el micrófono».",
+"Para dictar en este equipo: Ajustes › Voz › «Dictado en este equipo», elija el modelo, pulse «Instalar el dictado en este equipo» y luego «Comprobar el motor»; hable en la zona de prueba para comprobar el resultado.",
 "Lance «Lanzar la prueba de producción» para un control completo."
 ],
 "result": "Un informe de control con las correcciones propuestas.",
@@ -1408,6 +1414,10 @@
 [
 "Micrófono rechazado",
 "El navegador exige una dirección HTTPS para el micrófono."
+],
+[
+"El dictado en este equipo no se inicia (Windows)",
+"Falta el componente Microsoft Visual C++: instálelo con el enlace que aparece en la tarjeta «Dictado en este equipo» y luego pulse «Comprobar el motor»."
 ]
 ],
 "example": "Informe ficticio: servicios activos, micrófono autorizado.",
@@ -2162,7 +2172,8 @@
 "Escriba en «Filtrer ce dossier» para reducir la lista, o use «Chercher» para las subcarpetas (búsqueda limitada, «Continuer la recherche» para seguir).",
 "Marque elementos y luego «Renommer par lot»: elija la regla (numerar documentos, reemplazar, añadir), pulse «Voir l’aperçu», corrija los conflictos indicados y renombre.",
 "Arrastre un elemento al otro panel, o use «Copier vers l’autre volet» / «Déplacer vers l’autre volet» (el traslado se confirma).",
-"Seleccione un archivo y luego «Versions» para restaurar una versión: nunca se sobrescribe una versión más reciente (copia de conflicto indicada)."
+"Seleccione un archivo y luego «Versions» para restaurar una versión: nunca se sobrescribe una versión más reciente (copia de conflicto indicada).",
+"Para editar un libro (.xlsx), un PDF o una presentación (.pptx), selecciónelo y luego «Modifier dans GridCraft, PdfCraft, DeckCraft» (versiones de prueba incluidas en AxiorHub): guarde en el editor (Ctrl+S), lea la comparación y «Conserver cette version» crea una nueva versión junto al original, que nunca se sustituye."
 ],
 "result": "Archivos ordenados y renombrados en Nextcloud; las notas y colores quedan en AxiorHub, visibles para el despacho.",
 "verify": "Recargue la carpeta: aparecen los nuevos nombres, el archivo ZIP o la copia de conflicto; el registro de auditoría guarda cada acción.",

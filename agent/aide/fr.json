@@ -220,7 +220,8 @@
 "Ouvrez Documents.",
 "Dans « Demander un document à l’agent », décrivez le document et choisissez le dossier.",
 "Cliquez sur « Préparer le document ».",
-"Ouvrez le résultat avec « Afficher » et relisez-le."
+"Ouvrez le résultat avec « Afficher » et relisez-le.",
+"Pour modifier les documents dans AxiorHub sur un poste (Windows 11 ou Ubuntu 24.04, Docker installé) : Paramètres › Documents et procédure › « Serveur de documents sur ce poste », cliquez sur « Installer le serveur de documents sur ce poste » ; AxiorHub installe Euro-Office, règle l’adresse et le secret, puis lance le test. Sur un serveur du cabinet, suivez le guide d’installation."
 ],
 "result": "Un projet de document dans le dossier choisi, jamais envoyé automatiquement.",
 "verify": "Le fichier apparaît dans « Modifiés récemment ici ».",
@@ -1338,6 +1339,10 @@
 [
 "Test non validé",
 "Lisez la cause affichée et corrigez le réglage concerné."
+],
+[
+"Google affiche « Erreur 400 : redirect_uri_mismatch »",
+"L’adresse de retour envoyée n’est pas déclarée chez Google. Sur un poste, laissez l’adresse de retour vide : la carte Google affiche l’adresse locale calculée par AxiorHub (bouton « Copier »). Créez chez Google un client « Application de bureau », ou ajoutez cette adresse exacte aux « URI de redirection autorisés » d’un client « Application Web ». Après l’accord chez Google, revenez à la fenêtre AxiorHub : la connexion s’y termine."
 ]
 ],
 "example": "Réglage fictif : port IMAP 993, chiffrement automatique.",
@@ -1400,6 +1405,7 @@
 "Ouvrez Mise en service.",
 "Cliquez sur « Lancer les contrôles (jusqu’à une minute) ».",
 "Testez le micro avec « Tester le micro ».",
+"Pour dicter sur ce poste : Paramètres › Voix › « Dictée sur ce poste », choisissez le modèle, cliquez sur « Installer la dictée sur ce poste », puis sur « Vérifier le moteur » ; parlez dans la zone d’essai pour contrôler le résultat.",
 "Lancez « Lancer la recette de production » pour un contrôle complet."
 ],
 "result": "Un rapport de contrôle avec les correctifs proposés.",
@@ -1408,6 +1414,10 @@
 [
 "Micro refusé",
 "Le navigateur exige une adresse HTTPS pour le micro."
+],
+[
+"La dictée sur ce poste ne démarre pas (Windows)",
+"Le composant Microsoft Visual C++ manque : installez-le avec le lien affiché dans la carte « Dictée sur ce poste », puis cliquez sur « Vérifier le moteur »."
 ]
 ],
 "example": "Rapport fictif : services actifs, micro autorisé.",
@@ -2162,7 +2172,8 @@
 "Tapez dans « Filtrer ce dossier » pour réduire la liste, ou utilisez « Chercher » pour les sous-dossiers (recherche bornée, « Continuer la recherche » pour la suite).",
 "Cochez des éléments puis « Renommer par lot » : choisissez la règle (numéroter les pièces, remplacer, ajouter), cliquez « Voir l’aperçu », corrigez les conflits signalés, puis renommez.",
 "Glissez un élément vers l’autre volet, ou utilisez « Copier vers l’autre volet » / « Déplacer vers l’autre volet » (déplacement confirmé).",
-"Sélectionnez un fichier puis « Versions » pour restaurer une version : une version plus récente n’est jamais écrasée (copie de conflit signalée)."
+"Sélectionnez un fichier puis « Versions » pour restaurer une version : une version plus récente n’est jamais écrasée (copie de conflit signalée).",
+"Pour modifier un classeur (.xlsx), un PDF ou une présentation (.pptx), sélectionnez-le puis « Modifier dans GridCraft, PdfCraft, DeckCraft » (versions d’essai fournies avec AxiorHub) : enregistrez dans l’éditeur (Ctrl+S), lisez la comparaison, puis « Conserver cette version » crée une nouvelle version à côté de l’original, qui n’est jamais remplacé."
 ],
 "result": "Les fichiers rangés et renommés dans Nextcloud ; les notes et couleurs restent dans AxiorHub, visibles par le cabinet.",
 "verify": "Rechargez le dossier : les nouveaux noms, l’archive ou la copie de conflit apparaissent ; le journal d’audit garde chaque action.",

@@ -77,6 +77,8 @@ BUNDLE += ('v56109-historique.css', 'v56109-apparence.css')   # 5.6.109 (lot H) 
 BUNDLE += ('v56109-bland.css',)   # 5.6.109 (lot B) : carte Bland, demande à confirmer, routines « Mes agents IA »
 BUNDLE += ('v56109-produire.css',)   # 5.6.109 (lot V) : Produire en trois vues, livrables structurés, modèles Word du cabinet (F08), éditeurs Craft facultatifs (F16)
 BUNDLE += ('v56109-simulation.css',)   # 5.6.109 (lot N) : onglet « Simulation de décision » du dossier (F14)
+BUNDLE += ('v56110-dictee.css',)   # 5.6.110 (lot D) : carte « Dictée sur ce poste » (Paramètres › Voix)
+BUNDLE += ('v56110-documents.css',)   # 5.6.110 (lot S) : carte « Serveur de documents sur ce poste » (Paramètres › Documents et procédure)
 BUNDLE += ('v56109-fonds.css',)   # 5.6.109 (lot Q) : « Fonds juridique local » (G23) et « Fichiers de ce poste » (F13) dans les Paramètres
 BUNDLE += ('v56109-relations.css',)   # 5.6.109 (lot G2) : partage client, appels, remplacements, kit d'audience (dossier et fiche contact)
 BUNDLE += ('v56109-gestion.css',)   # 5.6.109 (lot G1) : Préfacturation, Assistance régulière (fiche client), Fonds, frais et débours (dossier)
@@ -296,7 +298,8 @@ def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='
         matters = load_matters(cfg) if cfg.get('matters_file') else []
     except Exception:
         matters = []
-    audio = bool((cfg.get('audio') or {}).get('enabled'))
+    from .dictee56110 import audio_actif as _audio56110
+    audio = _audio56110(cfg)   # 5.6.110 (lot D) : passerelle activée ou dictée sur ce poste active
     # 5.6.101 (lot F, F02) : barre d'onglets de la famille de la page (les onglets de Produire deviennent ceux de la famille Produire) et
     # marqueur du compteur d'usage (F05 : signalé en POST par v56101-familles.js, jamais écrit pendant ce GET)
     from .familles56101 import chemin_de_page, onglets_html

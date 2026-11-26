@@ -1,4 +1,7 @@
-/* AxiorHub 5.6.109 (lot V, F16) — pont hôte des éditeurs Craft facultatifs (GridCraft, PdfCraft, DeckCraft), désactivés par défaut.
+/* AxiorHub 5.6.109 (lot V, F16) — pont hôte des éditeurs Craft (GridCraft, PdfCraft, DeckCraft).
+   5.6.110 (lot E) : éditeurs embarqués et proposés par défaut ; contrat vérifié avec les vraies applications dans Edge (HOSTING.md de chaque
+   archive : ready, open, save, dirty, failed ; aucun message « host » envoyé). Un nom ou un format refusé n'empêche pas les enregistrements
+   suivants ; les commandes de l'IA ne sont plus proposées (non raccordées aux commandes réelles des applications).
    Portage sans module ES (CSP, chargement « defer ») de reference/craft_host109.mjs du dossier technique, mêmes contrats :
    - messages du cadre acceptés seulement de la même origine ET de la fenêtre du cadre, types préfixés par l'application ;
    - « save » : nom simple (jamais un chemin), format admis, octets copiés et bornés ; deux enregistrements en attente au plus, sérialisés,
@@ -53,12 +56,12 @@
       this.maxBytes = maxBytes;
       this.idOperation = o.idOperation || function () { return globalThis.crypto.randomUUID(); };
       this.ready = false; this.generation = 0; this.acquittee = 0; this.appDirty = false; this.pending = 0;
-      this.erreur = ''; this.ferme = false; this.file = Promise.resolve(); this.recuperation = null;
+      this.erreur = ''; this.refus = ''; this.ferme = false; this.file = Promise.resolve(); this.recuperation = null;
     }
 
     etat() {
       return { ready: this.ready, revision: this.revision, pending: this.pending,
-        dirty: this.appDirty || this.generation > this.acquittee || this.pending > 0 || !!this.erreur, erreur: this.erreur, ferme: this.ferme };
+        dirty: this.appDirty || this.generation > this.acquittee || this.pending > 0 || !!this.erreur, erreur: this.erreur, refus: this.refus, ferme: this.ferme };
     }
 
     notifier() { this.onState(this.etat()); }
@@ -70,7 +73,6 @@
       var app = this.app, self = this;
       if (d.type === app + ':ready') {
         this.ready = true;
-        this.frame.contentWindow.postMessage({ type: app + ':host', version: '1', handoff: false }, this.origin);
         this.notifier();
         return { accepted: true, ready: true };
       }
@@ -96,9 +98,11 @@
         if (formats.document.concat(formats.export).indexOf(extension) < 0) { throw new Error('format_refuse'); }
         bytes = copieBytes(d.bytes, this.maxBytes);
       } catch (err) {
-        this.erreur = 'enregistrement_refuse';
+        // nom ou format refusé (Enregistrer sous .deckcraft, export HTML…) : rien n'est transmis, les enregistrements suivants restent possibles
+        this.refus = String(err && err.message || 'enregistrement_refuse');
         this.notifier();
-        return { accepted: true, saved: false };
+        this.refus = '';
+        return { accepted: true, saved: false, refus: true };
       }
       var isExport = FORMATS[app].document.indexOf(extension) < 0 || d.export === true;
       var snapshot = { bytes: bytes, name: name, generation: this.generation, isExport: isExport };
@@ -133,12 +137,18 @@
           }
           return { accepted: true, saved: true, exported: isExport };
         } catch (err) {
+          if (err && err.certain === true) {
+            // refus certain du serveur AVANT tout effet (fichier illisible, format refusé…) : expliqué, rien n'est écrit, la saisie suivante reste possible
+            self.refus = String(err.message || 'enregistrement_refuse');
+            return { accepted: true, saved: false, refus: true };
+          }
           // un délai réseau peut cacher une écriture réussie : aucun rejeu implicite, conciliation côté serveur
           self.erreur = 'enregistrement_indetermine';
           return { accepted: true, saved: false, error: self.erreur };
         } finally {
           self.pending -= 1;
           self.notifier();
+          self.refus = '';
         }
       };
       var result = this.file.then(travail);
@@ -239,15 +249,7 @@
       var b = ev.target.closest && ev.target.closest('[data-c109-reglage="activer"]'); if (!b) { return; }
       posterJson(apiR + 'reglage', { app: b.getAttribute('data-c109-app'), active: !!b.checked, cle: cle() }).then(function (r) {
         if (etatR) { etatR.textContent = message(r, r.ok ? 'Réglage enregistré.' : ''); }
-        if (!r.ok) { b.checked = false; }
-      });
-    });
-    document.addEventListener('click', function (ev) {
-      var b = ev.target.closest && ev.target.closest('[data-c109-reglage="installer"]'); if (!b) { return; }
-      b.disabled = true;
-      posterJson(apiR + 'installer', { app: b.getAttribute('data-c109-app'), cle: cle() }).then(function (r) {
-        if (etatR) { etatR.textContent = r.ok ? 'Installé : rechargez la page pour l’activer.' : message(r); }
-        b.disabled = false;
+        if (!r.ok) { b.checked = !b.checked; }
       });
     });
   }
@@ -261,7 +263,7 @@
   var controle = document.querySelector('[data-c109-controle]');
   var rapport = document.querySelector('[data-c109-rapport]');
   var iframe = document.querySelector('[data-c109-iframe]');
-  var etat = { seance: '', candidat: 0, incertain: null, instantanes: 0, host: null };
+  var etat = { seance: '', candidat: 0, incertain: null, instantanes: 0, host: null, envoye: false, info: '' };
   function dire(texte, alerte) { if (zoneEtat) { zoneEtat.textContent = texte || ''; zoneEtat.classList.toggle('c109-erreur', !!alerte); } }
   function bouton(nom) { return document.querySelector('[data-c109="' + nom + '"]'); }
 
@@ -277,10 +279,20 @@
     var h = controle.querySelector('h2'); if (h) { h.focus(); }
   }
   function etatStockage(s) {
-    if (s.erreur) { dire(s.erreur === 'editeur_indisponible' ? 'L’éditeur n’a pas pu démarrer : utilisez un autre éditeur du cabinet.'
+    if (s.erreur) { dire(s.erreur === 'editeur_indisponible' ? 'L’éditeur n’a pas pu démarrer dans ce navigateur (WebGL 2 ou WebGPU requis) : utilisez un autre éditeur du cabinet.'
                                                             : 'À vérifier : enregistrement non confirmé. Votre copie est conservée dans la page ; rien n’est rejoué automatiquement.', true); return; }
+    if (s.refus) {
+      dire(['format_refuse', 'nom_refuse', 'taille_refusee', 'octets_invalides', 'enregistrement_refuse'].indexOf(s.refus) >= 0
+        ? 'Ce fichier n’est pas repris : seuls le format du document et les exports admis (' + cfg.formats.export.join(', ') + ') sont enregistrés à côté de l’original.'
+        : s.refus, true);
+      return;
+    }
     if (s.pending) { dire('Enregistrement en cours…'); return; }
-    dire(s.dirty ? 'Modifications non enregistrées.' : (s.ready ? 'Enregistré sur le serveur (version candidate ' + s.revision + ').' : 'Chargement de l’éditeur…'));
+    if (!s.ready) { dire('Chargement de l’éditeur…'); return; }
+    if (s.dirty) { dire('Modifications non enregistrées.'); return; }
+    if (etat.info) { dire(etat.info); etat.info = ''; return; }   // reçu d'un export : montré une fois, avant le message général
+    if (etat.envoye && !s.revision) { dire('Document ouvert. Enregistrez dans l’éditeur (Ctrl+S) pour faire contrôler une nouvelle version.'); return; }
+    if (s.revision && etat.candidat) { dire('Version reçue et contrôlée : comparez-la ci-dessous avant de la conserver.'); }
   }
   function autoriser(demande) {
     // garde locale (le serveur relit droits, séance et révision à chaque appel) : séance courante, action connue, révision attendue
@@ -289,11 +301,17 @@
     if (etat.host && demande.revision !== etat.host.revision) { return Promise.reject(new Error('revision')); }
     return Promise.resolve();
   }
+  function refusServeur(r) {
+    // 4xx avec un code d'erreur (hors conflit de version 409) : refus certain, rien n'a été écrit ; sinon résultat inconnu
+    var e = new Error(message(r));
+    e.certain = !r.ok && r.statut >= 400 && r.statut < 500 && r.statut !== 409 && !!(r.j && r.j.error);
+    return e;
+  }
   function sauvegarder(p) {
     var numero = (etat.instantanes += 1);
     var q = '?revision=' + encodeURIComponent(p.expectedRevision) + '&cle=' + encodeURIComponent(p.operation) + '&instantane=' + numero;
     return posterOctets(cfg.api + 'seances/' + encodeURIComponent(etat.seance) + '/candidats' + q, p.bytes).then(function (r) {
-      if (!r.ok || (r.j.instantane !== undefined && Number(r.j.instantane) !== numero)) { throw new Error(message(r)); }
+      if (!r.ok || (r.j.instantane !== undefined && Number(r.j.instantane) !== numero)) { throw refusServeur(r); }
       montrerControle(r.j);
       return { durable: r.j.durable === true, revision: r.j.revision };
     });
@@ -302,7 +320,8 @@
     var q = '?format=' + encodeURIComponent(p.extension) + '&cle=' + encodeURIComponent(p.operation);
     return posterOctets(cfg.api + 'seances/' + encodeURIComponent(etat.seance) + '/exports' + q, p.bytes).then(function (r) {
       dire(message(r), !r.ok || r.j.etat !== 'verifie');
-      if (!r.ok || r.j.etat !== 'verifie') { throw new Error('export'); }
+      if (!r.ok || r.j.etat !== 'verifie') { throw refusServeur(r); }
+      etat.info = message(r);
       return { durable: true };
     });
   }
@@ -311,7 +330,7 @@
       if (!r.ok) { throw new Error('lecture'); }
       return r.arrayBuffer();
     }).then(function (octets) { return etat.host.ouvrir({ name: cfg.nom, bytes: octets }); })
-      .then(function () { dire('Document ouvert. Enregistrez dans l’éditeur pour faire contrôler une nouvelle version.'); })
+      .then(function () { etat.envoye = true; dire('Document ouvert. Enregistrez dans l’éditeur (Ctrl+S) pour faire contrôler une nouvelle version.'); })
       .catch(function () { dire('Le document n’a pas pu être transmis à l’éditeur : rechargez la page.', true); });
   }
   window.addEventListener('message', function (ev) {
@@ -361,32 +380,12 @@
     }
     posterJson(cfg.api + 'seances/' + encodeURIComponent(etat.seance) + '/fermer', { cle: cle() }).then(function (r) {
       dire(r.ok ? 'Éditeur fermé : copies de travail retirées. L’original est intact.' : message(r), !r.ok);
-      if (r.ok) { etat.seance = ''; document.querySelector('[data-c109-zone]').hidden = true; }
-    });
-  }
-  function appliquerPlan() {
-    var zone = document.querySelector('[data-c109-plan]');
-    var plan;
-    try { plan = JSON.parse(zone.value || '[]'); } catch (err) { dire('Plan illisible (JSON attendu).', true); return; }
-    if (!etat.host || !etat.host.ready) { dire('Ouvrez d’abord le document.', true); return; }
-    var host = etat.host, editeur = iframe.contentWindow && iframe.contentWindow[cfg.app];
-    posterJson(cfg.api + 'seances/' + encodeURIComponent(etat.seance) + '/actions-ia', { plan: plan, revision: host.revision, cle: cle() }).then(function (r) {
-      if (!r.ok) { dire(message(r), true); return; }
-      if (!editeur || typeof editeur.execute !== 'function') { dire('Cet éditeur n’expose pas de commandes dans ce navigateur : rien n’a été appliqué.', true); return; }
-      iframe.style.pointerEvents = 'none';                      // exclusion brève de la saisie pendant le lot
-      var etapes = r.j.commandes.slice(), revision = r.j.revision;
-      var suite = function () {
-        var x = etapes.shift();
-        if (!x) { dire('Commandes appliquées : enregistrez puis comparez avant de conserver.'); return Promise.resolve(); }
-        return commandeIA({ api: editeur, command: x.commande, params: x.parametres, schema: schemaDuPlan(x),
-          checkpoint: function () { return host.etat().pending ? Promise.reject(new Error('enregistrement')) : Promise.resolve(); },
-          currentRevision: function () { return host.revision; }, expectedRevision: revision }).then(function (res) {
-          if (res.statut !== 'applique') { dire('Résultat à vérifier pour « ' + x.commande + ' » : les commandes suivantes ne sont pas appliquées ; rien n’est rejoué.', true); return; }
-          return suite();
-        });
-      };
-      return suite().catch(function () { dire('Application arrêtée (pause, révision ou enregistrement en cours) : rien d’autre n’est appliqué.', true); })
-        .then(function () { iframe.style.pointerEvents = ''; });
+      if (r.ok) {
+        etat.seance = ''; etat.host = null; etat.envoye = false; document.querySelector('[data-c109-zone]').hidden = true;
+        var vide = iframe.cloneNode(false); vide.removeAttribute('src'); iframe.replaceWith(vide); iframe = vide;
+        var o = bouton('ouvrir'); if (o) { o.disabled = false; }
+        var f = bouton('fermer'); if (f) { f.hidden = true; }
+      }
     });
   }
   document.addEventListener('click', function (ev) {
@@ -396,7 +395,6 @@
     else if (a === 'garder' || a === 'abandonner') { decider(a); }
     else if (a === 'verifier') { decider('garder'); }
     else if (a === 'fermer') { fermer(); }
-    else if (a === 'plan') { appliquerPlan(); }
     else if (a === 'copie') { telechargerCopie(); }
     else if (a === 'retour' && etat.host && etat.host.etat().dirty) { ev.preventDefault(); dire('Modifications non confirmées : enregistrez ou téléchargez votre copie.', true); }
   });

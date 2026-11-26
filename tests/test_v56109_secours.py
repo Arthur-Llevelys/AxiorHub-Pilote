@@ -51,17 +51,20 @@ def abimer(chemin, debut=100, longueur=3900):
         f.write(bytes((i * 37 + 11) % 256 for i in range(longueur)))
 
 
+ANCIEN = ROOT / 'tests' / 'donnees' / 'sauvegarde5688_v56108.txt'
+
+
 def _ancien_module():
-    """sauvegarde5688 tel que livré en 5.6.108 (HEAD du dépôt de travail), chargé à part : sert aux contre-exemples."""
+    """sauvegarde5688 tel que livré en 5.6.108, chargé à part : sert aux contre-exemples.
+
+    Gardé comme donnée de test (``tests/donnees/sauvegarde5688_v56108.txt``). Il était d'abord relu dans l'historique Git du dépôt de
+    travail : la recette GitHub, dont l'historique est autre, retombait alors sur le module CORRIGÉ et les trois contre-exemples échouaient
+    (constat de la recette publiée de la 5.6.109). Sans la donnée, ou si elle n'est pas le module défectueux, les contre-exemples sont sautés."""
     try:
-        # 5.6.109 (intégration I1) : HEAD contient maintenant le point de contrôle des lots (sauvegarde5688 déjà corrigé) ; la référence est le
-        # commit du passage de version 5.6.109, antérieur à tout lot (code de la 5.6.108) ; à défaut, HEAD comme avant
-        ref = subprocess.run(['git', 'rev-list', '-1', '--grep=^5.6.109 : passage de version', 'HEAD'], cwd=ROOT, capture_output=True,
-                             timeout=30).stdout.decode('ascii', 'replace').strip() or 'HEAD'
-        source = subprocess.run(['git', 'show', ref + ':agent/sauvegarde5688.py'], cwd=ROOT, capture_output=True, timeout=30).stdout.decode('utf-8')
-    except (OSError, subprocess.SubprocessError):
+        source = ANCIEN.read_text(encoding='utf-8')
+    except OSError:
         return None
-    if '_est_sqlite' not in source:
+    if "with open(chemin, 'rb') as f:" not in source or '_est_sqlite' not in source:
         return None
     spec = importlib.util.spec_from_loader('agent.sauvegarde5688_ancien56109', loader=None)
     module = importlib.util.module_from_spec(spec)
@@ -148,7 +151,7 @@ class Garde(unittest.TestCase):
     def test_R2_contre_exemple_la_garde_echouait_sur_la_5_6_108(self):
         ancien = _ancien_module()
         if ancien is None:
-            self.skipTest('dépôt Git indisponible')
+            self.skipTest('module de référence 5.6.108 absent')
         self.assertTrue(any('SQLite format 3' in x for _, x in garde.ouvertures_directes(ancien[1])))
 
     def test_R2_upgrade_corrige_par_l_integrateur(self):
@@ -185,7 +188,7 @@ class Espionnage(rev.Base):
     def test_R2_contre_exemple_la_5_6_108_ouvrait_la_base_vivante(self):
         ancien = _ancien_module()
         if ancien is None:
-            self.skipTest('dépôt Git indisponible')
+            self.skipTest('module de référence 5.6.108 absent')
         etat = self._bases_fictives()
         self.phrase()
         with Espion(etat) as espion:
@@ -270,7 +273,7 @@ class Planification(rev.Base):
     def test_R3_contre_exemple_5_6_108_refus_avale_par_la_boucle(self):
         ancien = _ancien_module()
         if ancien is None:
-            self.skipTest('dépôt Git indisponible')
+            self.skipTest('module de référence 5.6.108 absent')
         self.actif(heure=0)
         with patch.object(self.desk, 'enqueue', side_effect=Stop('file_attente_pleine')):
             with self.assertRaises(Stop):

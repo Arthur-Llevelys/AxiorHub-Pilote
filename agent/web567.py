@@ -206,7 +206,7 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
             body+='</label>'
         body+='</div></details>'
     body+='<button type="submit">Enregistrer les changements</button><p id="connections567-status" role="status"></p></form><section><h2>Tests de connexion</h2><p>Enregistrez d’abord vos changements. Les tests ne créent ni facture ni courriel et ne sélectionnent pas vos agendas à votre place.</p>'
-    for name,label in [x for x in (('imap','IMAP'),('nextcloud','Nextcloud / agendas'),('ollama','Ollama'),('invoice_ninja','Invoice Ninja'),('voice','Voix locale')) if tests is None or x[0] in tests]:
+    for name,label in [x for x in (('imap','IMAP'),('nextcloud','Nextcloud / agendas'),('ollama','Ollama'),('invoice_ninja','Invoice Ninja'),('voice','la voix de secours (lecture à voix haute)')) if tests is None or x[0] in tests]:
         body+='<button type="button" data-connector567="'+name+'">Tester '+label+'</button> '
     body+='</section><details><summary>Variables Docker et plan de déploiement</summary><p>Ces variables sont inventoriées. Les secrets ne sont pas exportés ; appliquer ce plan reste une opération d’administration du serveur.</p><table><thead><tr><th>Variable</th><th>Valeur d’exemple / nouveau choix</th><th>Application</th></tr></thead><tbody>'
     for item in data['infrastructure']:

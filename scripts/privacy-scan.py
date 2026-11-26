@@ -25,6 +25,7 @@ EXCLUDED_FILES |= {'agent/static/excalidraw56103.js', 'agent/static/excalidraw56
 EXCLUDED_FILES |= {'LICENSES/Excalidraw-5.6.103-licences.txt'}   # 5.6.103 : textes de licence tiers (avis de droits d'auteur des auteurs, à garder intacts)
 EXCLUDED_ROOTS += ('agent/static/excalidraw56103/',)   # 5.6.103 (lot T) : morceaux et polices d'Excalidraw (empreintes : scripts/build-excalidraw.py --verifier)
 EXCLUDED_ROOTS += ('agent/static/wordcraft-0.18.1/',)   # 5.6.108 (lot W) : WordCraft, archive tierce inchangée (empreintes : wordcraft56108.FICHIERS ; noms générés pris pour des numéros)
+EXCLUDED_ROOTS += ('agent/static/gridcraft-0.19.1/', 'agent/static/pdfcraft-0.21.1/', 'agent/static/deckcraft-0.18.1/')   # 5.6.110 (lot E) : archives tierces inchangées (empreintes : craft56109.RELEASES)
 BINARY = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.tgz', '.woff', '.woff2', '.ttf', '.sqlite3'}
 OFFICE = {'.docx', '.xlsx', '.pptx', '.odt', '.ods'}
 # L'auteur est nommé volontairement (attribution, licence AGPL §7 b) dans ces fichiers seulement.

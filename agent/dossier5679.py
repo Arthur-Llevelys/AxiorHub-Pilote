@@ -221,6 +221,7 @@ PREVIEW = ('<section class="d79-preview" id="d79-preview" role="complementary" h
            '<span class="d79-preview-actions"><a class="ax-btn ghost" data-d79-open hidden>Modifier</a>'
            '<a class="ax-btn ghost" data-d79-wordcraft hidden>Modifier dans l’éditeur intégré (WordCraft, version d’essai)</a>'   # 5.6.108 (lot W)
            '<a class="ax-btn ghost" data-d79-traitement hidden>Ouvrir dans Word / LibreOffice</a>'
+           '<a class="ax-btn ghost" data-d79-craft hidden>Modifier dans GridCraft (version d’essai)</a>'   # 5.6.110 (lot E) : libellé exact donné par le serveur (GridCraft, PdfCraft ou DeckCraft)
            '<a class="ax-btn ghost" data-f108-apercu-remplir hidden>Remplir ce formulaire</a><a class="ax-btn ghost" data-f108-apercu-outils hidden>Outils PDF</a>'   # 5.6.108 (lot F) : PDF seulement (v56108-fichiers.js)
            '<a class="ax-btn ghost" data-d79-dl>Télécharger</a>'
            '<button type="button" class="ax-btn ghost" data-d79-close aria-label="Fermer l’aperçu et revenir à la liste"><span class="m82-back">Retour à la liste</span><span class="m82-x" aria-hidden="true">×</span></button></span></div>'

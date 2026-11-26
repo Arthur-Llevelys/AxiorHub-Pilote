@@ -400,6 +400,11 @@ MESSAGES = {
     'mistral_decision_requise': 'Mistral n’a pas répondu après plusieurs essais : réexaminez la connexion dans Paramètres › Modèles d’IA pour reprendre.',
     'modele_en_service_absent': 'Le modèle en service n’est plus proposé par cette clé : choisissez un modèle de la liste testée avant d’enregistrer.',
     'modele_non_teste': 'Ce modèle ne figure pas parmi les modèles de conversation testés pour cette clé.',
+    'test_generation_envoi_non_autorise': 'Le test de génération envoie un texte fictif à Mistral : il n’est possible qu’une fois l’envoi à Mistral autorisé. '
+                                          'Rien n’a été envoyé ni enregistré. Enregistrez d’abord la clé sans cocher ce test, autorisez l’envoi '
+                                          '(« Profil Mixte recommandé » ou « Mode de l’IA »), puis lancez « Essayer une requête réelle ».',
+    'fournisseur_externe_non_autorise': 'Cette connexion externe n’est pas autorisée à recevoir des données : rien n’a été envoyé. Autorisez l’envoi dans '
+                                        'Paramètres › Modèles d’IA (« Profil Mixte recommandé » ou « Mode de l’IA »).',
     'cle_geree_par_le_systeme': 'Cette clé est gérée par l’administrateur du serveur : elle ne se remplace pas depuis l’interface.',
     'identifiant_fournisseur_occupe': 'Cet identifiant de connexion est déjà utilisé par un autre fournisseur.',
     'coffre_relecture_differente': 'La clé relue dans le coffre ne correspond pas à la clé saisie : rien n’a été publié.',
@@ -608,6 +613,12 @@ MESSAGES = {
 FIELDS_5653 = {'montant': 'montant', 'forfait': 'forfait', 'taux_horaire': 'taux horaire', 'quantite': 'quantité', 'prix_unitaire': 'prix unitaire', 'duree': 'durée', 'montant_retenu': 'montant retenu', 'provision': 'provision', 'delai': 'délai', 'taux_tva': 'taux de TVA', 'part_gain': 'part du gain', 'reduction': 'réduction', 'charges': 'charges', 'revenu': 'revenu', 'cotisations': 'cotisations', 'heures_facturables': 'heures facturables', 'majoration': 'majoration', 'cout_horaire': 'coût horaire'}
 
 
+DICTEE56110 = frozenset(('dictee_poste_format_non_wav', 'dictee_wav_invalide', 'dictee_wav_format_refuse', 'dictee_trop_longue',
+                         'dictee_poste_delai_depasse', 'composant_microsoft_absent', 'modele_illisible', 'bibliotheque_systeme_absente',
+                         'moteur_en_echec', 'dictee_poste_sortie_absente', 'modele_empreinte_incorrecte', 'moteur_absent', 'modele_non_installe', 'telechargement_en_cours',
+                         'espace_insuffisant'))
+
+
 def explain(code, detail=None):
     """Message propre à la cause (étape, service, statut) ; à défaut, le message générique historique."""
     d = detail or {}
@@ -618,6 +629,9 @@ def explain(code, detail=None):
     if code == 'demonstration_hors_ligne':   # 5.6.107 (lot M) : mode Démo, aucune connexion extérieure
         from .demo56107 import MESSAGES as _messages107
         return _messages107[code]
+    if code in DICTEE56110:   # 5.6.110 (lot D) : dictée sur ce poste (moteur, modèle, enregistrement WAV)
+        from .dictee56110 import MESSAGES as _messages110
+        return _messages110[code] + ref
     if d.get('choix_fixe56109') or code.startswith('choix_modele_'):   # 5.6.109 (lot T) : modèle fixé dans Paramètres : la fonction et le modèle sont nommés
         from .choix_modele56109 import MESSAGES as _m56109, expliquer_echec
         return (expliquer_echec(code, d) if d.get('fonction') else _m56109.get(code, code)) + ref

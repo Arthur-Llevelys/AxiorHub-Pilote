@@ -26,7 +26,7 @@ CONFLITS = ('version_perimee', 'brouillon_modifie_a_distance', 'envoi_deja_deman
 MESSAGES = {
     'gmail_desactive': 'Le fournisseur Gmail est désactivé pour le cabinet.', 'gmail_non_connecte': 'Aucune boîte Gmail n’est connectée à votre compte.',
     'google_non_configure': 'Le client Google du serveur n’est pas configuré : voir le guide de l’administrateur.',
-    'google_uri_retour_invalide': 'L’URI de retour configurée doit être en HTTPS et se terminer par /oauth/google/callback.',
+    'google_uri_retour_invalide': gg.MESSAGES['google_uri_retour_invalide'],   # 5.6.110 (lot G) : serveur (HTTPS) et poste (adresse locale)
     'google_identifiant_client_invalide': 'Identifiant client Google illisible dans la configuration du serveur.',
     'google_reconnexion_requise': 'Google a retiré l’autorisation : reconnectez Gmail. Aucune relance n’est faite d’ici là.',
     'google_capacite_non_accordee': 'Cette autorisation n’a pas été accordée chez Google.',
@@ -75,7 +75,7 @@ def droit_requis(route):
 
 def _message(code):
     from .web440 import human
-    texte = MESSAGES.get(code) or human(code)
+    texte = MESSAGES.get(code) or gg.MESSAGES.get(code) or human(code)   # 5.6.110 (lot G) : messages de l'adresse de retour et du poste
     return texte if texte != code else 'Demande refusée.'
 
 
@@ -183,6 +183,8 @@ def guide_html(desk):
     uri = cfg.get('uri_retour') or 'https://<adresse publique du Pilote>/<préfixe>/api440/m5689/oauth/google/callback'
     etat = ('Client configuré (%s), URI de retour : %s.' % (cfg['client'], cfg['uri_retour'])) if cfg['configure'] else \
         'Client non configuré (%s)' % _message(cfg.get('code', 'google_non_configure'))
+    note_poste = ('<p>%s</p>' % e('Sur ce poste, laissez l’adresse de retour vide : AxiorHub utilise l’adresse locale affichée dans la carte.')
+                  if cfg.get('poste') else '')   # 5.6.110 (lot G) : le serveur garde la règle HTTPS ci-dessous
     etapes = (
         'Dans Google Cloud, créez (ou choisissez) un projet dédié à Gmail pour le cabinet ; un projet distinct pour la recette.',
         'Bibliothèque d’API : activez « Gmail API » (et « Google Calendar API » seulement si l’agenda Google est aussi utilisé).',
@@ -197,7 +199,7 @@ def guide_html(desk):
         'Pour séparer les projets Google, une section propre à un usage prime : google5697_gmail ou google5697_agenda (mêmes clés).',
         'Au proxy : ne journalisez pas la chaîne de requête de /oauth/google/callback (elle porte un code d’autorisation à usage unique).',
         'Enfin, activez ci-dessus le fournisseur Gmail : chaque avocat clique alors « Connecter Gmail » et consent avec son propre compte.')
-    return ('<details class="gm97-guide" id="gmail5697-guide"><summary>Guide de l’administrateur : client OAuth Google</summary><p>%s</p><ol>%s</ol>'
+    return ('<details class="gm97-guide" id="gmail5697-guide"><summary>Guide de l’administrateur : client OAuth Google</summary><p>%s</p>' + note_poste + '<ol>%s</ol>'
             '<p class="ax-muted">Le client identifie AxiorHub ; les jetons sont propres à chaque personne qui consent. Ce n’est pas une clé partagée. '
             'Un « mode test » de Google n’est pas une mise en production.</p></details>') % (e(etat), ''.join('<li>%s</li>' % e(x) for x in etapes))
 
@@ -251,6 +253,10 @@ def section_html(desk, prefix, owner, role, args=None):
                 corps += _bouton_oauth('Autoriser les brouillons Gmail', brouillons=True, classe='ax-btn ghost')
             corps += _simple('m5689/gmail/synchroniser', 'Synchroniser maintenant')
         corps += _simple('m5689/gmail/deconnecter', 'Déconnecter Gmail')
+    etat_cfg = gg.etat_configuration(desk, 'gmail')
+    if actif and etat_cfg.get('poste') and etat_cfg.get('uri_retour'):   # 5.6.110 (lot G) : adresse du poste, marche à suivre, attente du retour
+        from .google_web5697 import encart_poste
+        corps += encart_poste(etat_cfg['uri_retour'], prefix, '/api440/m5689/oauth/google/attente', '/api440/m5689/oauth/google/terminer')
     if role == 'administrateur':
         corps += guide_html(desk)
     return '<section class="ax-card" id="gmail5697" aria-labelledby="gmail5697-t"><h2 id="gmail5697-t">Gmail par l’API Google (application OAuth)</h2>%s</section>' % corps

@@ -220,7 +220,8 @@
 "Öffnen Sie „Dokumente“.",
 "Beschreiben Sie unter „Beim Agenten ein Dokument anfordern“ das Dokument und wählen Sie die Akte.",
 "Klicken Sie auf „Dokument vorbereiten“.",
-"Öffnen Sie das Ergebnis mit „Anzeigen“ und prüfen Sie es."
+"Öffnen Sie das Ergebnis mit „Anzeigen“ und prüfen Sie es.",
+"Um Dokumente in AxiorHub auf einem Arbeitsplatz zu bearbeiten (Windows 11 oder Ubuntu 24.04, Docker installiert): Einstellungen › Dokumente und Verfahren › „Dokumentenserver auf diesem Arbeitsplatz“, klicken Sie auf „Dokumentenserver auf diesem Arbeitsplatz installieren“; AxiorHub installiert Euro-Office, stellt Adresse und Geheimnis ein und startet den Test. Auf dem Server der Kanzlei folgen Sie der Installationsanleitung."
 ],
 "result": "Ein Dokumententwurf in der gewählten Akte, niemals automatisch versendet.",
 "verify": "Die Datei erscheint unter „Hier kürzlich geändert“.",
@@ -1338,6 +1339,10 @@
 [
 "Test nicht bestanden",
 "Lesen Sie die angezeigte Ursache und korrigieren Sie die betroffene Einstellung."
+],
+[
+"Google zeigt „Fehler 400: redirect_uri_mismatch“",
+"Die gesendete Rückgabeadresse ist bei Google nicht eingetragen. Lassen Sie auf einem Rechner mit AxiorHub Pilote die Rückgabeadresse leer: Die Google-Karte zeigt die von AxiorHub berechnete lokale Adresse (Schaltfläche „Kopieren“). Erstellen Sie bei Google einen Client vom Typ „Desktop-App“ oder fügen Sie genau diese Adresse zu den „Autorisierten Weiterleitungs-URIs“ eines Clients vom Typ „Webanwendung“ hinzu. Kehren Sie nach Ihrer Zustimmung bei Google zum AxiorHub-Fenster zurück: Die Verbindung wird dort abgeschlossen."
 ]
 ],
 "example": "Fiktive Einstellung: IMAP-Port 993, automatische Verschlüsselung.",
@@ -1400,6 +1405,7 @@
 "Öffnen Sie „Inbetriebnahme“.",
 "Klicken Sie auf „Kontrollen starten (bis zu einer Minute)“.",
 "Testen Sie das Mikrofon mit „Mikrofon testen“.",
+"Zum Diktieren auf diesem Arbeitsplatz: Einstellungen › Sprache › „Diktat auf diesem Arbeitsplatz“, Modell wählen, auf „Diktat auf diesem Arbeitsplatz installieren“ und dann auf „Engine prüfen“ klicken; sprechen Sie im Testbereich, um das Ergebnis zu prüfen.",
 "Starten Sie „Abnahmetest der Erstellung starten“ für eine vollständige Prüfung."
 ],
 "result": "Ein Prüfbericht mit vorgeschlagenen Korrekturen.",
@@ -1408,6 +1414,10 @@
 [
 "Mikrofon verweigert",
 "Der Browser verlangt für das Mikrofon eine HTTPS-Adresse."
+],
+[
+"Das Diktat auf diesem Arbeitsplatz startet nicht (Windows)",
+"Die Microsoft Visual C++-Komponente fehlt: Installieren Sie sie über den Link in der Karte „Diktat auf diesem Arbeitsplatz“ und klicken Sie dann auf „Engine prüfen“."
 ]
 ],
 "example": "Fiktiver Bericht: Dienste aktiv, Mikrofon erlaubt.",
@@ -2162,7 +2172,8 @@
 "Tippen Sie in „Filtrer ce dossier“, um die Liste einzugrenzen, oder nutzen Sie „Chercher“ für Unterordner (begrenzte Suche, „Continuer la recherche“ für mehr).",
 "Elemente ankreuzen, dann „Renommer par lot“: Regel wählen (Anlagen nummerieren, ersetzen, ergänzen), „Voir l’aperçu“ klicken, gemeldete Konflikte beheben, dann umbenennen.",
 "Ziehen Sie ein Element in die andere Spalte oder nutzen Sie „Copier vers l’autre volet“ / „Déplacer vers l’autre volet“ (Verschieben wird bestätigt).",
-"Datei wählen, dann „Versions“, um eine Version wiederherzustellen: eine neuere Version wird nie überschrieben (Konfliktkopie wird gemeldet)."
+"Datei wählen, dann „Versions“, um eine Version wiederherzustellen: eine neuere Version wird nie überschrieben (Konfliktkopie wird gemeldet).",
+"Um eine Arbeitsmappe (.xlsx), ein PDF oder eine Präsentation (.pptx) zu bearbeiten, wählen Sie sie aus, dann „Modifier dans GridCraft, PdfCraft, DeckCraft“ (mit AxiorHub ausgelieferte Testversionen): im Editor speichern (Strg+S), den Vergleich lesen, dann erstellt „Conserver cette version“ eine neue Version neben dem Original, das nie ersetzt wird."
 ],
 "result": "Dateien in Nextcloud geordnet und umbenannt; Notizen und Farben bleiben in AxiorHub, für die Kanzlei sichtbar.",
 "verify": "Ordner neu laden: neue Namen, Archiv oder Konfliktkopie erscheinen; das Prüfprotokoll bewahrt jede Aktion.",

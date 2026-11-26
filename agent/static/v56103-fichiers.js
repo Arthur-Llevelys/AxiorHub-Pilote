@@ -367,6 +367,13 @@
       if (cible108) { location.href = cible108 + '?s=' + encodeURIComponent(o.source) + '&p=' + encodeURIComponent(doc.chemin); }
       return;
     }
+    if (nom === 'craft') {   // 5.6.110 (lot E) : GridCraft, PdfCraft ou DeckCraft selon l'extension (page dédiée, droits et format relus par le serveur)
+      var docC = unSeul(v, true); if (!docC) { return; }
+      var craft = cfg.craft || {}, ext = (docC.nom.split('.').pop() || '').toLowerCase(), appC = (craft.apps || {})[ext];
+      if (!appC || !craft.url) { dire(v.etat, 'Cette action porte sur un classeur (.xlsx), un PDF ou une présentation (.pptx).'); return; }
+      location.href = craft.url + '?app=' + encodeURIComponent(appC) + '&s=' + encodeURIComponent(o.source) + '&p=' + encodeURIComponent(docC.chemin);
+      return;
+    }
     if (nom === 'zip') { return zip(v); }
     if (nom === 'extraire') { return extraire(v); }
     if (nom === 'proprietes') { return proprietes(v); }

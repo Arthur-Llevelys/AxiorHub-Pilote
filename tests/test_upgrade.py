@@ -84,6 +84,16 @@ class UpgradeFilesystemTests(unittest.TestCase):
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
+    def test_upgrade_from_56109_is_supported_and_reversible(self):
+        later=self.base/'releases'/'5.6.109'
+        shutil.copytree(self.old,later)
+        (self.base/'current').unlink();(self.base/'current').symlink_to(later)
+        self.apply();self.assertEqual((self.base/'current').resolve().name,upgrade.VERSION)
+        receipt=json.loads(upgrade.receipt_path(self.base).read_text())
+        self.assertEqual((receipt['previous_version'],receipt['target_version']),('5.6.109',upgrade.VERSION))
+        upgrade.rollback(self.base,self.config,self.state)
+        self.assertEqual((self.base/'current').resolve(),later)
+
     def test_upgrade_from_56107_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.107'
         shutil.copytree(self.old,later)

@@ -273,6 +273,10 @@ def _generation(desk, pid, provider, chemin, base, utiles, inconnus, modele=''):
     """Test de génération sur demande : le modèle choisi, sinon un modèle à confirmer, sinon le plus économe. Pause respectée."""
     from .catalogue5682 import level_of
     _pause(desk)
+    if not (provider or {}).get('external_data_allowed'):
+        # 5.6.109 (correctif) : première connexion, envoi pas encore autorisé : refus dit clairement AVANT tout envoi et tout enregistrement
+        # (constat du cabinet : « fournisseur externe non autorise », sans explication, en cochant ce test avec une clé neuve)
+        raise Stop('test_generation_envoi_non_autorise')
     ids = [r['id'] for r in utiles + inconnus]
     if modele and modele not in ids:
         raise Stop('modele_non_teste')
@@ -450,11 +454,13 @@ def carte(desk):
                 '<li>Coller la clé une seule fois ci-dessous.</li><li>Tester la connexion, puis enregistrer la clé.</li></ol>'
                 '<form class="m5-form" data-api="m5682/mistral/enregistrer" data-reload="1"><input type="hidden" name="revision" value="%d">'
                 '<label class="m5-field">Clé Studio Mistral<input type="password" name="cle" maxlength="4096" autocomplete="new-password" required></label>'
-                '<label class="r52-day"><input type="checkbox" name="generation"> Tester aussi une génération (texte fictif « %s », quelques jetons de votre quota)</label>'
+                '<label class="r52-day"><input type="checkbox" name="generation"%s> Tester aussi une génération (texte fictif « %s », quelques jetons de votre quota)</label>%s'
                 '<label class="m5-field">Modèle à utiliser si le modèle en service n’est plus proposé (facultatif)<input name="modele" maxlength="160" autocomplete="off"></label>'
                 '<button class="ax-btn ghost" type="submit" data-api="m5682/mistral/tester">Tester la connexion</button> '
                 '<button class="ax-btn" type="submit">Enregistrer la clé</button><p role="status" class="m5-status"></p></form>') % (
-            e(CLES_URL, quote=True), st['revision'], e(GENERATION_TEXTE))
+            e(CLES_URL, quote=True), st['revision'], '' if st['envoi'] else ' disabled', e(GENERATION_TEXTE),
+            '' if st['envoi'] else '<p class="ax-muted">Ce test sera possible une fois l’envoi à Mistral autorisé (« Profil Mixte recommandé » ou « Mode de l’IA ») : '
+                                   'enregistrez d’abord la clé.</p>')
         if st['configuree']:
             form += ('<form class="m5-form m82-inline" data-api="m5682/mistral/tester" data-reload="1"><input type="hidden" name="utiliser_existante" value="1">'
                      '<button class="ax-btn ghost" type="submit">Réexaminer la clé enregistrée</button><p role="status" class="m5-status"></p></form>')

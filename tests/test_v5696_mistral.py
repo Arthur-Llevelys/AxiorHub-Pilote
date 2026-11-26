@@ -203,6 +203,30 @@ class Tester(Base):
         self.assertEqual(out['statut'], 'generation_reussie')
         self.assertEqual(sorted(p.name for p in ai_gateway._vault_dir(self.desk).iterdir()), vault)   # fichier temporaire effacé
 
+    def test_A02_generation_sur_premiere_connexion_refus_lisible_sans_envoi_ni_enregistrement(self):
+        """5.6.109 (correctif, constat du cabinet) : clé neuve, envoi pas encore autorisé, case « Tester aussi une génération » cochée :
+        refus dit clairement, aucun envoi, rien d'enregistré ; sans la case, la clé s'enregistre ; la carte rend la case inactive."""
+        from agent import erreurs5634
+        self.assertIsNone(self.desk.settings('ai:provider:mistral'))
+        for appel in (lambda: mistral5696.tester(self.desk, CLE_NOUVELLE, generation=True),
+                      lambda: mistral5696.enregistrer(self.desk, CLE_NOUVELLE, None, 'admin@example.test', generation=True)):
+            with self.assertRaises(Stop) as ctx:
+                appel()
+            self.assertEqual(str(ctx.exception), 'test_generation_envoi_non_autorise')
+        self.assertFalse([c for c in self.mistral.appels if c[0] == 'POST'])          # rien n'est parti
+        self.assertIsNone(self.desk.settings('ai:provider:mistral'))                   # rien n'est enregistré
+        for code in ('test_generation_envoi_non_autorise', 'fournisseur_externe_non_autorise'):
+            message = erreurs5634.explain(Stop(code))
+            self.assertNotIn('_', message)
+            self.assertIn('Profil Mixte recommandé', message)
+        self.assertIn('name="generation" disabled', mistral5696.carte(self.desk))
+        out = mistral5696.enregistrer(self.desk, CLE_NOUVELLE, None, 'admin@example.test')
+        self.assertEqual(out['statut'], 'cle_reconnue')                                 # sans le test : la clé s'enregistre
+        self.assertFalse(self.desk.settings('ai:provider:mistral').get('external_data_allowed'))
+        self.assertIn('name="generation" disabled', mistral5696.carte(self.desk))       # envoi toujours pas autorisé
+        self.en_service()
+        self.assertNotIn('name="generation" disabled', mistral5696.carte(self.desk))    # connexion autorisée : case active
+
     def test_A02_generation_refusee_en_local_uniquement(self):
         self.en_service(mode=False)
         politique5682.save(self.desk, {'mode': 'local'}, 'admin@example.test')

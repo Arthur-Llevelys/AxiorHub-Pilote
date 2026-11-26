@@ -11,6 +11,9 @@
   5.6.107 (lot M) : « axiorhub-pilote --demo » ouvre le mode Démo (le lanceur transmet ses arguments à poste.py) ; l'entrée de menu porte
   l'action « Essayer la démo » (contrôlée à la vérification du paquet) ;
   aucun script de maintenance, les données vivent dans le dossier personnel (poste.py) ;
+  5.6.110 (lot D) : « --dictee DOSSIER » (variante poste seulement) ajoute le moteur de dictée whisper.cpp, copie ``linux`` vérifiée
+  de ``scripts/preparer-dictee.py``, sous /usr/lib/axiorhub-pilote/dictee (hors de current/) et la dépendance libgomp1 ; sans
+  l'option, le paquet est identique à l'octet près à celui des versions précédentes ;
 - apt apporte les dépendances système ; l'archive est extraite dans un dossier temporaire et contrôlée par ``upgrade.verify`` ;
 - le paquet produit est relu (format ar, control, md5sums, droits) et, si dpkg-deb est présent, contrôlé par lui.
 """
@@ -19,6 +22,7 @@ import gzip
 import hashlib
 import importlib.util
 import io
+import json
 import os
 from pathlib import Path
 import re
@@ -53,6 +57,15 @@ VARIANTS = {
                               'enable --now axiorhub-pilote. Ollama et Kokoro s\'installent séparément.')},
 }
 POSTE_ROOT = './usr/lib/axiorhub-pilote/current/'
+# 5.6.110 (lot D) : moteur de dictée (copie « linux » de scripts/preparer-dictee.py), exactement ces fichiers
+DICTEE_ROOT = './usr/lib/axiorhub-pilote/dictee/'
+DICTEE_DEPENDS = ('libgomp1',)
+DICTEE_MANIFESTE = 'MANIFEST-dictee.json'
+DICTEE_BINAIRES = (('whisper-cli', 'libwhisper.so.1', 'libggml.so.1', 'libggml-base.so.1')
+                   + tuple('libggml-cpu-%s.so' % c for c in ('alderlake', 'cannonlake', 'cascadelake', 'cooperlake', 'haswell', 'icelake',
+                                                            'ivybridge', 'piledriver', 'sandybridge', 'sapphirerapids', 'skylakex', 'sse42',
+                                                            'x64', 'zen4')))
+DICTEE_TEXTES = ('LICENSE-whisper.cpp.txt', 'THIRD_PARTY_NOTICES-DICTEE.txt', DICTEE_MANIFESTE)
 
 
 def version_of(archive):
@@ -83,10 +96,11 @@ def extract_verified(archive, destination):
     return inner[0]
 
 
-def control_text(version, installed_kib, variant):
+def control_text(version, installed_kib, variant, extra_depends=()):
     v = VARIANTS[variant]
     lines = ['Package: ' + v['package'], 'Version: ' + version, 'Section: misc', 'Priority: optional', 'Architecture: ' + v['architecture'],
-             'Maintainer: ' + MAINTAINER, 'Installed-Size: ' + str(installed_kib), 'Depends: ' + ', '.join(v['depends']),
+             'Maintainer: ' + MAINTAINER, 'Installed-Size: ' + str(installed_kib),
+             'Depends: ' + ', '.join(tuple(v['depends']) + tuple(extra_depends)),
              'Recommends: ' + ', '.join(v['recommends']), 'Homepage: ' + HOMEPAGE, 'Description: ' + v['description'][0]]
     lines += [' ' + line for line in v['description'][1:]]
     return '\n'.join(lines) + '\n'
@@ -140,9 +154,46 @@ def _ar(members):
     return bytes(out)
 
 
-def build(output, archive, mtime=None, variant='serveur'):
+def dictee_files(dossier):
+    """5.6.110 (lot D) : fichiers du moteur de dictée pour le paquet poste, vérifiés par le manifeste (taille et SHA-256, exactement
+    les fichiers attendus, aucun en plus) : liste de (chemin dans le paquet, octets, mode)."""
+    src = Path(dossier)
+    try:
+        manifeste = json.loads((src / DICTEE_MANIFESTE).read_text(encoding='utf-8'))
+        fichiers = dict(manifeste['fichiers'])
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        raise RuntimeError('Dictée : manifeste illisible dans ' + str(src)) from None
+    if manifeste.get('plateforme') != 'linux':
+        raise RuntimeError('Dictée : copie non destinée à Linux (plateforme %r).' % manifeste.get('plateforme'))
+    attendus = set(DICTEE_BINAIRES) | set(DICTEE_TEXTES[:-1])
+    if set(fichiers) != attendus:
+        manque, plus = sorted(attendus - set(fichiers)), sorted(set(fichiers) - attendus)
+        raise RuntimeError('Dictée : copie incomplète ou fichiers en trop (absents : %s ; en trop : %s).' % (
+            ', '.join(manque) or 'aucun', ', '.join(plus) or 'aucun'))
+    presents = sorted(p.relative_to(src).as_posix() for p in src.rglob('*') if not p.is_dir())
+    en_plus = [p for p in presents if p != DICTEE_MANIFESTE and p not in fichiers]
+    if en_plus:
+        raise RuntimeError('Dictée : fichiers hors manifeste : ' + ', '.join(en_plus[:5]))
+    out = []
+    for nom in DICTEE_BINAIRES + DICTEE_TEXTES:
+        f = src / nom
+        if f.is_symlink() or not f.is_file():
+            raise RuntimeError('Dictée : fichier absent ou lien symbolique : ' + nom)
+        data = f.read_bytes()
+        if nom != DICTEE_MANIFESTE:
+            attendu = fichiers[nom] if isinstance(fichiers[nom], dict) else {}
+            if len(data) != attendu.get('octets') or hashlib.sha256(data).hexdigest() != attendu.get('sha256'):
+                raise RuntimeError('Dictée : fichier modifié : ' + nom)
+        out.append((DICTEE_ROOT + nom, data, 0o755 if nom in DICTEE_BINAIRES else 0o644))
+    return out
+
+
+def build(output, archive, mtime=None, variant='serveur', dictee=None):
     if variant not in VARIANTS:
         raise RuntimeError('Variante inconnue : ' + str(variant))
+    if dictee and variant != 'poste':
+        raise RuntimeError('Le moteur de dictée (--dictee) ne s’ajoute qu’au paquet poste.')
+    moteur = dictee_files(dictee) if dictee else []
     archive = Path(archive)
     version = version_of(archive)
     package = VARIANTS[variant]['package']
@@ -172,6 +223,7 @@ def build(output, archive, mtime=None, variant='serveur'):
                            ('./usr/share/applications/axiorhub-pilote-liaison.desktop', (poste / 'axiorhub-pilote-liaison.desktop').read_bytes(), 0o644),
                            ('./usr/share/icons/hicolor/512x512/apps/axiorhub-pilote.png', (tree / 'agent' / 'static' / 'axiorhub-icon-512.png').read_bytes(), 0o644),
                            ('./usr/lib/systemd/user/axiorhub-pilote.service', (poste / 'axiorhub-pilote.service').read_bytes(), 0o644)]
+            data_files += moteur   # 5.6.110 (lot D) : vide sans --dictee
     changelog = (package + ' (' + version + ') stable; urgency=medium\n\n  * Voir CHANGELOG.md de la version.\n\n -- '
                  + MAINTAINER + '  ' + time.strftime('%a, %d %b %Y %H:%M:%S +0000', time.gmtime(mtime)) + '\n').encode('utf-8')
     data_files += [('./usr/share/doc/' + package + '/copyright', copyright_text, 0o644),
@@ -179,7 +231,8 @@ def build(output, archive, mtime=None, variant='serveur'):
     data_entries = _with_dirs(data_files)
     installed_kib = max(1, sum(len(d) for _, d, _ in data_files) // 1024 + 1)
     md5sums = ''.join(hashlib.md5(data).hexdigest() + '  ' + name[2:] + '\n' for name, data, _ in data_files)
-    control_entries = [('./', None, 0o755), ('./control', control_text(version, installed_kib, variant).encode('utf-8'), 0o644),
+    control = control_text(version, installed_kib, variant, DICTEE_DEPENDS if moteur else ())
+    control_entries = [('./', None, 0o755), ('./control', control.encode('utf-8'), 0o644),
                        ('./md5sums', md5sums.encode('ascii'), 0o644)]
     control_entries += [('./' + name, scripts[name], 0o755) for name in SCRIPTS if name in scripts]
     deb = _ar([('debian-binary', b'2.0\n', mtime), ('control.tar.gz', _tar_bytes(control_entries, mtime), mtime),
@@ -188,7 +241,8 @@ def build(output, archive, mtime=None, variant='serveur'):
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(deb)
     check(output, archive.read_bytes() if variant == 'serveur' else None)
-    return {'package': package, 'version': version, 'variant': variant, 'path': str(output), 'size': len(deb), 'sha256': hashlib.sha256(deb).hexdigest()}
+    return {'package': package, 'version': version, 'variant': variant, 'path': str(output), 'size': len(deb), 'sha256': hashlib.sha256(deb).hexdigest(),
+            'dictee': len(moteur)}
 
 
 def read_deb(path):
@@ -264,7 +318,8 @@ def check(path, payload=None):
             raise RuntimeError('Entrée de menu sans l’action « Essayer la démo » (5.6.107).')
         if any('./' + s in info['control'] for s in SCRIPTS):
             raise RuntimeError('Le paquet poste ne doit pas avoir de script de maintenance.')
-    else:
+    check_dictee(info, poste)
+    if not poste:
         for name in SCRIPTS:
             if info['control']['./' + name]['mode'] != 0o755:
                 raise RuntimeError('Script de maintenance non exécutable : ' + name)
@@ -277,13 +332,42 @@ def check(path, payload=None):
     return info
 
 
+def check_dictee(info, poste):
+    """5.6.110 (lot D) : moteur de dictée présent = exactement les fichiers attendus sous DICTEE_ROOT (droits 0755 pour le programme et
+    les bibliothèques, 0644 pour les textes, aucun sous-dossier) et libgomp1 dans Depends ; absent = ni fichier ni libgomp1."""
+    depends = {d.strip().split(' ')[0] for d in info['fields'].get('Depends', '').split(',') if d.strip()}
+    entries = {name: entry for name, entry in info['data'].items() if (name + ('/' if entry['dir'] else '')).startswith(DICTEE_ROOT)}
+    if not entries and not depends & set(DICTEE_DEPENDS):
+        return
+    if not poste:
+        raise RuntimeError('Moteur de dictée hors du paquet poste.')
+    if not entries:
+        raise RuntimeError('libgomp1 dans Depends sans moteur de dictée.')
+    if not set(DICTEE_DEPENDS) <= depends:
+        raise RuntimeError('Moteur de dictée sans la dépendance libgomp1.')
+    files = {}
+    for name, entry in entries.items():
+        if entry['dir']:
+            if name + '/' != DICTEE_ROOT:
+                raise RuntimeError('Sous-dossier refusé dans le moteur de dictée : ' + name)
+            continue
+        files[name[len(DICTEE_ROOT):]] = entry
+    attendus = set(DICTEE_BINAIRES) | set(DICTEE_TEXTES)
+    if set(files) != attendus:
+        raise RuntimeError('Moteur de dictée incomplet ou fichiers en trop : ' + ', '.join(sorted(set(files) ^ attendus)[:5]))
+    for name, entry in files.items():
+        if entry['mode'] != (0o755 if name in DICTEE_BINAIRES else 0o644):
+            raise RuntimeError('Droits inattendus dans le moteur de dictée : ' + name)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Paquets Debian AxiorHub Pilote')
     parser.add_argument('output')
     parser.add_argument('--archive', required=True)
     parser.add_argument('--variant', choices=sorted(VARIANTS), default='serveur')
+    parser.add_argument('--dictee', metavar='DOSSIER', help='paquet poste : moteur de dictée (copie « linux » de scripts/preparer-dictee.py)')
     args = parser.parse_args()
-    result = build(args.output, args.archive, variant=args.variant)
+    result = build(args.output, args.archive, variant=args.variant, dictee=args.dictee)
     print('%s : %s %s (%s), %d octets, SHA-256 %s' % (result['path'], result['package'], result['version'], result['variant'], result['size'], result['sha256']))
 
 

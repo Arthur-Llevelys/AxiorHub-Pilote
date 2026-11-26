@@ -15,6 +15,10 @@ elle est vérifiée (manifeste : taille et SHA-256 de chaque fichier, aucun fich
 exécutables, avec ``THIRD_PARTY_NOTICES-OCR.txt`` (licences, source de Poppler jointe à la publication), **seulement si elle est
 complète** (licence de chaque composant trouvée, sources de Poppler, JBIG-KIT et libiconv référencées). Sinon : construction sans OCR intégré, avec un
 avertissement qui liste les manques.
+5.6.110 (lot D) : si ``AXIORHUB_WIN_DICTEE`` désigne la copie ``windows`` du moteur de dictée (``scripts/preparer-dictee.py``), elle
+est vérifiée (manifeste : taille et SHA-256 de chaque fichier, exactement les fichiers attendus, aucun en plus) puis copiée dans le
+dossier ``dictee`` à côté des exécutables, avec ``THIRD_PARTY_NOTICES-DICTEE.txt``. Variable absente : construction sans moteur de
+dictée, avec un avertissement ; copie demandée mais altérée ou incomplète : construction arrêtée.
 Le dossier de l'application contient deux exécutables : « AxiorHub Pilote.exe » (fenêtre, sans console) et
 « axiorhub-service.exe » (services, console masquée), tous deux en mode UTF-8.
 """
@@ -184,6 +188,59 @@ def inclure_ocr(app_dir, source=None):
     return {'fichiers': len(vus), 'octets': sum(v['octets'] for v in fichiers.values())}
 
 
+DICTEE_ENV = 'AXIORHUB_WIN_DICTEE'
+AVERTISSEMENT_DICTEE = ('AVERTISSEMENT : %s non défini : application construite SANS moteur de dictée. La dictée ne pourra pas être '
+                        'installée sur les postes depuis Paramètres › Voix.' % DICTEE_ENV)
+DICTEE_MANIFESTE = 'MANIFEST-dictee.json'
+DICTEE_NOTICE = 'THIRD_PARTY_NOTICES-DICTEE.txt'
+# Exactement ces fichiers (scripts/preparer-dictee.py, BINAIRES['windows'] et TEXTES) : ni plus, ni moins
+DICTEE_FICHIERS = (('whisper-cli.exe', 'whisper.dll', 'ggml.dll', 'ggml-base.dll')
+                   + tuple('ggml-cpu-%s.dll' % c for c in ('alderlake', 'cannonlake', 'cascadelake', 'haswell', 'icelake', 'sandybridge',
+                                                         'skylakex', 'sse42', 'x64'))
+                   + ('LICENSE-whisper.cpp.txt', DICTEE_NOTICE))
+
+
+def inclure_dictee(app_dir, source=None):
+    """5.6.110 (lot D) : copie vérifiée du moteur de dictée (whisper.cpp, Windows) dans ``app_dir/dictee``. ``None`` si non demandée."""
+    source = source if source is not None else os.environ.get(DICTEE_ENV, '').strip()
+    if not source:
+        print(AVERTISSEMENT_DICTEE, file=sys.stderr)
+        return None
+    src = Path(source).resolve()
+    try:
+        manifeste = json.loads((src / DICTEE_MANIFESTE).read_text(encoding='utf-8'))
+        fichiers = manifeste['fichiers']
+        fichiers.items()
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        raise SystemExit('Dictée : manifeste illisible dans ' + str(src)) from None
+    if manifeste.get('plateforme') != 'windows':
+        raise SystemExit('Dictée : copie non destinée à Windows (plateforme %r)' % manifeste.get('plateforme'))
+    for rel, attendu in sorted(fichiers.items()):
+        if rel != Path(rel).name or rel in ('.', '..') or ':' in rel or '\\' in rel:
+            raise SystemExit('Dictée : chemin refusé dans le manifeste : ' + rel)
+        f = src / rel
+        if not isinstance(attendu, dict) or not f.is_file() or f.stat().st_size != attendu.get('octets') or sha256(f) != attendu.get('sha256'):
+            raise SystemExit('Dictée : fichier absent ou modifié : ' + rel)
+    en_plus = sorted(p.relative_to(src).as_posix() for p in src.rglob('*') if p.is_file() and p.relative_to(src).as_posix() != DICTEE_MANIFESTE
+                     and p.relative_to(src).as_posix() not in fichiers)
+    if en_plus:
+        raise SystemExit('Dictée : fichiers hors manifeste : ' + ', '.join(en_plus[:5]))
+    manque = [f for f in DICTEE_FICHIERS if f not in fichiers]
+    if manque:
+        raise SystemExit('Dictée : copie incomplète, élément absent : ' + ', '.join(manque))
+    inattendus = sorted(set(fichiers) - set(DICTEE_FICHIERS))
+    if inattendus:
+        raise SystemExit('Dictée : fichiers inattendus dans la copie : ' + ', '.join(inattendus[:5]))
+    cible = Path(app_dir) / 'dictee'
+    if cible.exists():
+        shutil.rmtree(cible)
+    cible.mkdir(parents=True)
+    for rel in DICTEE_FICHIERS + (DICTEE_MANIFESTE,):
+        shutil.copyfile(src / rel, cible / rel)
+    shutil.copyfile(src / DICTEE_NOTICE, Path(app_dir) / DICTEE_NOTICE)
+    return {'fichiers': len(fichiers), 'octets': sum(v['octets'] for v in fichiers.values()), 'version': manifeste.get('version')}
+
+
 def pyinstaller(spec, work, dist):
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--log-level', 'WARN', '--workpath', str(work),
                     '--distpath', str(dist), str(spec)], check=True, cwd=str(ROOT))
@@ -212,6 +269,7 @@ def main(argv=None):
             if not (app_dir / exe).is_file():
                 raise SystemExit('exécutable absent : ' + exe)
         ocr = inclure_ocr(app_dir)   # 5.6.106 (lot W) : Tesseract et Poppler à côté des exécutables (dossier ocr)
+        dictee = inclure_dictee(app_dir)   # 5.6.110 (lot D) : moteur de dictée whisper.cpp à côté des exécutables (dossier dictee)
         archive = out / ('AxiorHub-Pilote-%s-windows.zip' % ver)
         with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
             for f in sorted(app_dir.rglob('*')):
@@ -234,6 +292,7 @@ def main(argv=None):
         (f.parent / (f.name + '.sha256')).write_text('%s *%s\n' % (digest, f.name), encoding='utf-8')
         report[f.name] = {'octets': f.stat().st_size, 'sha256': digest}
     report['ocr'] = ocr or 'non inclus'
+    report['dictee'] = dictee or 'non inclus'
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 

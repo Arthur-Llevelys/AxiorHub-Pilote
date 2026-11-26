@@ -220,7 +220,8 @@
 "Open Documents.",
 "In “Ask the agent for a document”, describe the document and choose the case.",
 "Click “Prepare the document”.",
-"Open the result with “Show” and review it."
+"Open the result with “Show” and review it.",
+"To edit documents in AxiorHub on a computer (Windows 11 or Ubuntu 24.04, Docker installed): Settings › Documents and procedure › “Document server on this computer”, click “Install the document server on this computer”; AxiorHub installs Euro-Office, sets the address and the secret, then runs the test. On the firm’s server, follow the installation guide."
 ],
 "result": "A draft document in the chosen case, never sent automatically.",
 "verify": "The file appears under “Recently changed here”.",
@@ -1338,6 +1339,10 @@
 [
 "Test not validated",
 "Read the cause shown and correct the setting concerned."
+],
+[
+"Google shows “Error 400: redirect_uri_mismatch”",
+"The return address sent is not declared at Google. On a computer running AxiorHub Pilote, leave the return address empty: the Google card shows the local address computed by AxiorHub (“Copy” button). At Google, create a “Desktop app” client, or add this exact address to the “Authorized redirect URIs” of a “Web application” client. After you agree at Google, go back to the AxiorHub window: the connection is completed there."
 ]
 ],
 "example": "Fictitious setting: IMAP port 993, automatic encryption.",
@@ -1400,6 +1405,7 @@
 "Open Commissioning.",
 "Click “Run the checks (up to one minute)”.",
 "Test the microphone with “Test the microphone”.",
+"To dictate on this computer: Settings › Voice › “Dictation on this computer”, choose the model, click “Install dictation on this computer”, then “Check the engine”; speak in the test area to check the result.",
 "Run “Run the production acceptance test” for a full check."
 ],
 "result": "A check report with the suggested fixes.",
@@ -1408,6 +1414,10 @@
 [
 "Microphone refused",
 "The browser requires an HTTPS address for the microphone."
+],
+[
+"Dictation on this computer does not start (Windows)",
+"The Microsoft Visual C++ component is missing: install it with the link shown in the “Dictation on this computer” card, then click “Check the engine”."
 ]
 ],
 "example": "Fictitious report: services active, microphone allowed.",
@@ -2162,7 +2172,8 @@
 "Type in “Filtrer ce dossier” to narrow the list, or use “Chercher” for subfolders (bounded search, “Continuer la recherche” for more).",
 "Tick items then “Renommer par lot”: choose the rule (number exhibits, replace, add), click “Voir l’aperçu”, fix the reported conflicts, then rename.",
 "Drag an item to the other pane, or use “Copier vers l’autre volet” / “Déplacer vers l’autre volet” (moves are confirmed).",
-"Select a file then “Versions” to restore a version: a newer version is never overwritten (a conflict copy is reported)."
+"Select a file then “Versions” to restore a version: a newer version is never overwritten (a conflict copy is reported).",
+"To edit a workbook (.xlsx), a PDF or a presentation (.pptx), select it then “Modifier dans GridCraft, PdfCraft, DeckCraft” (trial versions shipped with AxiorHub): save in the editor (Ctrl+S), read the comparison, then “Conserver cette version” creates a new version next to the original, which is never replaced."
 ],
 "result": "Files tidied and renamed in Nextcloud; notes and colours stay in AxiorHub, visible to the firm.",
 "verify": "Reload the folder: the new names, the archive or the conflict copy appear; the audit log keeps each action.",

@@ -1,0 +1,105 @@
+{
+  "version": "5.6.110",
+  "base": "5.6.109",
+  "date_utc": "2026-11-24T00:00:00+00:00",
+  "demande": "Retours d’essai du cabinet du 24/11/2026 sur la 5.6.109 : dictée impossible à installer sur un poste ; éditeurs GridCraft, PdfCraft et DeckCraft à installer par défaut ; installation du serveur de documents en un clic ; Google Agenda sur un poste (« Erreur 400 : redirect_uri_mismatch ») ; test de génération Mistral sur une première connexion.",
+  "regression": {
+    "command": "scripts/tests-paralleles.py -j 9, PYTHONUTF8=1, PYTHONPATH=shim",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 9624,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 176,
+    "passages": "Un passage complet sur l’arbre figé : 9 624 tests, 1 échec (test_v5633 : l’installateur web n’admettait pas la 5.6.109 comme version précédente), corrigé puis rejoué avec les essais de mise à jour. Pas de second passage complet sous Windows après cette correction, celle de deux modules d’essai (ordre de passage sous Linux) et la prolongation de la session du poste (7 nouveaux essais, 128 tests rejoués avec les modules voisins)."
+  },
+  "lots": [
+    {
+      "id": "D",
+      "titre": "Dictée sur chaque poste (whisper.cpp embarqué, modèle à la demande)",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires (faux moteur, faux transport) ; vrai moteur sous Windows 11 (phrase fictive de 14 s transcrite sans faute, 1,2 à 5,4 s selon le modèle) et dans un conteneur Ubuntu 24.04 ; téléchargement réel du modèle « Rapide » par le code du produit ; parcours navigateur P110d (Edge, conversion WAV réelle)",
+      "manque": "micro réel ; poste Ubuntu réel ; poste Windows sans le composant Microsoft Visual C++ ; modèle « Précis » par le code du produit",
+      "remarques": "cinq autres boutons de micro (conversation vocale, Pilote…) gardent leurs plafonds de 45 à 120 s ; « Vérifier le moteur » réservé à l’administrateur"
+    },
+    {
+      "id": "E",
+      "titre": "GridCraft, PdfCraft et DeckCraft embarqués et proposés par défaut",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; parcours navigateur P110e (Edge, vraies applications : ouvrir, modifier, enregistrer à côté de l’original ; export PDF de GridCraft)",
+      "manque": "exports de PdfCraft et de DeckCraft par leurs menus ; fidélité sur des documents réels ; commandes de l’IA (désactivées)",
+      "remarques": "versions « alpha » ; modèles de reconnaissance de texte de PdfCraft sous CC-BY-SA-4.0, redistribués sans modification avec leur attribution"
+    },
+    {
+      "id": "S",
+      "titre": "Serveur de documents en un clic sur un poste (Docker, Euro-Office)",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires (faux Docker) ; essai réel contre Docker Desktop sous Windows 11 par le code du produit (installation 87 s sans téléchargement, six contrôles du test sur six, désinstallation) ; parcours navigateur P110s (Edge, faux Docker)",
+      "manque": "clic dans la page contre le vrai Docker ; téléchargement réel de l’image ; poste Ubuntu réel (relais de l’étape C6 du guide, manuel)",
+      "remarques": "réglages d’un autre serveur jamais remplacés sans confirmation"
+    },
+    {
+      "id": "G",
+      "titre": "Google Agenda et Gmail sur un poste (adresse de retour locale, retour en deux temps)",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires avec un faux Google, dont un passage complet par l’interface web d’un poste",
+      "manque": "vrai compte Google ; vraies fenêtres Edge et WebKitGTK",
+      "remarques": "la carte générique « Google Workspace » des connexions n’est pas traitée"
+    },
+    {
+      "id": "W",
+      "titre": "Session de la fenêtre du poste prolongée par l’usage ; session expirée sans demande d’identifiants",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires par l’interface web d’un poste (horloge remplacée)",
+      "remarques": "non observé sur un poste réel pendant plusieurs jours"
+    },
+    {
+      "id": "M",
+      "titre": "Clé Mistral : test de génération sur une première connexion",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires, faux service"
+    },
+    {
+      "id": "T",
+      "titre": "Essais indépendants de l’historique Git et de l’ordre de passage (recette GitHub)",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests unitaires"
+    }
+  ],
+  "linux": "Docker python:3.12, arbre hors dépôt Git : essais de mise à jour (mise à jour vers la 5.6.110 et retour arrière) et nouveaux modules de la 5.6.110 réussis ; un échec d’ordre de passage trouvé et corrigé (116 tests rejoués). Passage complet en un seul processus lancé, non terminé au moment de la construction des paquets.",
+  "navigateur": "Edge (Windows 11) : 77 parcours ; 75 réussis au passage complet, P103t et P108f-onglet réussis au rejeu isolé (délais dépassés sous la charge des autres passages).",
+  "paquets": "construits le 25/11/2026 ; non signés",
+  "tiers_ajoutes": {
+    "whisper.cpp": {
+      "version": "b5907",
+      "commit": "5eaee0cc9024eb9e9a99469199920c8b7f5cb9ec",
+      "licence": "MIT",
+      "livre": "application Windows et paquet du poste Ubuntu (pas dans l’archive ni le paquet serveur)"
+    },
+    "modeles_whisper": {
+      "source": "huggingface.co/ggerganov/whisper.cpp",
+      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+      "livre": "non : téléchargés à la demande, vérifiés par SHA-256"
+    },
+    "gridcraft": "0.19.1",
+    "pdfcraft": "0.21.1",
+    "deckcraft": "0.18.1"
+  },
+  "changements_de_comportement": [
+    "GridCraft, PdfCraft et DeckCraft proposés par défaut (une case par éditeur pour les retirer) ; plus d’installation par archive déposée.",
+    "Paquet du poste Ubuntu : nouvelle dépendance libgomp1 ; moteur de dictée sous /usr/lib/axiorhub-pilote/dictee.",
+    "Application Windows : dossier « dictee » à côté des exécutables.",
+    "Bouton « Tester Voix locale » renommé « Tester la voix de secours (lecture à voix haute) » ; libellés de l’ancienne passerelle de dictée précisés.",
+    "Connexion Google : la valeur d’exemple de l’adresse de retour est refusée avant l’envoi chez Google ; sur un poste, adresse locale calculée.",
+    "Session de la fenêtre du poste : sept jours sans activité au plus et trente jours au plus (douze heures fixes auparavant).",
+    "Clé Mistral : case « Tester aussi une génération » grisée tant que l’envoi de données n’est pas autorisé.",
+    "Chaque paquet grossit d’environ 56 Mo (136 Mo une fois installé)."
+  ],
+  "limites": [
+    "Dictée : aucun essai au micro ; qualité de transcription mesurée sur une seule phrase de synthèse ; durées mesurées sur un seul poste (16 cœurs logiques).",
+    "Dictée sous Windows : dépend du composant Microsoft Visual C++ installé sur le poste (non redistribué) ; cas « composant absent » non reproduit.",
+    "Éditeurs intégrés : versions « alpha » ; la comparaison avant enregistrement porte sur la structure et le texte, pas sur la mise en forme.",
+    "Serveur de documents en un clic : Docker reste à installer par l’utilisateur ; sous Ubuntu le relais réseau du guide (étape C6) reste manuel.",
+    "Google sur un poste : non essayé avec un vrai compte ; l’acceptation par Google d’une adresse de bouclage avec chemin pour un client « Application de bureau » reste à confirmer en réel.",
+    "Passage complet « comme GitHub » (un seul processus, Linux, hors dépôt Git) : voir le champ « linux »."
+  ]
+}

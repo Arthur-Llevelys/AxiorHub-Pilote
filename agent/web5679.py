@@ -30,6 +30,12 @@ def route(cfg, auth, prefix, path, args):
                     vue.update(wordcraft56108.liens(desk, auth, prefix, 'nextcloud', vue.get('path') or '', _role108()))
                 except Exception:   # noqa: BLE001 — l'aperçu reste affiché sans ces boutons
                     pass
+                try:   # 5.6.110 (lot E) : « Modifier dans GridCraft / PdfCraft / DeckCraft (version d'essai) » (.xlsx, .pdf, .pptx ; droits relus par la page)
+                    from . import craft56109
+                    from .i18n5631 import role as _role110
+                    vue.update(craft56109.liens(desk, prefix, 'nextcloud', vue.get('path') or '', _role110()))
+                except Exception:   # noqa: BLE001
+                    pass
                 return json_out(vue)
             return apercu5679.file_response(desk, mid, file_path, download=str(args.get('dl') or '') == '1')
         except Stop as ex:

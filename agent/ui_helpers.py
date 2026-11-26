@@ -157,10 +157,15 @@ def _police5696(html):
 
 
 def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=''):
+    from .dictee56110 import active_contexte as _poste56110
+    poste56110=_poste56110()   # 5.6.110 (lot D) : dictée sur ce poste active : drapeau audio vrai même si la passerelle n'est pas activée
+    audio_enabled=bool(audio_enabled) or poste56110
     head='<meta name="axiorhub-prefix" content="'+escape(prefix,quote=True)+'"><meta name="axiorhub-csrf" content="'+escape(csrf,quote=True)+'"><meta name="axiorhub-audio" content="'+('enabled' if audio_enabled else 'disabled')+'">'
     from .i18n5631 import current as _lang5634
     from .ecrans5632 import signature as _ecrans5634
     if _lang5634() not in ('fr',''):head+='<meta name="axiorhub-ecrans" content="'+escape(_ecrans5634(_lang5634()),quote=True)+'">'
+    if poste56110:   # 5.6.110 (lot D) : conversion en WAV 16 kHz mono de l'audio dicté, chargée avant tout autre script
+        head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56110-dictee.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5680.js"></script>'   # 5.6.80 : très court, le premier exécuté : boutons de l'assistant actifs aussitôt
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5682.js"></script>'   # 5.6.82 : état des listes, lecteurs (palette Ctrl+K : v420.js)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5681.js"></script>'   # 5.6.81 : liste des modèles des fournisseurs

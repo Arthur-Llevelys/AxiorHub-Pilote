@@ -1,0 +1,21 @@
+/* AxiorHub 5.6.110 (lot S) — carte « Serveur de documents sur ce poste » (Paramètres › Documents et procédure). Couleurs reprises des jetons du thème (clair et sombre). */
+.ds110-carte{border:1px solid var(--ax-border,#c6c6c6);border-radius:6px;padding:.75rem 1rem;margin:.5rem 0 1rem;overflow-wrap:anywhere}
+.ds110-carte h3{margin:0 0 .4rem;font-size:1.05rem}
+.ds110-carte .ds110-etat{margin:.5rem 0;padding-left:1.25rem}
+.ds110-carte .ds110-etat li{margin:.15rem 0}
+.ds110-carte code{overflow-wrap:anywhere;word-break:break-all}
+.ds110-carte pre{white-space:pre-wrap;max-width:100%;overflow-x:auto}
+.ds110-carte .ds110-case{display:flex;gap:.5rem;align-items:flex-start;margin:.4rem 0}
+.ds110-carte .ds110-case input[type=checkbox]{width:auto;min-width:0;height:auto;margin:.2rem 0 0;flex:none}
+.ds110-carte .ds110-installer button{white-space:normal;max-width:100%}
+.ds110-carte .ds110-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0;align-items:flex-start}
+.ds110-carte .ds110-inline{display:inline-block;max-width:100%}
+.ds110-carte form.m5-form.ds110-inline{border:0;padding:0;margin:0;background:transparent;box-shadow:none}
+.ds110-carte form.m5-form.ds110-inline p.ax-muted{margin:.25rem 0}
+.ds110-carte .ds110-etapes{margin:.25rem 0 .5rem;padding-left:1.5rem}
+.ds110-carte .ds110-etapes li{margin:.15rem 0}
+.ds110-carte .ds110-statut{color:var(--ax-muted,#525252)}
+.ds110-carte li[data-etat=en_cours] .ds110-libelle{font-weight:600}
+.ds110-carte li[data-etat=echec] .ds110-statut{color:var(--ax-danger,#da1e28);font-weight:600}
+.ds110-carte li[data-etat=fait] .ds110-statut{color:var(--ax-success,#198038)}
+.ds110-carte a:focus-visible,.ds110-carte button:focus-visible,.ds110-carte input:focus-visible{outline:2px solid var(--ax-focus,#0f62fe);outline-offset:2px}

@@ -1,7 +1,8 @@
 # Serveur de documents EuroOffice ou OnlyOffice : installation pas à pas (5.6.108)
 
 Ce guide installe le **serveur de documents** qui permet de **modifier** un fichier Word, Excel ou PowerPoint **dans AxiorHub**,
-à plusieurs, avec l'enregistrement contrôlé (relecture du fichier enregistré, copie de sécurité en cas de conflit). Trois parcours :
+à plusieurs, avec l'enregistrement contrôlé (relecture du fichier enregistré, copie de sécurité en cas de conflit). Sur un poste,
+la voie la plus simple est l'[installation en un clic](#sur-un-poste--installation-en-un-clic-56110) (5.6.110). Trois parcours manuels :
 
 - [A. Version serveur](#a-version-serveur-ubuntu-2404-avec-apache) (Ubuntu 24.04 avec Apache, comme [INSTALLATION-SERVEUR.md](INSTALLATION-SERVEUR.md)) ;
 - [B. Poste Windows 11](#b-poste-windows-11) (Docker Desktop) ;
@@ -13,6 +14,55 @@ Puis : [réglage dans AxiorHub](#d-régler-axiorhub-et-tester), [mise à jour et
 > **Sans serveur de documents, AxiorHub fonctionne.** Les documents Word s'affichent en **aperçu (lecture seule)** dans
 > AxiorHub (documents des dossiers, livrables, lecteur) et, sur un poste, s'ouvrent dans **Word** (ou LibreOffice). Le serveur de documents sert seulement à
 > **modifier dans AxiorHub**, à plusieurs, avec l'enregistrement contrôlé. Inutile de l'installer pour lire un .docx.
+
+## Sur un poste : installation en un clic (5.6.110)
+
+Sur un **poste** (application Windows 11 ou paquet Ubuntu 24.04), AxiorHub sait installer et régler lui-même le serveur de
+documents EuroOffice dans Docker. C'est la voie conseillée ; les **commandes manuelles** des parcours B et C restent valables
+et sont gardées plus bas (installation à la main, dépannage).
+
+1. Installez **Docker** une fois : Docker Desktop sous Windows 11 (étape B1 : site officiel de Docker, option WSL 2), Docker
+   Engine sous Ubuntu 24.04 (étape C1). AxiorHub n'installe pas Docker lui-même.
+2. Ouvrez AxiorHub › **Paramètres** › **Documents et procédure**. En tête de la section « 1 · Modifier les documents dans
+   l'interface », la carte **« Serveur de documents sur ce poste »** dit où en est Docker : absent (lien ou commande
+   d'installation), arrêté (« Ouvrez Docker Desktop, puis Vérifier de nouveau ») ou prêt.
+3. Cliquez sur **« Installer le serveur de documents sur ce poste »** (administrateur seulement). L'installation tourne en
+   arrière-plan ; la carte montre chaque étape : image, secret, démarrage, attente de la réponse du serveur, réglages, test.
+4. À la fin, les réglages de la section D sont **remplis tout seuls** (moteur Euro-Office, `http://127.0.0.1:8080`, secret,
+   `http://host.docker.internal:8769/agent-courriel`) et le test « Tester la connexion » a tourné. Toutes les lignes doivent
+   être cochées.
+
+Ce que fait AxiorHub, exactement comme les parcours B et C :
+
+- image `ghcr.io/euro-office/documentserver` **figée par l'empreinte** ci-dessous ; téléchargée seulement si elle n'est pas
+  déjà sur le poste (plusieurs gigaoctets, une seule fois) ; le lancement porte `--pull never` : rien n'est téléchargé en douce ;
+- secret JWT fabriqué par AxiorHub, écrit dans un fichier privé `documents.env` (dossier des données d'AxiorHub,
+  sous-dossier `documents56110`) avec `JWT_ENABLED=true` et `JWT_SECRET`, jamais affiché ni journalisé, puis enregistré dans
+  AxiorHub comme si vous l'aviez collé ;
+- conteneur `axiorhub-documents`, étiquette `axiorhub=documents`, `--restart unless-stopped`, publié seulement sur
+  `127.0.0.1:8080` (si ce port est pris : le premier libre de 8080 à 8099, utilisé partout) ; sous Ubuntu,
+  `--add-host host.docker.internal:host-gateway`.
+
+Ensuite, la carte propose **Démarrer**, **Arrêter**, **Tester** et **Désinstaller** (retire le conteneur et son fichier
+d'environnement ; l'image n'est retirée que si AxiorHub l'a téléchargée et si vous le demandez).
+
+**Réglages d'un autre serveur déjà enregistrés** (par exemple le serveur OnlyOffice commun du cabinet) : AxiorHub ne les
+remplace pas sans le dire. La carte les montre et demande de cocher « Remplacer les réglages actuels ». Ils sont gardés :
+le bouton **« Revenir au serveur précédent »** les remet, et la désinstallation aussi.
+
+**Ce qu'AxiorHub ne touche jamais** : un conteneur `axiorhub-documents` qui n'a pas son étiquette (installé à la main avec
+les commandes B5 ou C4, par exemple) ; la carte le signale et il se gère avec les commandes de la section E. De même pour
+toute autre image, tout autre conteneur et tout réseau Docker.
+
+**Ubuntu : une étape reste à faire à la main**, une fois, avec `sudo` : le relais local de l'étape **C6**
+(`systemd-socket-proxyd`). Sans lui, la dernière ligne du test (« Le serveur de documents joint AxiorHub ») reste en échec.
+
+**Sur le serveur du cabinet** (version serveur, parcours A), la carte n'apparaît pas : suivez le parcours A.
+
+*Essai réel (5.6.110, Windows 11, Docker Desktop, Docker 29.8.2, image déjà présente)* : installation par le code d'AxiorHub
+avec une interface d'essai : rien téléchargé, conteneur lancé en 12 s, serveur prêt (`/healthcheck`) 73 s plus tard,
+réglages remplis, test : six lignes cochées (version 9.3.7.37 annoncée par le serveur) ; désinstallation en 5 s, image gardée. Non essayé : un poste
+Ubuntu réel, le téléchargement de l'image (déjà présente).
 
 ## Avant de commencer
 

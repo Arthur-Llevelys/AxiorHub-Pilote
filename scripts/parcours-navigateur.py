@@ -1805,6 +1805,12 @@ PARCOURS = PARCOURS + (('P108l', 'Configurer l’IA locale (détection, machine,
                         parcours_p108l.p108l_ia_locale),)
 import parcours_p109h   # noqa: E402 — 5.6.109 (lot H) : historique de l'assistant, apparence
 PARCOURS = PARCOURS + tuple(parcours_p109h.PARCOURS)
+import parcours_p110d   # noqa: E402 — 5.6.110 (lot D) : dictée sur ce poste
+PARCOURS = PARCOURS + tuple(parcours_p110d.PARCOURS)
+import parcours_p110e   # noqa: E402 — 5.6.110 (lot E) : GridCraft, PdfCraft, DeckCraft embarqués
+PARCOURS = PARCOURS + tuple(parcours_p110e.PARCOURS_E)
+import parcours_p110s   # noqa: E402 — 5.6.110 (lot S) : serveur de documents en un clic
+PARCOURS = PARCOURS + tuple(parcours_p110s.PARCOURS)
 
 # ------------------------------------------------------------------------------------------------ lancement
 def _tranche(ident):

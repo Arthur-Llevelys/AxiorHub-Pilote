@@ -359,7 +359,7 @@ EXPORT_EXCLUES = (
     _x(_S, 'users', 'sessions', 'login_attempts', 'reset_tokens', 'account_log', 'attempts', 'log', 'resets', 'membres5650',
        'appareils5674', 'appareils5674_invitations', 'push_subs490', 'chatgpt_tentatives', 'ia_liaisons', 'ia_liaisons_debit', 'ia_liaisons_poste',
        'claude5675_acces', 'claude5675_appels', 'claude5675_clients', 'claude5675_codes', 'claude5675_demandes', 'claude5675_jetons', 'claude5675_masques',
-       'google5697_connexions', 'google5697_etats', 'gmail_simple56103_essais', 'avocatfr56106_essais', 'calendar_targets568', 'talk_rooms_v568',
+       'google5697_connexions', 'google5697_etats', 'google5697_retours', 'google_retours568', 'gmail_simple56103_essais', 'avocatfr56106_essais', 'calendar_targets568', 'talk_rooms_v568',   # 5.6.110 (lot G) : google5697_retours, google_retours568 (retours Google déposés sur le poste)
        'connection_receipts5631', 'guide_sessions5631', 'ecosystem_services_v380', 'integration_keys5636', 'integration_nonces5634',
        'integration_sessions5637', 'send_pending490', 'pseudo540_log') +
     _x(_T, 'access500', 'accord56102_lus', 'agenda_rappels5634', 'analyses5624', 'assistant56103_etapes', 'autonomy_history480', 'b55_matter_seen',
