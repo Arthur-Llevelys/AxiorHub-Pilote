@@ -86,6 +86,9 @@ STATIC.update({'/static/v56109-simulation.css': 'text/css'})
 STATIC.update({'/static/v56110-dictee.js': 'text/javascript', '/static/v56110-dictee-carte.js': 'text/javascript', '/static/v56110-dictee.css': 'text/css'})   # 5.6.110 (lot D) : conversion en WAV avant /dictation (dictée sur ce poste), carte de Paramètres › Voix   # 5.6.109 (lot N, F14) : onglet « Simulation de décision » du dossier (aucun script propre : formulaires communs, tiroir Sources natif)
 STATIC.update({'/static/v56110-google-poste.js': 'text/javascript'})   # 5.6.110 (lot G) : Google sur un poste (copier l'adresse de retour, attente du retour déposé)
 STATIC.update({'/static/v56110-documents.js': 'text/javascript', '/static/v56110-documents.css': 'text/css'})   # 5.6.110 (lot S) : carte « Serveur de documents sur ce poste » (suivi des étapes)
+STATIC.update({'/static/v56111-conversation.js': 'text/javascript', '/static/v56111-conversation.css': 'text/css'})   # 5.6.111 (lot F) : onglet « Conversation IA » du dossier
+STATIC.update({'/static/v56111-portail.js': 'text/javascript', '/static/v56111-portail.css': 'text/css'})   # 5.6.111 (lot P) : envois préparés sur un portail (onglet Juridiction du dossier)
+STATIC.update({'/static/v56111-precontrole.js': 'text/javascript', '/static/v56111-envoi-relecture.js': 'text/javascript'})   # 5.6.111 (lot U) : carte « Précontrôle du poste » (B6, micro lu sans l'ouvrir) ; « Envoyer… » raccordé dans le lecteur d'À relire (U01)
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -291,6 +294,9 @@ def human(code):
         from .modeles_catalogue56109 import MESSAGES as messages56109m   # 5.6.109 (lot E) : modèle à choisir, refus lisible du fournisseur
         if code in messages56109m:
             return messages56109m[code]
+        from .confirmations56111 import message as message56111   # 5.6.111 (lot C, C03) : code faux, demande bloquée, autre personne
+        if message56111(code):
+            return message56111(code)
     return table.get(code, code.replace('_', ' '))
 
 
@@ -1131,6 +1137,15 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m56110/documents/'):   # 5.6.110 (lot S) : serveur de documents sur ce poste (état, installer, démarrer, arrêter, tester, désinstaller, revenir : administrateur d'un poste, 409, no-store, clé d'idempotence)
         from . import documents56110
         return documents56110.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56111/conversation/'):   # 5.6.111 (lot F) : onglet « Conversation IA » — fils du dossier, fil complet, contexte, suivi (GET) ; instruction, arrêt, recherche (POST ; 403, 404 neutre, 409, 503, no-store, clé d'idempotence)
+        from . import conversation56111
+        return conversation56111.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56111/portail/'):   # 5.6.111 (lot P) : envoi préparé sur un portail — envoi, envois du dossier, pièce relue, profils (GET) ; préparer, confirmer (garde commune), nouveau code, annuler, transmis, accusé, ouvrir, préremplir, constater, capacité (POST ; 403, 404 neutre, 409, no-store, clé d'idempotence ; aucun portail piloté sans adaptateur qualifié)
+        from . import envoi_portail56111
+        return envoi_portail56111.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56111/precontrole/'):   # 5.6.111 (lot U, B6) : précontrôle du poste — état (GET, tous les rôles, aucun processus) ; vérifier (POST, administrateur, CSRF, no-store)
+        from . import precontrole56111
+        return precontrole56111.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m56106/vision/'):   # 5.6.106 (lot I) : fichiers, pages, vignette, aperçu masqué, lecture d'une page, réglages (404 neutre, 409, no-store, clé d'idempotence)
         from . import vision56106
         return vision56106.api(env, desk, auth, prefix, name, args, method)

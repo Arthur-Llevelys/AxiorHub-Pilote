@@ -6321,6 +6321,38 @@ body[data-densite=compacte] #ws-main .d100-carte h3 { font-size: .9375rem; margi
 @media (prefers-reduced-motion: reduce) { .ax108-dictee.is-rec { animation: none; } }
 .q108-champ .ax108-dictee { justify-self: start; }
 .ia89-question label { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+/* 5.6.111 (lot K) : matrice de couverture des modèles (type d'acte × droit × langue), état de chaque donnée du questionnaire, contrôle avant
+   « prêt », carte d'ouverture commune. Jetons de la page (thèmes clair et sombre) ; état lisible en texte, jamais par la couleur seule ;
+   tableau dans un conteneur défilant au clavier : la page elle-même ne défile pas horizontalement (375 px). */
+.b111-matrice { display: grid; gap: .6rem; }
+.b111-defile { max-inline-size: 100%; overflow-x: auto; }
+.b111-defile:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.b111-table, .b111-totaux { border-collapse: collapse; inline-size: 100%; font-size: .875rem; }
+.b111-table caption { text-align: start; font-weight: 600; padding-block-end: .3rem; }
+.b111-table th, .b111-table td, .b111-totaux th, .b111-totaux td { border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); padding: .35rem .45rem;
+  vertical-align: top; text-align: start; }
+.b111-table thead th { background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); min-inline-size: 7.5rem; }
+.b111-table tbody th { min-inline-size: 11rem; font-weight: 600; }
+.b111-case ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.b111-case small { color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.b111-etat { display: inline-block; padding: .05rem .45rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.b111-etat-absent { border-style: dashed; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.b111-etat-validated { border-color: var(--cds-support-success, #24a148); font-weight: 600; }
+.b111-etat-needs_update, .b111-etat-withdrawn { border-color: var(--cds-support-warning, #8e6a00); }
+.b111-legende { margin: 0; padding-inline-start: 1.1rem; display: grid; gap: .25rem; }
+.q111-etat { font-weight: 600; }
+.q111-etat-contradictoire, .q111-etat-a_confirmer { border-color: var(--cds-support-warning, #8e6a00); }
+.q111-etat-confirme { border-color: var(--cds-support-success, #24a148); }
+.q111-etat-inconnu { border-style: dashed; }
+.q111-controles { padding: .4rem .6rem; border-inline-start: .25rem solid var(--cds-support-warning, #8e6a00); background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); }
+.q111-controles p { margin: 0 0 .25rem; }
+.q111-controles ul { margin: 0; padding-inline-start: 1.1rem; }
+.q111-bloquant { font-weight: 600; }
+.q111-form { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); align-items: end; }
+.q111-form label { display: grid; gap: .25rem; }
+.q111-form select { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.q111-form .ax-btn { min-block-size: 2.5rem; }
+.q111-form .q108-etat { grid-column: 1 / -1; margin: 0; }
 /* ==== v56108-sync.css ==== */
 /* AxiorHub 5.6.108 (lot S) — synchronisation des postes : indicateur, parcours, conflits (clair et sombre, focus visible). */
 .s108 h3 { margin-top: 1.2rem; }
@@ -7299,4 +7331,245 @@ body[data-densite=compacte] #ws-main .d100-carte h3 { font-size: .9375rem; margi
 }
 @media (max-width: 640px) {
   .g3-form { display: grid; grid-template-columns: 1fr; }
+}
+/* ==== v56111-activite.css ==== */
+/* 5.6.111 (lot C, L02) : indicateur d'activité htmx (#ax-occupe, role="status"), rattaché à la zone principale par hx-indicator.
+   Styles de la feuille unique (CSP style-src 'self') : htmx n'injecte aucun style (includeIndicatorStyles:false). */
+#ax-occupe.htmx-indicator{display:none}
+#ax-occupe.htmx-indicator.htmx-request{display:block;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:140;
+  max-width:calc(100vw - 32px);padding:6px 14px;border:1px solid #2f6fdd;border-radius:999px;background:var(--ws-surface,#fff);
+  color:var(--ws-ink,#172033);box-shadow:0 6px 20px #0002;font-size:13px;line-height:1.4;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;pointer-events:none;opacity:1}
+:root[data-theme="dark"] #ax-occupe.htmx-indicator.htmx-request{background:#202225;color:#eee;border-color:#6b8fd6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #ax-occupe.htmx-indicator.htmx-request{background:#202225;color:#eee;border-color:#6b8fd6}}
+@media (forced-colors:active){#ax-occupe.htmx-indicator.htmx-request{border:1px solid CanvasText}}
+/* ==== v56111-portail.css ==== */
+/* AxiorHub 5.6.111 (lot P) — « Envois sur le portail » (onglet Juridiction du dossier) : préparation, code de confirmation, récapitulatif à
+   recopier, pièces dans l'ordre, accusé de dépôt ; capacités du profil dans la carte « Relever mes messages procéduraux ». Couleurs par les
+   variables communes (clair et sombre) ; focus visible ; aucun défilement horizontal à 375 px (largeurs fluides, mots longs coupés). */
+.p111 { overflow-wrap: anywhere; }
+.p111 form label { display: block; margin: 6px 0; }
+.p111 textarea, .p111 input:not([type="checkbox"]):not([type="hidden"]):not([type="file"]), .p111 select {
+  width: 100%; max-width: 44rem; box-sizing: border-box; }
+.p111 .p111-ligne { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.p111 .p111-ligne label { flex: 1 1 14rem; min-width: 0; }
+.p111-avert { margin: 4px 0 10px; color: var(--ax-muted, #57606a); }
+.p111-limites { margin: 6px 0; color: var(--ax-muted, #57606a); }
+.p111-pieces { border: 1px solid var(--ax-border, #d0d7de); border-radius: 6px; padding: 6px 10px; margin: 8px 0; max-width: 44rem; }
+.p111-pieces ul { list-style: none; padding: 0; margin: 0; max-height: 260px; overflow: auto; }
+.p111-pieces li { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.p111-pieces li span { min-width: 0; }
+.p111 .p111-pieces .p111-rang { display: inline-flex; align-items: center; gap: 4px; margin: 0; flex: 0 0 auto; white-space: nowrap; }
+.p111 .p111-pieces .p111-rang input[inputmode] { width: 3.5rem; max-width: 3.5rem; flex: 0 0 auto; }
+.p111-envois { list-style: none; padding: 0; margin: 10px 0 0; }
+.p111-envoi { border-top: 1px solid var(--ax-border, #d0d7de); padding: 8px 0; }
+.p111-envoi summary { cursor: pointer; }
+.p111-recap { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0; }
+.p111-recap dt { color: var(--ax-muted, #57606a); }
+.p111-recap dd { margin: 0; min-width: 0; }
+.p111-liste { margin: 4px 0 8px; padding-left: 22px; }
+.p111-actions { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; margin-top: 8px; }
+.p111-actions form { margin: 0; }
+.p111-code-zone { border: 2px solid var(--ax-focus, #0969da); border-radius: 6px; padding: 8px 12px; margin: 10px 0; max-width: 44rem;
+  background: var(--ax-surface, transparent); }
+.p111-code-zone .p111-code { font-size: 1.6rem; letter-spacing: .3em; font-variant-numeric: tabular-nums; font-weight: 600; }
+.p111 summary:focus-visible, .p111 button:focus-visible, .p111 input:focus-visible, .p111 textarea:focus-visible, .p111 select:focus-visible,
+.p111 a:focus-visible, .g4-capacites + details summary:focus-visible { outline: 2px solid var(--ax-focus, #0969da); outline-offset: 2px; }
+.g4-capacites { padding-left: 18px; margin: 6px 0; color: var(--ax-text, #1b1f24); }
+.g4-capacites li { margin: 2px 0; }
+@media (max-width: 600px) {
+  .p111-recap { grid-template-columns: 1fr; }
+  .p111-recap dd { margin-bottom: 4px; }
+}
+/* ==== v56111-ergonomie.css ==== */
+/* AxiorHub 5.6.111 (lot U) — écarts d'ergonomie MESURÉS (rapport MESURES-56111.md) et carte « Précontrôle du poste ».
+   Aucune refonte : densité de bureau gardée ; chaque règle corrige un écart relevé par scripts/parcours_p111u.py. */
+
+/* ---- B6 : précontrôle du poste (Paramètres › Voix) */
+.u111-pc-liste{list-style:none;margin:.5rem 0;padding:0;display:grid;gap:.4rem}
+.u111-pc{border:1px solid var(--ax-line,#d0d7e2);border-left-width:4px;border-radius:6px;padding:.45rem .7rem;background:var(--ax-card,#fff)}
+.u111-pc-nom{font-weight:600}
+.u111-pc-etat{display:inline-block;margin-left:.4rem;padding:0 .45rem;border-radius:10px;font-size:.85em;background:var(--ax-soft,#eef2f7);color:var(--ax-ink,#1d2430)}
+.u111-pc-message{margin:.2rem 0 0}
+.u111-pc-marche{margin:.3rem 0 0 1.2rem;padding:0}
+.u111-pc-marche li{margin:.1rem 0}
+.u111-pc-ok{border-left-color:#1f7a3f}
+.u111-pc-manque{border-left-color:#b3261e}
+.u111-pc-a_verifier,.u111-pc-navigateur{border-left-color:#8a6100}
+.u111-pc-non_concerne{border-left-color:var(--ax-line,#d0d7e2)}
+:root[data-theme=dark] .u111-pc-ok{border-left-color:#5cc47f}
+:root[data-theme=dark] .u111-pc-manque{border-left-color:#ff8a80}
+:root[data-theme=dark] .u111-pc-a_verifier,:root[data-theme=dark] .u111-pc-navigateur{border-left-color:#f0c060}
+
+/* ---- U01 : Corporate › Bibliothèque à 375 px. La grille des modèles imposait 280 px par carte : sous 300 px de zone utile, la carte
+   débordait de la page. Même grille, plafonnée à la largeur disponible (aucune carte ni lien retiré). */
+.b5639-list{grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr))}
+.b5639-vars{grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr))}
+.b5639-item,.b5639-item strong,.b5639-item small{overflow-wrap:anywhere}
+
+/* ---- U01 : Dossiers, dernier résultat de l'IA sous la date de dernière activité (registre existant resultats56100) */
+.u111-ia{display:block;font-size:.85em;color:var(--ax-mute,#5b6676);overflow-wrap:anywhere}
+
+/* ---- U01 : « Envoyer… » raccordé dans le lecteur d'À relire (envoi existant, second clic) */
+.u111-envoi{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
+.u111-envoi[hidden],.u111-envoi [hidden]{display:none!important}
+.u111-envoi-note{font-size:.85em;color:var(--ax-mute,#5b6676)}
+.u111-envoi-statut:empty{display:none}
+
+/* ---- U01 : Corporate › Bibliothèque › « Couverture des modèles » à 375 px. Huit colonnes de 7,5 rem : cases de 105 à 134 px de large sur
+   154 px de haut, tableau de 1 316 px qui défilait dans sa zone. En petite largeur, chaque type d'acte devient une carte et chaque case
+   porte le nom de sa colonne (texte posé par le serveur, masqué aux lecteurs d'écran qui ont l'en-tête). Même contenu, mêmes liens. */
+.u111-col{display:none}
+@media (max-width:700px){
+  .b111-table,.b111-table tbody,.b111-table tr,.b111-table th,.b111-table td{display:block;inline-size:auto;min-inline-size:0!important}
+  .b111-table thead{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .b111-table tbody tr{border:1px solid var(--cds-border-subtle,var(--ax-line,#c6c6c6));border-radius:6px;margin-block-end:.6rem;padding:.2rem}
+  .b111-table tbody th,.b111-table tbody td{border:0;border-block-end:1px solid var(--cds-border-subtle,var(--ax-line,#e0e0e0))}
+  .b111-table tbody td:last-child{border-block-end:0}
+  .b111-table .u111-col{display:block;font-size:.8125rem;font-weight:600;color:var(--cds-text-secondary,var(--ax-mute,#525252));margin-block-end:.15rem}
+  .b111-table .b111-case li,.b111-table .b111-case a{overflow-wrap:anywhere}
+}
+
+/* ---- U02 : contrastes mesurés sur les couleurs rendues (AA 4,5:1) */
+:root:not([data-theme=dark]) .s5636-fold{color:#15803d}                                            /* pastille de la barre d'activité : 3,30 → 5,02 sur blanc */
+.c5636-big:hover small,.c5636-big.on small{color:#fff}                  /* sous-titre de l'entrée active : 4,05 → 4,66 */
+:root[data-theme=dark] .ag97-vue[aria-current="page"]{color:#0b1220}   /* vue active de l'agenda, sombre : 2,35 → 7,95 */
+:root[data-theme=dark] .r52-missing{color:#fca5a5}                      /* « Manque : … » des routines, sombre : 2,53 → 8,63 */
+:root[data-theme=dark] .d51-state-reperage{color:#fdba74}               /* état de lecture du dossier, sombre : 2,55 → 10,73 */
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .ag97-vue[aria-current="page"]{color:#0b1220}
+  :root:not([data-theme=light]) .r52-missing{color:#fca5a5}:root:not([data-theme=light]) .d51-state-reperage{color:#fdba74}}
+
+/* ---- U02 : cibles de 24 px au moins (WCAG 2.2 AA 2.5.8). La zone cliquable grandit par un rembourrage vertical ; la mise en page ne bouge
+   pas (marge négative pour les blocs ; un rembourrage vertical d'un élément en ligne ne change pas la hauteur de ligne). */
+.a89-titre,.m97-ligne,.d97-ouvrir{padding-block:2px;margin-block:-2px}
+.p5660-toc a{padding-block:1px;margin-block:-1px}
+.d97-menu-corps a{padding-block:3px;margin-block:-3px}
+.m97-filtre a,.p100-titre a,.q51-matter a,.d100-reprise dd a,.p5660-body a:not([class]){padding-block:4px}
+:where(#ws-main) details>summary{padding-block:2px;margin-block:-2px}
+
+/* ---- U01 : Aujourd'hui et Dossiers, une date PROPOSÉE (tirée des pièces, à vérifier) se distingue d'une échéance confirmée aussi par la
+   forme, pas seulement par le texte : soulignement en tirets et italique. Les échéances confirmées gardent leur style. */
+.f100-a-verifier a,a.d97-a-verifier,.d97-a-verifier{font-style:italic;text-decoration-line:underline;text-decoration-style:dashed;text-underline-offset:2px}
+/* ==== v56111-conversation.css ==== */
+/* AxiorHub 5.6.111 (lot F) — onglet « Conversation IA » du dossier : grille du dossier technique (guides/CONVERSATION-IA-DOSSIER.md).
+   Hauteur disponible calculée par le script depuis la position réelle du composant (ResizeObserver / visualViewport) : seuls l'historique
+   et l'aperçu défilent ; saisie, Envoyer, Pause/Arrêter et commandes du lecteur restent dans la fenêtre à 1920 × 1080 et à 125 %.
+   Couleurs par les variables communes (thèmes clair et sombre) ; focus visible ; sous 960 px, bascule Discussion / Aperçu (attribut hidden). */
+.c111-page { min-height: 0; }
+.conversation-dossier { display: grid; grid-template-columns: minmax(340px, .9fr) minmax(420px, 1.1fr); gap: 16px;
+  block-size: var(--conversation-hauteur-disponible, 640px); min-block-size: 0; }
+.conversation-dossier__chat { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-inline-size: 0; min-block-size: 0; }
+.conversation-dossier__historique, .conversation-dossier__apercu { overflow: auto; min-block-size: 0; }
+.conversation-dossier__composeur { background: var(--ax-card, #fff); }
+.c111 [hidden] { display: none !important; }
+
+.c111-chat, .c111-droite { border: 1px solid var(--ax-border, var(--ws-border, #d7e0ee)); border-radius: 10px; background: var(--ax-card, #fff);
+  color: var(--ax-text, var(--ax-ink, #1b2430)); overflow: hidden; }
+.c111-droite { display: grid; grid-template-rows: auto minmax(0, 1fr); min-inline-size: 0; min-block-size: 0; }
+.c111-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; padding: 8px 10px;
+  border-bottom: 1px solid var(--ax-border, #d7e0ee); }
+.c111-titre { min-width: 0; }
+.c111-titre h2 { margin: 0; font-size: 1.05rem; }
+.c111-titre p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 42ch; }
+.c111-onglets, .c111-modes > div, .c111-bascule { display: flex; flex-wrap: wrap; gap: 4px; }
+.c111-onglets .ax-btn[aria-pressed="true"], .c111-modes .ax-btn[aria-pressed="true"], .c111-bascule .ax-btn[aria-pressed="true"] {
+  background: var(--ax-soft, #eef3fb); border-color: var(--ax-accent, #1f4e9c); font-weight: 600; }
+.c111-centre { padding: 8px 10px; }
+.c111-messages { display: grid; gap: 10px; }
+.c111-accueil { margin: 6px 0; }
+.c111-msg { border: 1px solid var(--ax-border, #d7e0ee); border-radius: 8px; padding: 8px 10px; background: var(--ax-card, #fff); max-width: 100%; }
+.c111-msg-vous { background: var(--ax-soft, #eef3fb); justify-self: end; max-width: 92%; }
+.c111-msg-masque { font-style: italic; }
+.c111-msg-tete { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin-bottom: 4px; font-size: .9em; }
+.c111-texte { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.c111-long .c111-texte { max-height: 22rem; overflow: hidden; -webkit-mask-image: linear-gradient(#000 80%, transparent); mask-image: linear-gradient(#000 80%, transparent); }
+.c111-long.c111-long-ouvert .c111-texte { max-height: none; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.c111-sources-bloc { margin-top: 6px; font-size: .9em; }
+.c111-sources { display: inline; margin: 0; padding: 0; list-style: none; }
+.c111-sources li { display: inline; }
+.c111-sources li + li::before { content: " · "; color: var(--ax-mute, #64707f); }
+.c111-export { margin: 0; font-size: .9em; }
+.c111-fils { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.c111-fil-bouton { display: grid; width: 100%; text-align: left; gap: 2px; padding: 6px 8px; border: 1px solid var(--ax-border, #d7e0ee); border-radius: 6px;
+  background: var(--ax-card, #fff); color: inherit; font: inherit; cursor: pointer; }
+.c111-fil-bouton.c111-choisi { border-color: var(--ax-accent, #1f4e9c); background: var(--ax-soft, #eef3fb); }
+.c111-fil-titre { font-weight: 600; overflow-wrap: anywhere; }
+.c111-fil-meta, .c111-fil-extrait { font-size: .875em; }
+.c111-fil-extrait { color: var(--ax-mute, #64707f); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c111-missions { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.c111-mission { border: 1px solid var(--ax-border, #d7e0ee); border-radius: 6px; padding: 6px 8px; }
+.c111-mission-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.c111-badge { display: inline-block; padding: 0 8px; border-radius: 999px; border: 1px solid var(--ax-border, #d7e0ee); font-size: .85em; font-weight: 400; }
+.c111-badge-alerte { border-color: var(--ax-warn, #8a5a00); }
+.c111-recherche, .c111-plan, .c111-nav-lancer { display: grid; gap: 4px; margin: 8px 0; }
+.c111-recherche textarea, .c111-plan select, .c111-nav-lancer textarea { width: 100%; box-sizing: border-box; }
+.c111-recherche button, .c111-plan button, .c111-nav-lancer button { justify-self: start; }
+.c111-alerte { padding: 4px 8px; border-left: 4px solid var(--ax-warn, #8a5a00); background: var(--ax-surface-2, var(--ax-soft, #f3f4f6)); margin: 4px 0; }
+
+.c111-bas { border-top: 1px solid var(--ax-border, #d7e0ee); padding: 6px 10px 8px; display: grid; gap: 4px; }
+.c111-contexte-ligne { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: .9em; }
+.c111-lien { border: 0; background: none; padding: 0 2px; color: var(--ax-accent, #1f4e9c); text-decoration: underline; cursor: pointer; font: inherit; }
+.c111-choix { max-height: 30vh; overflow: auto; border: 1px solid var(--ax-border, #d7e0ee); border-radius: 6px; padding: 6px 8px; font-size: .9em; }
+.c111-choix fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 2px; }
+.c111-choix legend { font-weight: 600; padding: 0; }
+.c111-fichiers { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 2px; }
+.c111-fichiers li { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
+.c111-fichiers label { overflow-wrap: anywhere; }
+.c111-ouvrir { font-size: .875em; margin-inline-start: 6px; }
+.c111-suivi { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.c111-suivi p { margin: 0; flex: 1 1 14rem; font-size: .9em; }
+.c111-composeur { display: grid; gap: 4px; margin: 0; }
+.c111-composeur textarea { width: 100%; box-sizing: border-box; min-height: 3.2em; max-height: 200px; resize: vertical; font: inherit; }
+.c111-outils { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.c111-micro { inline-size: 36px; block-size: 36px; display: inline-grid; place-items: center; border: 1px solid var(--ax-border, #d7e0ee); border-radius: 50%;
+  background: var(--ax-card, #fff); color: inherit; cursor: pointer; }
+.c111-micro svg { inline-size: 18px; block-size: 18px; }
+.c111-micro.is-rec { border-color: var(--ax-bad, #b3261e); color: var(--ax-bad, #b3261e); }
+.c111-micro.is-busy { opacity: .7; }
+.c111-micro:disabled { cursor: not-allowed; opacity: .5; }
+.c111-statut-micro { flex: 1 1 8rem; font-size: .85em; min-width: 0; }
+.c111-statut-micro.is-bad { color: var(--ax-bad, #b3261e); }
+.c111-envoyer { margin-inline-start: auto; }
+.c111-joindre { position: relative; cursor: pointer; }
+.c111-pieces { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: .875em; }
+.c111-piece-echec { color: var(--ax-bad, #b3261e); }
+.c111-garder { font-size: .875em; }
+.c111-recu { margin: 0; font-size: .875em; min-height: 1.2em; }
+
+.c111-modes { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--ax-border, #d7e0ee); }
+.c111-volet { min-block-size: 0; overflow: auto; display: flex; flex-direction: column; }
+.c111-vide { margin: 12px; }
+.c111 .d79-preview { position: static; inset: auto; top: auto; height: auto; flex: 1 1 auto; min-height: 0; z-index: auto; box-shadow: none; border: 0; border-radius: 0; }
+.c111 .d79-preview-body { min-height: 0; }
+.c111 .d79-preview-head { flex-wrap: wrap; }
+.c111 .d79-preview-actions { flex-wrap: wrap; flex-shrink: 1; min-width: 0; }
+.c111-nav { padding: 8px 10px; display: block; }
+.c111-nav-info { border-left: 4px solid var(--ax-accent, #1f4e9c); padding: 4px 10px; background: var(--ax-soft, #eef3fb); margin-bottom: 8px; }
+.c111-nav-info p { margin: 4px 0; }
+.c111-nav-etat p { margin: 4px 0; overflow-wrap: anywhere; }
+.c111-nav-boutons { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.c111-nav-attente { border: 1px solid var(--ax-warn, #8a5a00); border-radius: 6px; padding: 6px 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.c111-nav-attente p { flex-basis: 100%; }
+.c111-nav-pas { margin: 4px 0; padding-left: 1.4em; font-size: .875em; }
+
+/* mode agrandi : le volet de droite occupe toute la largeur de l'onglet */
+.c111[data-c111-agrandi="1"] { grid-template-columns: minmax(0, 1fr); }
+.c111[data-c111-agrandi="1"] .c111-chat { display: none; }
+.c111-bascule { display: none; }
+
+.c111 a:focus-visible, .c111 button:focus-visible, .c111 input:focus-visible, .c111 textarea:focus-visible, .c111 select:focus-visible,
+.c111 summary:focus-visible, .c111-centre:focus-visible, .c111 .d79-preview-body:focus-visible {
+  outline: 3px solid var(--ax-accent, #1f4e9c); outline-offset: 2px; }
+
+@media (max-width: 960px) {
+  .conversation-dossier { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  /* Le mode Discussion/Aperçu masque le panneau inactif avec hidden (script). */
+  .c111-bascule { display: flex; }
+  .c111[data-c111-agrandi="1"] .c111-chat { display: grid; }
+  .c111-titre p { max-width: 100%; }
+  .c111-msg-vous { max-width: 100%; }
+}
+@media (max-width: 480px) {
+  .c111-tete, .c111-centre, .c111-bas { padding-left: 6px; padding-right: 6px; }
+  .c111-onglets .ax-btn, .c111-modes .ax-btn { padding-left: 8px; padding-right: 8px; }
 }

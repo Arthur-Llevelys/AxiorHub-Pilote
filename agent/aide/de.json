@@ -40,7 +40,8 @@
 "Öffnen Sie „Akten“: Die drei zuletzt von der KI bearbeiteten Akten stehen oben, mit Verfahren und nächstem Termin.",
 "Geben Sie einen Namen oder ein Aktenzeichen ein und klicken Sie auf „Suchen“; klicken Sie auf eine Spaltenüberschrift, um zu sortieren.",
 "Für eine fehlende Akte klappen Sie „Kanzleibestand“ auf, geben das Verzeichnis an und klicken auf „Akte prüfen und erfassen“.",
-"Öffnen Sie die Akte: Übersicht, Dokumente (Vorschau rechts), Sachverhalt und Verfahren, Korrespondenz, Arbeit."
+"Öffnen Sie die Akte: Übersicht, Dokumente (Vorschau rechts), Sachverhalt und Verfahren, Korrespondenz, Arbeit.",
+"Reiter „KI-Gespräch“: Frage eintippen oder diktieren, „Die gesamte Akte“ oder einzelne Dateien wählen, dann „Senden“; Antwort und Quellen öffnen sich rechts, „Anhalten“ unterbricht die Anfrage."
 ],
 "result": "Die Akte erscheint im Bestand mit ihrem Arbeitsblatt.",
 "verify": "Das Aktenblatt zeigt den Ordnernamen und das Datum des letzten Lesens.",
@@ -345,7 +346,8 @@
 "Öffnen Sie „Anlagen und Anlagenverzeichnisse“.",
 "Füllen Sie Profil und Stempel aus und klicken Sie auf „Profil speichern“.",
 "Wählen Sie unter „Anlagenverzeichnis vorbereiten“ die Akte und dann „PDF-Dateien der Akte analysieren“.",
-"Prüfen Sie Titel und Nummern, sehen Sie alle Seiten in der Vorschau an und bestätigen Sie."
+"Prüfen Sie Titel und Nummern, sehen Sie alle Seiten in der Vorschau an und bestätigen Sie.",
+"Für eine Einreichung über e-Barreau oder Portalis: Registerkarte Gericht der Akte, „Einreichung über das Portal vorbereiten“, Code übertragen, selbst im Portal einreichen, dann „Eingangsbestätigung speichern“."
 ],
 "result": "Eine neue Fassung des Verzeichnisses und gestempelte Anlagen. Das Erstellen der Datei ist keine Übermittlung an eine Partei.",
 "verify": "Öffnen Sie das Verzeichnis: Jede Anlage hat Nummer und Titel.",

@@ -246,6 +246,11 @@ def _voix(desk, auth, prefix, env, cap):
     if not _illustre5696(desk.c, actor(env)[0]):   # 5.6.96 (V06) : aperçu des portraits avant le choix (déjà déclaré si un portrait est choisi)
         cap.head += _avatar5696(prefix, desk.c, actor(env)[0], toujours=True)
     body = _section(_voix5694(desk, prefix, *actor(env), env))
+    try:   # 5.6.111 (lot U, B6) : « Précontrôle du poste », juste avant la dictée : ce qui manque (moteur, Visual C++, libgomp1, micro, lecteur)
+        from .precontrole56111 import section_html as _precontrole111
+        body += _section(_precontrole111(desk, prefix, actor(env)[1]))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable sans le précontrôle
+        pass
     try:   # 5.6.110 (lot D) : « Dictée sur ce poste », au-dessus des moteurs de voix (moteur whisper.cpp, modèle, essai)
         from .dictee56110 import section_html as _dictee110
         cap.head += '<script defer src="' + e(prefix, quote=True) + '/static/v56110-dictee-carte.js"></script>'

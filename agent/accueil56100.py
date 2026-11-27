@@ -365,7 +365,9 @@ def lecteur_script(prefix):
     from pathlib import Path
     if not (Path(__file__).parent / 'static' / 'v56100-lecteur.js').is_file():
         return ''
-    return '<script defer src="%s"></script>' % e(prefix + '/static/v56100-lecteur.js', quote=True)
+    # 5.6.111 (lot U, U01) : même « Envoyer… » raccordé (envoi existant, second clic) dans la fenêtre du lecteur d'Aujourd'hui
+    return '<script defer src="%s"></script><script defer src="%s"></script>' % (
+        e(prefix + '/static/v56100-lecteur.js', quote=True), e(prefix + '/static/v56111-envoi-relecture.js', quote=True))
 
 
 def identifiant_lecteur(desk, nature, cle):

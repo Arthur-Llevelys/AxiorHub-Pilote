@@ -1,0 +1,68 @@
+/* AxiorHub 5.6.111 (lot U) — écarts d'ergonomie MESURÉS (rapport MESURES-56111.md) et carte « Précontrôle du poste ».
+   Aucune refonte : densité de bureau gardée ; chaque règle corrige un écart relevé par scripts/parcours_p111u.py. */
+
+/* ---- B6 : précontrôle du poste (Paramètres › Voix) */
+.u111-pc-liste{list-style:none;margin:.5rem 0;padding:0;display:grid;gap:.4rem}
+.u111-pc{border:1px solid var(--ax-line,#d0d7e2);border-left-width:4px;border-radius:6px;padding:.45rem .7rem;background:var(--ax-card,#fff)}
+.u111-pc-nom{font-weight:600}
+.u111-pc-etat{display:inline-block;margin-left:.4rem;padding:0 .45rem;border-radius:10px;font-size:.85em;background:var(--ax-soft,#eef2f7);color:var(--ax-ink,#1d2430)}
+.u111-pc-message{margin:.2rem 0 0}
+.u111-pc-marche{margin:.3rem 0 0 1.2rem;padding:0}
+.u111-pc-marche li{margin:.1rem 0}
+.u111-pc-ok{border-left-color:#1f7a3f}
+.u111-pc-manque{border-left-color:#b3261e}
+.u111-pc-a_verifier,.u111-pc-navigateur{border-left-color:#8a6100}
+.u111-pc-non_concerne{border-left-color:var(--ax-line,#d0d7e2)}
+:root[data-theme=dark] .u111-pc-ok{border-left-color:#5cc47f}
+:root[data-theme=dark] .u111-pc-manque{border-left-color:#ff8a80}
+:root[data-theme=dark] .u111-pc-a_verifier,:root[data-theme=dark] .u111-pc-navigateur{border-left-color:#f0c060}
+
+/* ---- U01 : Corporate › Bibliothèque à 375 px. La grille des modèles imposait 280 px par carte : sous 300 px de zone utile, la carte
+   débordait de la page. Même grille, plafonnée à la largeur disponible (aucune carte ni lien retiré). */
+.b5639-list{grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr))}
+.b5639-vars{grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr))}
+.b5639-item,.b5639-item strong,.b5639-item small{overflow-wrap:anywhere}
+
+/* ---- U01 : Dossiers, dernier résultat de l'IA sous la date de dernière activité (registre existant resultats56100) */
+.u111-ia{display:block;font-size:.85em;color:var(--ax-mute,#5b6676);overflow-wrap:anywhere}
+
+/* ---- U01 : « Envoyer… » raccordé dans le lecteur d'À relire (envoi existant, second clic) */
+.u111-envoi{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
+.u111-envoi[hidden],.u111-envoi [hidden]{display:none!important}
+.u111-envoi-note{font-size:.85em;color:var(--ax-mute,#5b6676)}
+.u111-envoi-statut:empty{display:none}
+
+/* ---- U01 : Corporate › Bibliothèque › « Couverture des modèles » à 375 px. Huit colonnes de 7,5 rem : cases de 105 à 134 px de large sur
+   154 px de haut, tableau de 1 316 px qui défilait dans sa zone. En petite largeur, chaque type d'acte devient une carte et chaque case
+   porte le nom de sa colonne (texte posé par le serveur, masqué aux lecteurs d'écran qui ont l'en-tête). Même contenu, mêmes liens. */
+.u111-col{display:none}
+@media (max-width:700px){
+  .b111-table,.b111-table tbody,.b111-table tr,.b111-table th,.b111-table td{display:block;inline-size:auto;min-inline-size:0!important}
+  .b111-table thead{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .b111-table tbody tr{border:1px solid var(--cds-border-subtle,var(--ax-line,#c6c6c6));border-radius:6px;margin-block-end:.6rem;padding:.2rem}
+  .b111-table tbody th,.b111-table tbody td{border:0;border-block-end:1px solid var(--cds-border-subtle,var(--ax-line,#e0e0e0))}
+  .b111-table tbody td:last-child{border-block-end:0}
+  .b111-table .u111-col{display:block;font-size:.8125rem;font-weight:600;color:var(--cds-text-secondary,var(--ax-mute,#525252));margin-block-end:.15rem}
+  .b111-table .b111-case li,.b111-table .b111-case a{overflow-wrap:anywhere}
+}
+
+/* ---- U02 : contrastes mesurés sur les couleurs rendues (AA 4,5:1) */
+:root:not([data-theme=dark]) .s5636-fold{color:#15803d}                                            /* pastille de la barre d'activité : 3,30 → 5,02 sur blanc */
+.c5636-big:hover small,.c5636-big.on small{color:#fff}                  /* sous-titre de l'entrée active : 4,05 → 4,66 */
+:root[data-theme=dark] .ag97-vue[aria-current="page"]{color:#0b1220}   /* vue active de l'agenda, sombre : 2,35 → 7,95 */
+:root[data-theme=dark] .r52-missing{color:#fca5a5}                      /* « Manque : … » des routines, sombre : 2,53 → 8,63 */
+:root[data-theme=dark] .d51-state-reperage{color:#fdba74}               /* état de lecture du dossier, sombre : 2,55 → 10,73 */
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .ag97-vue[aria-current="page"]{color:#0b1220}
+  :root:not([data-theme=light]) .r52-missing{color:#fca5a5}:root:not([data-theme=light]) .d51-state-reperage{color:#fdba74}}
+
+/* ---- U02 : cibles de 24 px au moins (WCAG 2.2 AA 2.5.8). La zone cliquable grandit par un rembourrage vertical ; la mise en page ne bouge
+   pas (marge négative pour les blocs ; un rembourrage vertical d'un élément en ligne ne change pas la hauteur de ligne). */
+.a89-titre,.m97-ligne,.d97-ouvrir{padding-block:2px;margin-block:-2px}
+.p5660-toc a{padding-block:1px;margin-block:-1px}
+.d97-menu-corps a{padding-block:3px;margin-block:-3px}
+.m97-filtre a,.p100-titre a,.q51-matter a,.d100-reprise dd a,.p5660-body a:not([class]){padding-block:4px}
+:where(#ws-main) details>summary{padding-block:2px;margin-block:-2px}
+
+/* ---- U01 : Aujourd'hui et Dossiers, une date PROPOSÉE (tirée des pièces, à vérifier) se distingue d'une échéance confirmée aussi par la
+   forme, pas seulement par le texte : soulignement en tirets et italique. Les échéances confirmées gardent leur style. */
+.f100-a-verifier a,a.d97-a-verifier,.d97-a-verifier{font-style:italic;text-decoration-line:underline;text-decoration-style:dashed;text-underline-offset:2px}

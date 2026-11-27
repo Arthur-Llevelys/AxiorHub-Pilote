@@ -10,7 +10,7 @@ Les emplacements peuvent être redirigés par variables d'environnement (``AXIOR
 """
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import shutil
 import subprocess
 import sys
@@ -236,6 +236,28 @@ def _remove(path):
         pass
 
 
+INTERDITS_CMD = ('"', '\r', '\n', '\x00')
+
+
+def commande_suppression_differee(targets):
+    """5.6.111 (lot C, S7) : commande ``cmd /c`` de la suppression différée, sans aucun chemin dans son texte. Les dossiers viennent de variables
+    d'environnement (``AXIORHUB_WIN_RACINE``, ``LOCALAPPDATA``…) : un ``%``, un ``&`` ou un ``^`` dans un chemin aurait été interprété par
+    ``cmd``. Chaque chemin est transmis dans une variable propre au processus enfant (``%AXH_SUPPR_n%`` : développée une seule fois, jamais
+    relue comme commande, entre guillemets) ; un guillemet, un retour à la ligne ou un caractère nul, impossibles dans un chemin Windows
+    valide, font refuser la commande. ``/d`` écarte les commandes AutoRun, ``/v:off`` l'expansion différée (``!``)."""
+    env = dict(os.environ)
+    parts = ['ping -n 4 127.0.0.1 >nul']
+    for i, target in enumerate(targets):
+        text = str(target)
+        if not text or any(c in text for c in INTERDITS_CMD) or not (PureWindowsPath(text).is_absolute() or Path(text).is_absolute()):
+            raise ValueError('chemin_de_suppression_refuse')
+        env['AXH_SUPPR_%d' % i] = text
+        parts.append('rmdir /s /q "%%AXH_SUPPR_%d%%"' % i)
+    # ligne de commande passée telle quelle à CreateProcess : ``/s /c "…"`` retire seulement les guillemets extérieurs (une liste d'arguments
+    # ferait échapper les guillemets intérieurs en \" par subprocess, que cmd ne comprend pas : l'ancienne suppression différée échouait)
+    return 'cmd /d /v:off /s /c "' + ' & '.join(parts) + '"', env
+
+
 def uninstall(root=None, purge_data=False, shortcuts=True, registry=True, detach=True):
     """Désinstalle : arrêt, raccourcis, entrée de désinstallation, dossier du programme (après la fin de ce processus si besoin)."""
     root = Path(root or install_root())
@@ -252,8 +274,9 @@ def uninstall(root=None, purge_data=False, shortcuts=True, registry=True, detach
     running_inside = getattr(sys, 'frozen', False) and root in Path(sys.executable).resolve().parents
     if detach and running_inside:
         # l'exécutable en cours ne peut pas effacer son propre dossier : suppression différée de quelques secondes
-        command = 'ping -n 4 127.0.0.1 >nul & ' + ' & '.join('rmdir /s /q "%s"' % t for t in targets)
-        subprocess.Popen(['cmd', '/c', command], creationflags=NO_WINDOW | getattr(subprocess, 'DETACHED_PROCESS', 0), close_fds=True)
+        command, env = commande_suppression_differee(targets)
+        subprocess.Popen(command, env=env,
+                         creationflags=NO_WINDOW | getattr(subprocess, 'DETACHED_PROCESS', 0), close_fds=True)
     else:
         for t in targets:
             shutil.rmtree(t, ignore_errors=True)

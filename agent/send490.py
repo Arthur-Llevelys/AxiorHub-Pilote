@@ -63,6 +63,46 @@ def ensure_schema(desk):
         if nom not in colonnes:
             desk.db.execute('ALTER TABLE send_log490 ADD COLUMN %s %s' % (nom, decl))
     desk.db.commit()
+    migrer_jetons(desk)
+
+
+# 5.6.111 (lot C, C07) : le jeton d'aperçu n'est plus conservé en clair. La colonne ``token`` garde son nom (clé primaire, lecture par les
+# versions précédentes impossible donc sans risque) mais contient l'empreinte « h1: » + SHA-256 du jeton ; le navigateur seul détient le jeton.
+EMPREINTE = 'h1:'
+
+
+def empreinte_jeton(token):
+    return EMPREINTE + hashlib.sha256(str(token or '').encode()).hexdigest()
+
+
+def migrer_jetons(desk):
+    """Migration idempotente des lignes de l'ancienne forme (jeton en clair) : empreinte calculée, clair effacé, état ``used`` et date
+    conservés. Un aperçu encore valable reste confirmable avec le même jeton (son empreinte est retrouvée) ; un jeton déjà utilisé reste
+    utilisé : aucune reprise ne peut renvoyer un message."""
+    if not desk.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='send_pending490'").fetchone():
+        return 0   # au démarrage, avant le premier aperçu : rien à migrer
+    anciennes = desk.db.execute("SELECT token FROM send_pending490 WHERE substr(token,1,3)<>?", (EMPREINTE,)).fetchall()
+    if not anciennes:
+        return 0
+    if desk.db.in_transaction:
+        desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        n = 0
+        for (clair,) in desk.db.execute("SELECT token FROM send_pending490 WHERE substr(token,1,3)<>?", (EMPREINTE,)).fetchall():
+            h = empreinte_jeton(clair)
+            if desk.db.execute('SELECT 1 FROM send_pending490 WHERE token=?', (h,)).fetchone():
+                desk.db.execute('UPDATE send_pending490 SET used=1 WHERE token=?', (h,))   # doublon improbable : jamais rouvert
+                desk.db.execute('DELETE FROM send_pending490 WHERE token=?', (clair,))
+            else:
+                desk.db.execute('UPDATE send_pending490 SET token=? WHERE token=?', (h, clair))
+            n += 1
+        desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    return n
 
 
 def now_iso():
@@ -266,7 +306,7 @@ def prepare(desk, uid, validity):
     token = secrets.token_hex(24)
     desk.db.execute('DELETE FROM send_pending490 WHERE created<?', (time.time() - 3600,))
     desk.db.execute('INSERT INTO send_pending490(token,fingerprint,uid,validity,matter,created) VALUES(?,?,?,?,?,?)',
-                    (token, fp, str(mail.uid), mail.uidvalidity, matter, time.time()))
+                    (empreinte_jeton(token), fp, str(mail.uid), mail.uidvalidity, matter, time.time()))   # 5.6.111 (C07) : empreinte seule
     desk.db.commit()
     desk.audit('envoi_490_apercu', {'matter': matter, 'recipients': len(recipients)})
     return {'token': token, 'expires_in': TOKEN_TTL, 'min_delay': MIN_DELAY,
@@ -396,14 +436,15 @@ def confirm(desk, token, now=None):
 def _claim(desk, token, now):
     """5.6.106 (lot E) : consomme le jeton de l'aperçu (usage unique) et relit le brouillon ; il doit être identique à l'aperçu."""
     ensure_schema(desk)
-    row = desk.db.execute('SELECT * FROM send_pending490 WHERE token=?', (str(token or ''),)).fetchone()
+    h = empreinte_jeton(token)   # 5.6.111 (C07) : recherche par empreinte ; le jeton n'est jamais écrit en base
+    row = desk.db.execute('SELECT * FROM send_pending490 WHERE token=?', (h,)).fetchone() if token else None
     if not row or row['used']:
         raise Stop('apercu_envoi_absent')
     if now - row['created'] > TOKEN_TTL:
         raise Stop('apercu_envoi_expire')
     if now - row['created'] < MIN_DELAY:
         raise Stop('confirmation_trop_rapide')
-    claimed = desk.db.execute('UPDATE send_pending490 SET used=1 WHERE token=? AND used=0', (token,)).rowcount
+    claimed = desk.db.execute('UPDATE send_pending490 SET used=1 WHERE token=? AND used=0', (h,)).rowcount
     if claimed != 1:
         raise Stop('apercu_envoi_absent')
     desk.db.commit()
@@ -529,8 +570,15 @@ def _deliver(desk, mail, matter, recipients, fp, message_id=None, extra_headers=
 def pending_fingerprint(desk, token):
     """Empreinte annoncée par un jeton d'aperçu encore valable (lecture seule ; vide si le jeton est inconnu ou déjà utilisé)."""
     ensure_schema(desk)
-    row = desk.db.execute('SELECT fingerprint FROM send_pending490 WHERE token=? AND used=0', (str(token or ''),)).fetchone()
+    row = desk.db.execute('SELECT fingerprint FROM send_pending490 WHERE token=? AND used=0', (empreinte_jeton(token),)).fetchone() if token else None
     return str(row[0]) if row else ''
+
+
+def brouillon_du_jeton(desk, token):
+    """5.6.111 (C07) : brouillon (UID, UIDVALIDITY) visé par un jeton d'aperçu, retrouvé par son empreinte ; vide si inconnu."""
+    ensure_schema(desk)
+    row = desk.db.execute('SELECT uid, validity FROM send_pending490 WHERE token=?', (empreinte_jeton(token),)).fetchone() if token else None
+    return {'uid': str(row[0]), 'uidvalidity': str(row[1])} if row else {}
 
 
 def confirm_to_queue(desk, token, now=None):

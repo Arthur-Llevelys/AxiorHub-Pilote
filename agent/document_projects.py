@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 import zipfile
 
+from . import confirmations56111 as garde
 from .common import Stop, clean_path, digest, fold, load_matters, matter_scope_conflicts, under
 from .dav import DAV
 from .documents import extract
@@ -43,6 +44,15 @@ DOCUMENT_TYPES={
 W='http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 R='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 ET.register_namespace('w',W);ET.register_namespace('r',R)
+
+
+CHEMIN='document_projects'
+
+
+def _effet(data):
+    """5.6.111 (C03) : empreinte de l'effet confirmé (nouveaux fichiers prévus, source exacte, destination exacte)."""
+    return digest(json.dumps(['create_document_files',data['proposal_id'],data['destination_folder'],data['source']['path'],
+      data['source'].get('sha256',''),data['future_files']],ensure_ascii=False))
 
 
 def ensure_schema(desk):
@@ -406,10 +416,12 @@ def prepare(desk,args,dav=None,model=None):
         data=json.loads(existing['data']);preview=_public(data,existing['created'],existing['expires'],
           existing['status'],existing['preview_hash'],json.loads(existing['result']) if existing['result'] else {})
         if existing['status']=='pending':
-            code=f'{secrets.randbelow(1_000_000):06d}';expires=(datetime.now(timezone.utc)+timedelta(
-              minutes=int(desk.c.get('document_projects',{}).get('approval_minutes',60)))).isoformat()
+            # 5.6.111 (lot C, C03) : nouveau défi de la garde commune (l'ancien, s'il était encore en attente, est remplacé)
+            defi=garde.emettre(desk,CHEMIN,pid,existing['preview_hash'],_effet(data),
+              int(desk.c.get('document_projects',{}).get('approval_minutes',60)))
+            code,expires=defi['code'],defi['expire']
             desk.db.execute('UPDATE document_projects_v220 SET challenge_hash=?,expires=? WHERE id=?',
-              (digest(pid+'|'+code),expires,pid));desk.db.commit()
+              (garde.marque(defi['garde']),expires,pid));desk.db.commit()
             preview['expires']=expires;preview['confirmation_code']=code
             preview['confirmation_instructions']='Recopier le code et confirmer exactement le fichier source et le dossier de destination. Aucun fichier n\'est encore créé.'
         return preview
@@ -488,7 +500,6 @@ def prepare(desk,args,dav=None,model=None):
     outputs[0]=clean_path(destination+'/'+nommage.apply(desk,'document',PurePosixPath(outputs[0]).name,nommage.context_of(matter,titre=document_type.replace('_',' '))))
     auto_version=auto_versions_allowed(desk,args)
     if auto_version:outputs=_unique_outputs(client,destination,outputs)   # 5.6.57 : nouvelle version, jamais d'écrasement
-    code=f'{secrets.randbelow(1_000_000):06d}'
     data={'proposal_id':pid,'matter':matter,'document_type':document_type,
       'document_label':DOCUMENT_TYPES[document_type][0],'instruction':instruction,
       'latest_writings':latest,
@@ -542,9 +553,13 @@ def prepare(desk,args,dav=None,model=None):
     preview_hash=_sha(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode())
     created=desk.now();expires=(datetime.now(timezone.utc)+timedelta(minutes=int(
       desk.c.get('document_projects',{}).get('approval_minutes',60)))).isoformat()
+    code,challenge='',''
+    if project_status=='pending':   # 5.6.111 (lot C, C03) : défi de la garde commune (aperçu, effet, expiration UTC, cinq essais)
+        defi=garde.emettre(desk,CHEMIN,pid,preview_hash,_effet(data),int(desk.c.get('document_projects',{}).get('approval_minutes',60)))
+        code,challenge,expires=defi['code'],garde.marque(defi['garde']),defi['expire']
     desk.db.execute('INSERT INTO document_projects_v220 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
       (pid,matter['id'],document_type,project_status,instruction,json.dumps(data,ensure_ascii=False),
-       preview_hash,digest(pid+'|'+code) if project_status=='pending' else '',created,expires,'',''))
+       preview_hash,challenge,created,expires,'',''))
     desk.db.commit()
     _step(desk,pid,'preview_available',preview_hash,{'status':project_status,
       'future_files':outputs,'source_sha256':source['sha256']})
@@ -760,13 +775,10 @@ def _build_files(data,base_raw,base_text):
 
 def confirm_creation(desk,args,dav=None):
     ensure_schema(desk);pid=str(args.get('project_id',''));code=str(args.get('confirmation_code',''))
-    if not re.fullmatch(r'[a-f0-9]{32}',pid) or not re.fullmatch(r'\d{6}',code):raise Stop('confirmation_document_invalide')
+    if not re.fullmatch(r'[a-f0-9]{32}',pid):raise Stop('confirmation_document_invalide')   # code malformé : essai décompté par la garde
     row=desk.db.execute('SELECT * FROM document_projects_v220 WHERE id=?',(pid,)).fetchone()
     if not row:raise Stop('projet_document_absent')
     if row['status'] not in ('pending','creating','partial'):raise Stop('projet_document_deja_traite')
-    if row['status']=='pending' and datetime.now(timezone.utc)>=datetime.fromisoformat(row['expires']):
-        desk.db.execute("UPDATE document_projects_v220 SET status='expired',decided=? WHERE id=?",(desk.now(),pid));desk.db.commit();raise Stop('projet_document_expire')
-    if not secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+code)):raise Stop('confirmation_document_invalide')
     data=json.loads(row['data']);canonical=_sha(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode())
     if not secrets.compare_digest(canonical,row['preview_hash']):raise Stop('previsualisation_document_modifiee')
     autonomy=desk.c.get('autonomy',{})
@@ -775,6 +787,20 @@ def confirm_creation(desk,args,dav=None):
         raise Stop('controle_documentaire_non_approuve')
     if clean_path(args.get('destination_folder',''))!=data['destination_folder']:raise Stop('destination_non_confirmee')
     if str(args.get('source_path',''))!=data['source']['path']:raise Stop('source_non_confirmee')
+    # 5.6.111 (lot C, C03) : code présenté à la garde commune (essai décompté, cinq au plus, expiration, aperçu et effet inchangés) ; une
+    # reprise après interruption passe par la même clé, sans second essai. Aucun appel réseau avant cette décision.
+    ancien=None
+    if garde.ancienne_empreinte(row['challenge_hash']):
+        ancien={'expire':row['expires'],'etat':'consomme' if row['status']!='pending' else 'attente',
+                'verifier':lambda c:secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+c))}
+    try:
+        garde.confirmer(desk,CHEMIN,pid,code,version=canonical,effet=_effet(data),code_faux='confirmation_document_invalide',
+          code_expire='projet_document_expire',code_deja='projet_document_deja_traite',code_modifie='previsualisation_document_modifiee',
+          ancien=ancien,reprise=True,effet_commence=row['status']!='pending',matiere=row['matter'])
+    except Stop as error:
+        if str(error)=='projet_document_expire' and row['status']=='pending':
+            desk.db.execute("UPDATE document_projects_v220 SET status='expired',decided=? WHERE id=? AND status='pending'",(desk.now(),pid));desk.db.commit()
+        raise
     matter=_resolve_matter(desk,data['matter']['id']);client=dav or _dav(desk)
     if not under(data['destination_folder'],matter['path']):raise Stop('destination_hors_dossier')
     if data['source']['kind']=='nextcloud':
@@ -862,7 +888,7 @@ def reject_project(desk,pid):
     if not row:raise Stop('projet_document_absent')
     if row['status'] not in ('pending','blocked'):raise Stop('projet_document_deja_traite')
     desk.db.execute("UPDATE document_projects_v220 SET status='rejected',decided=? WHERE id=?",
-      (desk.now(),pid));desk.db.commit()
+      (desk.now(),pid));garde.annuler(desk,CHEMIN,pid);desk.db.commit()
     desk.audit('document_project_rejected',{'project':pid,'matter':row['matter']})
     return {'project_id':pid,'status':'rejected','nextcloud_file_created':False,
       'email_sent':False,'rpva_filed':False}

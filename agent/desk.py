@@ -578,6 +578,8 @@ class Desk:
         ensure_lecteur56106_schema(self)
         from .envoi56106 import ensure_schema as ensure_envoi56106_schema   # 5.6.106 (lot E) : file d'envoi (annulation, envoi programmé), reçus d'idempotence
         ensure_envoi56106_schema(self)
+        from .web490 import migrer_jetons_envoi as _migrer_jetons56111   # 5.6.111 (lot C, C07) : jetons d'aperçu d'envoi en clair → empreintes (idempotent ; seule la couche web touche au module d'envoi)
+        _migrer_jetons56111(self)
         from .boite56106 import ensure_schema as ensure_boite56106_schema   # 5.6.106 (lot L) : reçus d'idempotence des actions groupées, sous-dossiers des dossiers clients
         ensure_boite56106_schema(self)
         from .identite56106 import ensure_schema as ensure_identite56106_schema   # 5.6.106 (lot D) : logo du cabinet (octets), reçus d'idempotence
@@ -630,6 +632,7 @@ class Desk:
         from .partage_client56109 import ensure_schema as ensure_relations56109_schema; ensure_relations56109_schema(self)   # 5.6.109 (lot G2) : partages client (versions exactes, demandes, réponses, quarantaine), appels et actions, remplacements (instructions, preuves), kits d'audience (éléments, notes), reçus
         from . import closing56109, suites56109, formalites56109; closing56109.ensure_schema(self); suites56109.ensure_schema(self); formalites56109.ensure_schema(self)   # 5.6.109 (lot G3) : « À finaliser » des opérations (conditions, dépendances, journal, décisions qualifiées), suites et exécution (obligations sourcées, actions, échéancier), formalités supervisées (pièces exactes, effets distincts, documents, réservations), reçus
         from . import offre56109, collecte_portail56109, pappers_documents56109; offre56109.ensure_schema(self); collecte_portail56109.ensure_schema(self); pappers_documents56109.ensure_schema(self)   # 5.6.109 (lot G4) : commandes d'offre et PDF joint (reçus de brouillon), profils de portail, missions de collecte (messages, pièces, dates, brouillons, correspondances), appels et crédits Pappers (politique du dossier, autorisations, reçus)
+        from .envoi_portail56111 import ensure_schema as ensure_portail56111_schema; ensure_portail56111_schema(self)   # 5.6.111 (lot P) : envois préparés sur un portail (après les profils de collecte et leur migration de capacités)
         from .pseudo540 import ensure_schema as ensure_pseudo56109_schema   # 5.6.109 (lot P, P02) : révision durable du registre des identités ; en dernier : déclencheurs sur tous les registres déjà créés
         ensure_pseudo56109_schema(self)
 

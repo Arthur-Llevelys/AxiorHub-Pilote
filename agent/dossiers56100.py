@@ -330,6 +330,64 @@ def reprise_html(desk, acteur, prefix, mid, membres=None):
         ''.join('<div><dt>%s</dt><dd>%s</dd></div>' % (e(t), v) for t, v in champs), e(prefix, quote=True))
 
 
+def complements_html(desk, acteur, prefix, mid):
+    """5.6.111 (lot U, U01) : second bloc de la reprise, APRÈS les quatre champs historiques (inchangés) : derniers résultats de l'IA et
+    pièces sources. Même contrôle d'accès que la reprise (404 neutre avant toute lecture)."""
+    from . import acces5697
+    a = acces5697.exiger(desk, acteur, mid)
+    return '<dl class="d100-reprise u111-reprise" aria-label="Résultats de l’IA et pièces du dossier">%s</dl>' % ''.join(
+        '<div><dt>%s</dt><dd>%s</dd></div>' % (e(t), v) for t, v in _champs_u111(desk, a, prefix, mid))
+
+
+def _champs_u111(desk, a, prefix, mid):
+    """5.6.111 (lot U, U01) : derniers résultats de l'IA (projection ``resultats56100``, droits du dossier et de l'objet) et pièces sources
+    (pièces relevées du dossier, ``modele5651.documents``), lus dans les registres existants : aucun calcul d'IA, aucune écriture.
+    Un registre illisible est dit tel quel, jamais remplacé par « aucun »."""
+    champs = []
+    try:
+        from .resultats56100 import du_dossier
+        rows = du_dossier(desk, (a.compte, a.role), mid, 2)
+        valeur = ' · '.join('<a href="%s">%s</a> <span class="ax-muted">— %s</span>' % (e(prefix + r['lien'], quote=True), e(r['libelle']), e(r['date_locale']))
+                            for r in rows) or '<span class="ax-muted">Aucun résultat enregistré par l’IA</span>'
+    except Exception:   # noqa: BLE001 — la fiche s'affiche quand même
+        valeur = '<span class="ax-muted">Résultats de l’IA indisponibles pour le moment</span>'
+    champs.append(('Derniers résultats de l’IA', valeur))
+    try:
+        from . import modele5651
+        from .memoire5651 import not_a_document
+        docs = [d for d in modele5651.documents(desk, mid) if not not_a_document(d['name'])]
+        lien = _lien(prefix, '/dossier', id=mid, vue='fichiers')
+        if docs:
+            dernier = docs[0]                                        # liste déjà triée : date du document la plus récente d'abord
+            valeur = '<a href="%s">%d pièce%s relevée%s</a> <span class="ax-muted">— dernière : %s</span>' % (
+                lien, len(docs), '' if len(docs) == 1 else 's', '' if len(docs) == 1 else 's', e(str(dernier.get('title') or dernier.get('name') or '')[:80]))
+        else:
+            valeur = '<a href="%s">Aucune pièce relevée pour l’instant</a> <span class="ax-muted">(le relevé des fichiers peut être en cours)</span>' % lien
+    except Exception:   # noqa: BLE001
+        valeur = '<span class="ax-muted">Pièces indisponibles pour le moment</span>'
+    champs.append(('Pièces sources', valeur))
+    return champs
+
+
+def ia_recents_html(desk, acteur, prefix, ids):
+    """5.6.111 (lot U, U01) : dernier résultat de l'IA de chaque dossier de la page affichée (au plus 50), pour la colonne « Dernière
+    activité » de la liste. Mêmes contrôles que la fiche ; rien si aucun résultat ; registre illisible : rien (la ligne reste lisible)."""
+    out = {}
+    try:
+        from .resultats56100 import du_dossier
+    except Exception:   # noqa: BLE001
+        return out
+    for mid in list(ids)[:TAILLE_MAX]:
+        try:
+            rows = du_dossier(desk, acteur, mid, 1)
+        except Exception:   # noqa: BLE001
+            continue
+        if rows:
+            r = rows[0]
+            out[mid] = '<span class="u111-ia" data-u111-ia>IA : <a href="%s">%s</a></span>' % (e(prefix + r['lien'], quote=True), e(r['libelle'][:60]))
+    return out
+
+
 # ------------------------------------------------------------------------------------------------ Conseil et Contentieux
 def _compte(desk, sql, params):
     rows = _lignes(desk, sql, params)

@@ -78,7 +78,19 @@ TYPES = {
     'questionnaire-mission': 'Questionnaire de mission', 'note-consultation': 'Note de consultation avec options',
     'suivi-obligations': 'Suivi des obligations', 'convention-honoraires': 'Convention d’honoraires', 'lettre-mission': 'Lettre de mission',
     'piece-operation': 'Pièce d’une opération', 'formalite': 'Formalité', 'autre': 'Autre',
+    # 5.6.111 (lot K, F06) : familles du parcours Conseil sans trame jusqu'ici ; CGV aux consommateurs distinctes des CGV entre professionnels
+    'analyse-contrat': 'Analyse et négociation d’un contrat', 'cgv-b2c': 'Conditions générales de vente (consommateurs)',
+    'cgu': 'Conditions générales d’utilisation', 'cga': 'Conditions générales d’achat', 'agence-commerciale': 'Contrat d’agence commerciale',
+    'licence-logiciel': 'Licence de logiciel', 'bail-commercial': 'Bail commercial',
 }
+# 5.6.111 (lot K, F06) : familles prioritaires du parcours Conseil, dans l'ordre de la matrice de couverture (type d'acte × droit × langue).
+# Une famille sans trame pour un droit est montrée « À préparer » : jamais remplacée par la trame d'un autre droit ni d'une autre langue.
+FAMILLES_CONSEIL = ('note-consultation', 'analyse-contrat', 'confidentialite', 'prestation-b2b', 'cgv-b2b', 'cgv-b2c', 'cgu', 'cga',
+                    'agence-commerciale', 'licence-logiciel', 'pacte', 'cession-titres', 'bail-commercial', 'lettre-mission', 'convention-honoraires',
+                    'questionnaire-mission')
+# États de la matrice : « absent » (aucune trame) puis les états du registre ; une trame jamais relue est une « trame » (brouillon).
+ETATS_COUVERTURE = {'absent': 'À préparer', 'draft': 'Trame', 'review': 'À relire', 'validated': 'Validé', 'needs_update': 'À revoir',
+                    'withdrawn': 'Retiré'}
 _TYPE_PAR_ID = {
     'pacte_associes': 'pacte', 'pacte_actionnaires': 'pacte', 'lettre_intention': 'lettre-intention', 'protocole_conditions': 'protocole',
     'compromis_fonds': 'compromis', 'cession_titres': 'cession-titres', 'cession_fonds': 'cession-fonds', 'contrat_prestation': 'prestation-b2b',
@@ -101,6 +113,9 @@ _PROFILS_PAR_TYPE = {
     'cgv-b2b': ['vendeur professionnel', 'acheteurs professionnels'], 'pret-associe': ['associé prêteur', 'société emprunteuse'],
     'convention-management': ['société mère', 'filiale'], 'questionnaire-mission': ['client', 'cabinet'], 'note-consultation': ['client', 'cabinet'],
     'suivi-obligations': ['parties au contrat suivi'], 'convention-honoraires': ['client', 'cabinet'], 'lettre-mission': ['client', 'cabinet'],
+    'analyse-contrat': ['client', 'cabinet'], 'cgv-b2c': ['vendeur professionnel', 'consommateurs et non-professionnels'],
+    'cgu': ['éditeur du service', 'utilisateurs'], 'cga': ['acheteur professionnel', 'fournisseurs professionnels'],
+    'agence-commerciale': ['mandant', 'agent commercial'], 'licence-logiciel': ['concédant', 'licencié'], 'bail-commercial': ['bailleur', 'preneur'],
 }
 AUTEUR_AXIORHUB = 'AxiorHub (rédaction originale)'
 PROVENANCE_AXIORHUB = 'Bibliothèque intégrée d’AxiorHub : trame rédigée pour ce droit, sans reprise de texte protégé'
@@ -359,6 +374,42 @@ def choisir(lignes, systeme, langue, type_acte_, au, actifs=None):
     if len(derniers) != 1:
         raise Stop('plusieurs_modeles_valides_a_departager')
     return derniers[0]
+
+
+# ------------------------------------------------------------------------------------------------ matrice de couverture (5.6.111, lot K, F06)
+def colonnes_couverture(systemes=PRIORITAIRES):
+    """Colonnes de la matrice : chaque système prioritaire dans chacune de ses langues d'usage (Québec et Ontario : français et anglais)."""
+    return [(s, langue) for s in systemes for langue in SYSTEMES[s][1]]
+
+
+def couverture(variantes, types=FAMILLES_CONSEIL, systemes=PRIORITAIRES):
+    """Matrice type d'acte × système × langue, sans rien écrire ni rien présumer.
+
+    ``variantes`` : une entrée par modèle de la bibliothèque — ``{'id', 'titre', 'type_acte', 'systeme', 'langue', 'version', 'etat', 'auteur',
+    'valide_par', 'valide_le', 'reexamen_le'}`` (état du registre, « draft » si la version n'y est pas encore inscrite). Une case sans modèle est
+    « absent » (à préparer) : elle n'est jamais comblée par le modèle d'un autre droit ou d'une autre langue. Aucun état n'est déduit ici : il
+    vient du registre, tenu par des personnes habilitées.
+
+    Renvoie ``{'colonnes', 'lignes': [{'type', 'libelle', 'cases': [{'systeme', 'langue', 'etat', 'variantes'}]}], 'totaux': {systeme: {...}}}``."""
+    colonnes = colonnes_couverture(systemes)
+    index = {}
+    for v in variantes:
+        cle = (v.get('type_acte'), migrer(v.get('systeme')), v.get('langue'))
+        index.setdefault(cle, []).append(v)
+    lignes, totaux = [], {s: {'cases': 0, 'absent': 0, **{k: 0 for k in ETATS}} for s in systemes}
+    for ta in types:
+        cases = []
+        for s, langue in colonnes:
+            liste = sorted(index.get((ta, s, langue), []), key=lambda v: (v.get('titre') or '', v.get('id') or ''))
+            etat = 'absent'
+            if liste:   # état le plus avancé parmi les variantes de la case (affichage seulement ; chaque variante garde le sien)
+                ordre = ('withdrawn', 'draft', 'needs_update', 'review', 'validated')
+                etat = max((v.get('etat') if v.get('etat') in ordre else 'draft' for v in liste), key=ordre.index)
+            cases.append({'systeme': s, 'langue': langue, 'etat': etat, 'variantes': liste})
+            totaux[s]['cases'] += 1
+            totaux[s][etat] += 1
+        lignes.append({'type': ta, 'libelle': TYPES.get(ta, ta), 'cases': cases})
+    return {'colonnes': colonnes, 'lignes': lignes, 'totaux': totaux}
 
 
 # ------------------------------------------------------------------------------------------------ schéma et migration (au démarrage)

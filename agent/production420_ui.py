@@ -159,6 +159,14 @@ def studio_page(desk, args, form, link):
     if estimate:
         out+='<aside class="studio420-estimate"><strong>Estimation initiale</strong><span>Temps : '+str(estimate['estimated_minutes'])+' min</span><span>Modèle : '+e(estimate['provider']+' · '+estimate['model'])+'</span><span>Confidentialité : '+e(estimate['confidentiality'])+'</span><span>Coût estimé : '+format(estimate['estimated_cost_usd'],'.4f')+' $</span></aside>'
     out+='<section class="studio420-catalog"><h2>Livrables disponibles</h2><div>'+''.join('<button type="button" data-studio-choice="'+e(k)+'">'+e(v)+'</button>' for k,v in labels.items())+'</div></section>'
+    # 5.6.111 (lot K) : acte à partir d'un modèle par droit applicable et de son questionnaire — même questionnaire que Corporate, Cession et le dossier
+    try:
+        import re
+        from .questionnaires56108 import carte_ouverture_html
+        trouve=re.search(r'href="([^"]*)/__p111k__"',link('/__p111k__','x'))
+        out+=carte_ouverture_html(desk,trouve.group(1) if trouve else '',selected)
+    except Exception:   # noqa: BLE001 — la carte est un complément : Rédiger reste utilisable sans elle
+        pass
     return out
 
 

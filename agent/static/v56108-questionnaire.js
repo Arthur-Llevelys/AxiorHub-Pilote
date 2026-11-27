@@ -37,7 +37,10 @@
       var d = new FormData(form);
       if (!d.get('dossier')) { etat.textContent = 'Choisissez un dossier.'; return; }
       bouton.disabled = true; etat.textContent = 'Ouverture…';
-      poster('creer', { modele: d.get('modele'), dossier: d.get('dossier'), societe: d.get('societe') || '' }).then(function (v) {
+      if (!d.get('modele')) { etat.textContent = 'Choisissez un modèle.'; return; }
+      var corps = { modele: d.get('modele'), dossier: d.get('dossier'), societe: d.get('societe') || '' };
+      if (form.hasAttribute('data-q108-reprendre')) corps.reprendre = true;   /* 5.6.111 : questionnaire déjà ouvert repris (un seul exemplaire) */
+      poster('creer', corps).then(function (v) {
         window.location.href = prefix + '/corporate?vue=bibliotheque&questionnaire=' + encodeURIComponent(v.id);
       }).catch(function (e) { etat.textContent = e.message; bouton.disabled = false; });
     });

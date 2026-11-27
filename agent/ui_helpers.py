@@ -237,4 +237,6 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     from .live430 import enhance_forms,chrome
     html=enhance_forms(html,prefix)
     html=html.replace('</body>',chrome(prefix)+assistant_dock(prefix,csrf,matters or [],path,audio_enabled,selected_matter)+'</body>',1)
+    from .indicateur56111 import marquer as _indicateur56111
+    html=_indicateur56111(html)   # 5.6.111 (lot C, L02) : indicateur d'activité htmx (role="status") rattaché à la zone principale
     return versioned(html)

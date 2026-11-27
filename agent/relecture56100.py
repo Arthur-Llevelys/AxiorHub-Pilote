@@ -1539,6 +1539,7 @@ def lecteur_html(prefix, suffixe_ids=''):
             '<button type="button" class="ax-btn ghost" data-action="rejeter" data-ax101-optionnel aria-expanded="false" disabled hidden>Rejeter avec motif</button>'
             '<button type="button" class="ax-btn ghost" data-action="corriger" data-ax101-optionnel aria-expanded="false" disabled hidden>Demander une correction à l’IA</button>'
             '<a class="ax-btn ghost" data-ax101-ouvrir hidden href="%(p)s/a-relire">Ouvrir</a>'
+            '<a class="ax-btn ghost" data-ax111-portail hidden href="%(p)s/a-relire">Préparer l’envoi sur le portail</a>'   # 5.6.111 (lot P) : brouillon de conclusions
             '<button type="button" class="ax-btn ghost ax100-deposer" data-action="deposer" disabled hidden>Déposer dans Brouillons (sans envoi)</button>'
             '</footer></article>') % {'s': s, 'p': e(prefix, quote=True)}
 
@@ -1553,7 +1554,9 @@ def _ligne_html(x, courant=''):
 
 def tete_html(prefix):
     """Script du lecteur, servi seulement sur les pages qui le montent (Courriels « À relire » ; Aujourd'hui l'ajoute pour sa fenêtre)."""
-    return '<script defer src="%s/static/v56100-lecteur.js"></script>' % e(prefix, quote=True)
+    # 5.6.111 (lot U, U01) : « Envoyer… » de l'envoi existant (aperçu puis confirmation) raccordé dans le lecteur, distinct de Retenir et de Déposer
+    return ('<script defer src="%s/static/v56100-lecteur.js"></script><script defer src="%s/static/v56111-envoi-relecture.js"></script>'
+            % (e(prefix, quote=True), e(prefix, quote=True)))
 
 
 def _diagnostic(desk, prefix):

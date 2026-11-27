@@ -12,6 +12,7 @@ import secrets
 from zoneinfo import ZoneInfo
 
 from . import pause5629
+from . import confirmations56111 as garde
 from .common import Stop, digest, fold, load_matters
 from .dav import DAV
 
@@ -421,6 +422,18 @@ def _schedule(tasks,a,b,busy,max_daily,cfg):
     return slots,unscheduled,{x.isoformat():y for x,y in sorted(daily.items())}
 
 
+CHEMIN='workplan'
+
+
+def _version(start,end,data_json):
+    """5.6.111 (C03) : empreinte du programme montré (période, tâches, créneaux)."""
+    return digest(json.dumps([start,end,data_json],ensure_ascii=False))
+
+
+def _effet(pid):
+    return digest(json.dumps(['apply_work_plan',pid]))
+
+
 def propose_plan(desk,args,dav=None):
     ensure_schema(desk)
     start_value=str(args.get('period_start',''));end_value=str(args.get('period_end',''))
@@ -436,16 +449,19 @@ def propose_plan(desk,args,dav=None):
     busy,agenda=_calendar_busy(desk,a,b,dav=dav)
     cfg={**desk.c.get('calendar',{}),**desk.c.get('planning',{})}
     slots,unscheduled,daily=_schedule(tasks,a,b,busy,maximum,cfg)
-    code=f'{secrets.randbelow(900000)+100000}';pid=secrets.token_hex(16);stamp=desk.now()
-    expires=(datetime.now(timezone.utc)+timedelta(minutes=max(10,min(int(
-      desk.c.get('planning',{}).get('approval_minutes',30)),120)))).isoformat()
+    pid=secrets.token_hex(16);stamp=desk.now()
+    minutes=max(10,min(int(desk.c.get('planning',{}).get('approval_minutes',30)),120))
     data={'tasks':tasks,'slots':slots,'unscheduled':unscheduled,'daily_minutes':daily,
           'agenda_counts':agenda['counts'],'max_daily_minutes':maximum,
           'safety':{'creates_vtodo':True,'creates_planning_events':True,'sends_email':False,
                     'pays':False,'files_or_signs':False,'modifies_originals':False}}
+    data_json=json.dumps(data,ensure_ascii=False)
+    # 5.6.111 (lot C, C03) : défi de la garde commune (programme montré, effet, expiration UTC, cinq essais)
+    defi=garde.emettre(desk,CHEMIN,pid,_version(a.isoformat(),b.isoformat(),data_json),_effet(pid),minutes)
+    code,expires=defi['code'],defi['expire']
     desk.db.execute('INSERT INTO work_plan_proposals VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
-      (pid,'pending',a.isoformat(),b.isoformat(),args['task_text'],json.dumps(data,ensure_ascii=False),
-       digest(pid+'|'+code),stamp,expires,'',None,''));desk.db.commit()
+      (pid,'pending',a.isoformat(),b.isoformat(),args['task_text'],data_json,
+       garde.marque(defi['garde']),stamp,expires,'',None,''));desk.db.commit()
     desk.audit('work_plan_proposed',{'proposal':pid,'tasks':len(tasks),'slots':len(slots)})
     return {'proposal_id':pid,'confirmation_code':code,'expires_at':expires,
       'summary':str(len(tasks))+' tâche(s) et '+str(len(slots))+' créneau(x) proposés.',
@@ -466,20 +482,32 @@ def get_plan(desk,pid):
 
 def approve_plan(desk,pid,code):
     ensure_schema(desk)
-    if not re.fullmatch(r'[a-f0-9]{32}',pid or '') or not re.fullmatch(r'\d{6}',str(code or '')):
+    if not re.fullmatch(r'[a-f0-9]{32}',pid or ''):   # code malformé : essai décompté par la garde
         raise Stop('confirmation_programme_invalide')
     row=desk.db.execute('SELECT * FROM work_plan_proposals WHERE id=?',(pid,)).fetchone()
     if not row:raise Stop('programme_absent')
     if row['status']!='pending':raise Stop('programme_deja_traite')
-    if datetime.now(timezone.utc)>=datetime.fromisoformat(row['expires']):
-        desk.db.execute("UPDATE work_plan_proposals SET status='expired',decided=? WHERE id=?",(desk.now(),pid));desk.db.commit();raise Stop('programme_expire')
-    if not secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+str(code))):raise Stop('confirmation_programme_invalide')
-    # Refuse before queueing if write targets have not been explicitly selected.
-    cfg=desk.c.get('nextcloud_workflow') or {}
-    if not cfg.get('enabled') or not cfg.get('task_calendar_url') or not cfg.get('planning_calendar_url'):
-        raise Stop('espaces_nextcloud_axiorhub_non_configures')
-    job=desk.enqueue('apply_work_plan',{'proposal':pid},priority=0)
-    desk.db.execute("UPDATE work_plan_proposals SET status='approved',decided=?,job_id=? WHERE id=?",(desk.now(),job,pid));desk.db.commit()
+    ancien=None
+    if garde.ancienne_empreinte(row['challenge_hash']):   # programme proposé avant la 5.6.111 : confirmable jusqu'à son expiration prévue
+        ancien={'expire':row['expires'],'verifier':lambda c:secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+c))}
+
+    def intention(db):
+        # Refuse before queueing if write targets have not been explicitly selected (rien n'est consommé : le code reste valable).
+        cfg=desk.c.get('nextcloud_workflow') or {}
+        if not cfg.get('enabled') or not cfg.get('task_calendar_url') or not cfg.get('planning_calendar_url'):
+            raise Stop('espaces_nextcloud_axiorhub_non_configures')
+        job=desk.enqueue('apply_work_plan',{'proposal':pid},priority=0,transactional=True)
+        db.execute("UPDATE work_plan_proposals SET status='approved',decided=?,job_id=? WHERE id=? AND status='pending'",(desk.now(),job,pid))
+        return job
+    try:
+        job=garde.confirmer(desk,CHEMIN,pid,str(code or ''),version=_version(row['period_start'],row['period_end'],row['data']),
+          effet=_effet(pid),code_faux='confirmation_programme_invalide',code_expire='programme_expire',code_deja='programme_deja_traite',
+          intention=intention,ancien=ancien)['resultat']
+    except Stop as error:
+        if str(error)=='programme_expire':
+            desk.db.execute("UPDATE work_plan_proposals SET status='expired',decided=? WHERE id=? AND status='pending'",(desk.now(),pid));desk.db.commit()
+        raise
+    garde.apres_mise_en_file(desk,job,'apply_work_plan',{'proposal':pid})
     desk.audit('work_plan_approved',{'proposal':pid,'job':job})
     return {'proposal_id':pid,'status':'approved','job_id':job,
       'message':'Programme confirmé. Les tâches et créneaux vont être créés dans les espaces AxiorHub de Nextcloud.'}
@@ -489,7 +517,8 @@ def reject_plan(desk,pid):
     ensure_schema(desk);row=desk.db.execute('SELECT status FROM work_plan_proposals WHERE id=?',(pid,)).fetchone()
     if not row:raise Stop('programme_absent')
     if row['status']!='pending':raise Stop('programme_deja_traite')
-    desk.db.execute("UPDATE work_plan_proposals SET status='rejected',decided=? WHERE id=?",(desk.now(),pid));desk.db.commit()
+    desk.db.execute("UPDATE work_plan_proposals SET status='rejected',decided=? WHERE id=?",(desk.now(),pid))
+    garde.annuler(desk,CHEMIN,pid);desk.db.commit()
     desk.audit('work_plan_rejected',{'proposal':pid});return {'proposal_id':pid,'status':'rejected'}
 
 

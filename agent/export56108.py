@@ -303,7 +303,13 @@ EXPORT = (
        ('brouillons_d_information_prepares', 'collecte_brouillons56109', 'dossier'), ('correspondances_portail_dossier', 'collecte_correspondances56109', 'dossier'),
        ('regles_pappers_du_dossier', 'pappers_dossiers56109', 'dossier'), ('autorisations_de_collecte_pappers', 'pappers_autorisations56109', 'dossier')) +
     _e('routines', ('profils_de_portail', 'collecte_profils56109', None), ('missions_de_collecte_de_portail', 'collecte_missions56109', None)) +
-    _e('gouvernance', ('appels_pappers_en_credits', 'pappers_appels56109', 'dossier'))
+    _e('gouvernance', ('appels_pappers_en_credits', 'pappers_appels56109', 'dossier')) +
+    # envoi_portail56111 (5.6.111, lot P) : envois préparés sur un portail (texte exact, destinataire, juridiction, RG, profil et version, états),
+    # pièces du registre jointes (version, empreinte, ordre) et accusés de dépôt enregistrés (format constaté, empreinte, chemin, reçu) ; aucun
+    # code de confirmation (défis : ``confirmations56111``, exclus), aucun secret
+    _e('dossiers', ('envois_prepares_sur_un_portail', 'portail_envois56111', 'dossier'),
+       ('pieces_des_envois_sur_un_portail', 'portail_envoi_pieces56111', ('envoi', 'portail_envois56111', 'id', 'dossier')),
+       ('accuses_de_depot_sur_un_portail', 'portail_accuses56111', ('envoi', 'portail_envois56111', 'id', 'dossier')))
 )
 
 # ------------------------------------------------------------------------------------------------ résolution du dossier quand il ne se lit pas dans une colonne
@@ -404,7 +410,8 @@ EXPORT_EXCLUES = (
        'hybrid_previews_v400', 'mail_archive_proposals', 'work_plan_proposals',
        'editeur56108_seances', 'editeur56108_ops',   # wordcraft56108 (5.6.108, lot W) : séances d'édition ; les versions gardées sont des fichiers du dossier
        'pdf_formulaire56108_ops') +   # pdf_formulaire56108 (5.6.108, lot F) : reçus d'idempotence ; les copies produites sont des fichiers du dossier
-    _x(_PERSO, 'boite56106_epingles', 'cockpit530_reviewed', 'd51_reads', 'lecteur56106_preferences', 'missions_hidden5636') +
+    _x(_TMP, 'confirmations56111') +   # confirmations56111 (5.6.111, lot C) : défis de confirmation (empreinte du code, essais, expiration) ; l'effet confirmé est exporté avec son parcours
+    _x(_PERSO,'boite56106_epingles', 'cockpit530_reviewed', 'd51_reads', 'lecteur56106_preferences', 'missions_hidden5636') +
     _x(_T, 'catalogue_recus56109') +         # 5.6.109 (lot D) : reçus d'idempotence du catalogue de prestations
     _x(_T, 'partages_client_ops56109', 'appels_ops56109', 'remplacements_ops56109', 'kits_audience_ops56109') +   # 5.6.109 (lot G2) : reçus d'idempotence (aucun contenu, aucun jeton)
     _x(_T, 'operations_recus56109') +        # 5.6.109 (lot G3) : reçus d'idempotence des routes « À finaliser », suites et formalités (aucun contenu métier, aucun secret)

@@ -18,7 +18,7 @@ curl -fsS http://127.0.0.1:8626/healthz
 
 Le service écoute sur `127.0.0.1:8626`. Publiez-le derrière un frontal HTTPS (ci-dessous), puis :
 
-1. ouvrez `https://agent.votre-cabinet.fr/signup` : **le premier compte créé est administrateur** ; les inscriptions
+1. récupérez localement le code privé dans `data/auth/bootstrap-token` (volume de données du déploiement Docker par défaut ; accès réservé à l'administrateur du serveur), puis ouvrez `https://agent.votre-cabinet.fr/signup` et saisissez-le dans le champ prévu. Ne publiez pas ce code et ne l'envoyez pas à l'IA. **Le premier compte créé est administrateur** ; les inscriptions
    publiques sont ensuite fermées et les autres comptes se créent dans **Comptes** (voir
    [docs/COMPTES-ET-ROLES.md](docs/COMPTES-ET-ROLES.md)) ;
 2. l'**assistant d'installation** s'ouvre : cabinet, messagerie, Nextcloud, IA, mode de fonctionnement. Chaque

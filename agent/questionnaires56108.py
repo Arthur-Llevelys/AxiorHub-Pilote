@@ -39,8 +39,11 @@ from .erreurs5634 import Qualified
 
 FORMAT = 'axiorhub-questionnaire-1'
 TYPES = {'texte': 'Texte', 'date': 'Date', 'montant': 'Montant', 'partie': 'Partie', 'choix': 'Choix', 'booleen': 'Oui ou non'}
-GROUPES = (('parties', 'Parties'), ('pouvoirs', 'Pouvoirs'), ('operation', 'Opération'), ('conditions', 'Conditions et pièces'),
-           ('redaction', 'Choix de rédaction'))
+GROUPES = (('parties', 'Parties'), ('pouvoirs', 'Pouvoirs'), ('operation', 'Opération'),
+           # 5.6.111 (lot K, F07) : sections du parcours Conseil ; les questionnaires déjà enregistrés gardent leurs groupes (tous admis)
+           ('economie', 'Économie'), ('obligations', 'Obligations'), ('responsabilite', 'Responsabilité'), ('duree', 'Durée et sortie'),
+           ('donnees', 'Données personnelles'), ('litiges', 'Droit et litiges'),
+           ('conditions', 'Conditions et pièces'), ('redaction', 'Choix de rédaction'))
 LIBELLES_GROUPES = dict(GROUPES)
 STATUTS = {'confirme': 'Répondu', 'inconnu': 'Je ne sais pas', 'plus_tard': 'Répondre plus tard'}
 NATURES = {'trouve': 'Trouvé dans une source', 'fait_confirme': 'Confirmé par l’avocat', 'choix_avocat': 'Choix de l’avocat',
@@ -454,10 +457,51 @@ def deriver(t, lignes=None, requis=()):
             champs.append({'id': cle, 'libelle': ('Clause : %s' % cle.replace('_', ' '))[:LIBELLE_MAX], 'type': 'booleen', 'groupe': 'redaction',
                            'bloquant_signature': False, 'confirmation_requise': False})
             vus.add(cle)
+    champs = _enrichir(t, champs)
     brut = {'format': FORMAT, 'modele_id': t.get('id', ''), 'modele_version': int(t.get('version') or 0), 'systeme_juridique': t.get('droit', ''),
             'langue': t.get('langue', ''), 'champs': champs[:MAX_CHAMPS] or [{'id': 'observations', 'libelle': 'Observations', 'type': 'texte', 'groupe': 'operation'}],
             'dependances': {}, 'origine': 'trame'}
     return valider_schema(brut)
+
+
+def specification(t):
+    """5.6.111 (lot K, F07) : données du questionnaire Conseil d'une trame livrée (``bibliotheque_droits56108.QUESTIONS``), sinon ``None``.
+    Un modèle ajouté par le cabinet n'en a pas : son questionnaire reste dérivé de son texte, ou celui qu'il a écrit."""
+    from .bibliotheque_droits56108 import QUESTIONS
+    if t.get('origine') == 'cabinet' or str(t.get('id') or '').startswith('cab_'):
+        return None
+    return QUESTIONS.get(str(t.get('id') or ''))
+
+
+def _enrichir(t, champs):
+    """5.6.111 (lot K, F07) : le questionnaire dérivé de la trame est rangé dans les sections du parcours Conseil, complété d'aides et de
+    questions ajoutées (format natif, validées ensuite par ``valider_schema``). Les variables et clauses de la trame gardent leur identifiant,
+    leur type, leur libellé et leur caractère bloquant : seule leur section change (jamais pour une clause, qui reste un choix de rédaction).
+    Une variable retirée par le cabinet de son texte n'est pas recréée ; une question ajoutée qui existe déjà comme variable n'est pas doublée."""
+    spec = specification(t)
+    if not spec:
+        return champs
+    ids = {c['id'] for c in champs}
+    out = []
+    for c in champs:
+        c = dict(c)
+        groupe = spec['groupes'].get(c['id'])
+        if groupe in LIBELLES_GROUPES and c['groupe'] != 'redaction':
+            c['groupe'] = groupe
+        aide = spec['aides'].get(c['id'])
+        if aide and not c.get('aide'):
+            c['aide'] = str(aide)[:AIDE_MAX]
+        if c['id'] in (spec.get('parties') or ()) and c['groupe'] == 'parties':   # partie d'une trame en langue étrangère : comme en français
+            c['bloquant_signature'] = c['confirmation_requise'] = True
+            if c['type'] == 'texte' and not c.get('multiligne'):
+                c['type'] = 'partie'
+        out.append(c)
+    for ajout in spec['ajouts']:
+        if ajout['id'] not in ids:
+            out.append(dict(ajout))
+            ids.add(ajout['id'])
+    ordre = {g: i for i, (g, _) in enumerate(GROUPES)}
+    return sorted(out, key=lambda c: ordre.get(c['groupe'], len(ordre)))   # tri stable : l'ordre de la trame est gardé dans chaque section
 
 
 def questionnaire_de(t, ligne):
@@ -812,8 +856,14 @@ def autorise(desk, qid, owner, role):
 
 def _instantane(t, ligne_version):
     lignes = str(ligne_version.get('text') or '\n'.join(t.get('texte') or [])).split('\n')
+    spec = specification(t) or {}
+    from .bibliotheque5639 import view_token
     return {'texte': lignes, 'langue': t.get('langue', 'fr'), 'titre': t.get('titre', ''), 'droit': t.get('droit', ''), 'fixes': dict(t.get('fixes') or {}),
-            'libelles': {k: lab for k, lab, _ in t.get('variables') or []}, 'word': bool(t.get('word'))}
+            'libelles': {k: lab for k, lab, _ in t.get('variables') or []}, 'word': bool(t.get('word')),
+            # 5.6.111 (lot K, F08) : contrôle serveur et rédaction ciblée — clauses incompatibles déclarées, version affichée du modèle effectif
+            # (Word du cabinet compris), rédaction par l'IA réservée aux sections qui portent une mention à compléter quand la trame le prévoit
+            'incompatibilites': [list(p)[:2] for p in t.get('incompatibilites') or []], 'version_vue': view_token(t),
+            'ia_mentions': bool(spec.get('ia_mentions'))}
 
 
 def _societe(desk, cid, masques):
@@ -858,6 +908,33 @@ def creer(desk, data, owner, role):
     desk.audit('questionnaire56108_creation', {'questionnaire': qid, 'modele': t['id'], 'version': ligne['version'], 'dossier': mid, 'owner': owner})
     return {'id': qid, 'revision': 1, 'message': 'Questionnaire ouvert (modèle %s, version %d%s).' % (
         t['titre'], ligne['version'], '' if ligne['state'] == 'validated' else ', non validée : à relire avec attention')}
+
+
+def ouvrir(desk, data, owner, role):
+    """5.6.111 (lot K) : fonction d'ouverture commune à Produire, Corporate, Cession, au dossier et à Conversation IA. Le questionnaire déjà
+    ouvert par ce compte pour le même dossier, le même modèle et la même version est repris (un seul exemplaire, mêmes réponses, même
+    livrable) ; sinon il est créé par ``creer``. Droits et dossier revérifiés à chaque appel ; un dossier réservé ne révèle rien."""
+    from . import bibliotheque5639 as lib, modeles5684
+    from .common import load_matters
+    if role not in ROLES:
+        raise Stop('role_insuffisant')
+    mid = str(data.get('dossier') or '')
+    masques = _masques(desk, owner, role)
+    if not mid or mid in masques or not any(str(m['id']) == mid for m in load_matters(desk.c)):
+        raise Stop('dossier_requis')
+    t = lib.template(desk, data.get('modele'))
+    ligne = modeles5684.selectionner(desk, t['id'])
+    deja = desk.db.execute('SELECT id, revision FROM questionnaires56108 WHERE matter=? AND modele=? AND owner=? AND modele_version=? '
+                           'ORDER BY updated DESC LIMIT 1', (mid, t['id'], str(owner), int(ligne['version']))).fetchone()
+    if deja:
+        return {'id': deja['id'], 'revision': int(deja['revision']), 'repris': True,
+                'message': 'Questionnaire déjà ouvert pour ce dossier et cette version du modèle : il est repris avec ses réponses.'}
+    return {**creer(desk, data, owner, role), 'repris': False}
+
+
+def lien(prefix, qid):
+    """Adresse du questionnaire (même page depuis tous les écrans)."""
+    return prefix + '/corporate?vue=bibliotheque&questionnaire=' + str(qid)
 
 
 def _nature(champ, role):
@@ -905,6 +982,46 @@ def _candidats_courants(desk, q, masques=None):
                                               'emplacement': 'Fiche société', 'lien': '/corporate?societe=' + societe['id'], 'origine': 'societe'})
     for champ, liste in _reprises(desk, q).items():   # 5.6.109 (lot K, F06) : réponses déjà confirmées dans le dossier
         out.setdefault(champ, []).extend(liste)
+    for champ, liste in _parties_dossier(desk, q).items():   # 5.6.111 (lot K, F07) : parties saisies dans l'onglet Parties du dossier
+        out.setdefault(champ, []).extend(liste)
+    return out
+
+
+ROLES_LIBELLES = {'client': 'Client', 'adverse': 'Partie adverse'}
+
+
+def _parties_dossier(desk, q):
+    """5.6.111 (lot K, F07) : parties enregistrées par le cabinet dans le dossier (onglet Parties), proposées pour les seuls champs dont la
+    trame déclare sans ambiguïté le rôle (``roles`` : client, partie adverse). Toujours « à confirmer » : jamais une réponse, jamais pour un champ
+    dont le rôle dépend de l'opération (prestataire ou client, cédant ou cessionnaire…). Lecture seule ; table absente ou illisible : rien."""
+    try:
+        from . import bibliotheque5639 as lib, dossiers5697
+        spec = specification(lib.BUILTIN.get(q['modele']) or {'id': q['modele'], 'origine': 'cabinet'}) or {}
+        roles = {k: v for k, v in (spec.get('roles') or {}).items() if v in ROLES_LIBELLES}
+        if not roles:
+            return {}
+        courant = dossiers5697.resoudre(desk, q['matter'])
+        if not courant:
+            return {}
+        lignes = [dict(r) for r in desk.db.execute('SELECT * FROM dossier_parties5697 WHERE dossier_id=? ORDER BY nom', (courant,)).fetchall()]
+        champs = {c['id']: c for c in json.loads(q['schema'])['champs']}
+    except (sqlite3.Error, ValueError, KeyError, TypeError, ImportError, Stop):
+        return {}
+    # version de la source : identifiants, noms, rôles (et version de la ligne quand le registre la tient) — un changement remet en examen
+    version = _sha([[r.get('id'), r.get('nom'), r.get('role'), r.get('version')] for r in lignes])[:16]
+    out = {}
+    for fid, role in roles.items():
+        noms = [str(r['nom']).strip() for r in lignes if r['role'] == role and str(r['nom'] or '').strip()]
+        champ = champs.get(fid)
+        if not noms or not champ:
+            continue
+        try:
+            valeur = valider_valeur(champ, ', '.join(dict.fromkeys(noms)))
+        except ValueError:
+            continue
+        out[fid] = [{'valeur': valeur, 'source_id': 'dossier:parties:' + role, 'source_version': version, 'accessible': True, 'source_verifiee': True,
+                     'fait_valide': False, 'titre': 'Parties du dossier (saisies par le cabinet)', 'emplacement': 'Onglet Parties, rôle « %s »' % ROLES_LIBELLES[role],
+                     'lien': '/dossier?id=' + q['matter'], 'origine': 'dossier'}]
     return out
 
 
@@ -1111,9 +1228,88 @@ def etat(desk, q, owner, role):
         ouvertes = [x for x in questions if x['groupe'] == gid]
         groupes.append({'id': gid, 'libelle': libelle, 'champs': [c['id'] for c in liste], 'questions': len(ouvertes)})
     premier = q.get('position') if q.get('position') in {g['id'] for g in groupes} else next((g['id'] for g in groupes if g['questions']), groupes[0]['id'] if groupes else '')
+    index = {x['champ']: x for x in plan['questions']}
+    etats_champs = {c['id']: etat_champ(c, plan, reponses, index) for c in schema['champs'] if c['id'] not in plan['inactifs']}
     return {'id': q['id'], 'revision': q['revision'], 'dossier': q['matter'], 'modele': q['modele'], 'modele_version': q['modele_version'],
             'empreinte_version': q['empreinte_version'], 'schema': schema, 'reponses': reponses, 'plan': plan, 'questions': questions, 'groupes': groupes,
-            'groupe_ouvert': premier, 'apercu': apercu, 'instantane': {k: instantane.get(k) for k in ('titre', 'langue', 'droit', 'word')}, 'mission': q.get('mission') or ''}
+            'groupe_ouvert': premier, 'apercu': apercu, 'instantane': {k: instantane.get(k) for k in ('titre', 'langue', 'droit', 'word')}, 'mission': q.get('mission') or '',
+            'etats': etats_champs, 'controles': controles(desk, q, schema, instantane, plan, apercu)}
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.111 (lot K) : état de chaque donnée et contrôle serveur
+ETATS_CHAMP = {'trouve': 'Trouvé dans une source', 'a_confirmer': 'À confirmer', 'confirme': 'Confirmé', 'contradictoire': 'Contradictoire',
+               'inconnu': 'Inconnu', 'option': 'Option du modèle'}
+
+
+def etat_champ(champ, plan, reponses, questions):
+    """État lisible d'une donnée, déduit du plan sans rien ajouter : une valeur trouvée n'est « Confirmé » qu'après l'avocat ; une saisie
+    d'assistant reste « À confirmer » ; deux valeurs différentes restent « Contradictoire » ; « Je ne sais pas » et « plus tard » restent
+    « Inconnu » ; une valeur d'exemple de la trame n'est jamais une donnée (elle n'apparaît ici sous aucun état)."""
+    ident = champ['id']
+    r = reponses.get(ident) if isinstance(reponses.get(ident), dict) else None
+    question = questions.get(ident) or {}
+    if question.get('motif') == 'contradiction':
+        return 'contradictoire'
+    if r and r.get('statut') == 'confirme':
+        if question.get('motif') == 'sources_modifiees' or r.get('nature') == 'saisie_assistant':
+            return 'a_confirmer'
+        return 'confirme'
+    if r and r.get('statut') in ('inconnu', 'plus_tard'):
+        return 'inconnu'
+    nature = plan['natures'].get(ident)
+    if nature == 'reprise_confirmee':
+        return 'confirme'
+    if nature == 'option_modele':
+        return 'option'
+    if nature == 'trouve':
+        return 'trouve'
+    if question.get('motif') == 'a_confirmer':
+        return 'a_confirmer'
+    return 'inconnu'
+
+
+def _modele_courant(desk, ident):
+    try:
+        ligne = desk.db.execute('SELECT version, state FROM template_versions5684 WHERE template_id=? ORDER BY version DESC LIMIT 1', (ident,)).fetchone()
+    except sqlite3.Error:
+        return None
+    return dict(ligne) if ligne else None
+
+
+def _incompatibilites(instantane, schema, plan, modele=''):
+    """Couples de clauses déclarées incompatibles et retenues ensemble (métadonnée de la trame, gardée dans l'instantané ; ancien questionnaire :
+    trame livrée de même identifiant)."""
+    couples = instantane.get('incompatibilites')
+    if couples is None:
+        from .bibliotheque5639 import BUILTIN
+        couples = (BUILTIN.get(modele) or {}).get('incompatibilites') or []
+    libelles = {c['id']: c['libelle'] for c in schema['champs']}
+    return ['%s / %s' % (libelles.get(a, a), libelles.get(b, b)) for a, b in ((list(p) + ['', ''])[:2] for p in couples)
+            if plan['valeurs'].get(a) is True and plan['valeurs'].get(b) is True]
+
+
+def controles(desk, q, schema, instantane, plan, apercu):
+    """Contrôle serveur avant de dire un acte « prêt » (5.6.111, F08) : données bloquantes, clauses incompatibles, sections corrigées à comparer,
+    version du modèle. Chaque point est une raison lisible ; la liste vide n'est pas une validation juridique, seulement l'absence d'écart connu."""
+    out = []
+    libelles = {c['id']: c['libelle'] for c in schema['champs']}
+    if plan['manque_signature']:
+        out.append({'code': 'donnees_bloquantes', 'bloquant': True,
+                    'message': 'Données bloquantes pour la signature à confirmer : %s.' % ', '.join(libelles.get(k, k) for k in plan['manque_signature'][:12])})
+    clash = _incompatibilites(instantane, schema, plan, q.get('modele') or '')
+    if clash:
+        out.append({'code': 'clauses_incompatibles', 'bloquant': True, 'message': 'Clauses incompatibles retenues ensemble : %s.' % ' ; '.join(clash)})
+    a_comparer = [s['titre'] or 'Préambule' for s in apercu['sections'] if s['etat'] == 'corrigee_a_comparer']
+    if a_comparer:
+        out.append({'code': 'sections_a_comparer', 'bloquant': True, 'message': 'Sections corrigées à comparer avec la nouvelle rédaction : %s.' % ', '.join(a_comparer)})
+    courant = _modele_courant(desk, q.get('modele') or '')
+    if courant and int(courant['version']) > int(q.get('modele_version') or 0):
+        out.append({'code': 'modele_plus_recent', 'bloquant': False,
+                    'message': 'Une version plus récente du modèle existe (version %d) : ce questionnaire reste sur la version %d, celle de son ouverture.' % (
+                        int(courant['version']), int(q.get('modele_version') or 0))})
+    if courant and courant.get('state') == 'withdrawn':
+        out.append({'code': 'modele_retire', 'bloquant': True, 'message': 'Le modèle a été retiré depuis l’ouverture de ce questionnaire.'})
+    return out
 
 
 def vue_publique(v, prefix=''):
@@ -1125,6 +1321,7 @@ def vue_publique(v, prefix=''):
     return {**{k: v[k] for k in ('id', 'revision', 'dossier', 'modele', 'modele_version', 'empreinte_version', 'groupes', 'groupe_ouvert', 'instantane', 'mission')},
             'champs': v['schema']['champs'], 'reponses': {k: {kk: r.get(kk) for kk in ('statut', 'valeur', 'nature', 'auteur', 'quand')} for k, r in v['reponses'].items()},
             'valeurs': v['plan']['valeurs'], 'natures': v['plan']['natures'], 'questions': questions, 'manque_signature': v['plan']['manque_signature'],
+            'etats': v.get('etats') or {}, 'controles': v.get('controles') or [],   # 5.6.111 (lot K) : état de chaque donnée, contrôle serveur
             'apercu': {k: v['apercu'][k] for k in ('texte', 'partiel', 'pret_signature', 'entete')} | {'sections': [{k: s[k] for k in ('id', 'titre', 'etat', 'texte', 'proposition', 'libelles_manquants')} for s in v['apercu']['sections']]}}
 
 
@@ -1395,6 +1592,36 @@ def _sources_mission(desk, q, row, modele):
     return ctx, sources, limites
 
 
+MENTION = re.compile(r'\[(?:À COMPLÉTER|ZU ERGÄNZEN|A COMPLETAR|TO BE COMPLETED)\b')
+MAX_PASSAGES = 12
+
+
+def brief(q, instance, v):
+    """5.6.111 (lot K, F08) : brief structuré remis au modèle — modèle effectif (identifiant, version, empreinte publiée), droit et langue, clauses
+    retenues et écartées par l'avocat ou par option déclarée, données retenues par le code avec leur nature, et les seuls passages des sources
+    qui fondent ces données (extraits vérifiés, jamais le dossier entier). Pur : aucune lecture de base."""
+    champs = {c['id']: c for c in v['schema']['champs']}
+    plan = v['plan']
+    retenues = [c['libelle'] for k, c in champs.items() if c['type'] == 'booleen' and c['groupe'] == 'redaction' and plan['valeurs'].get(k) is True]
+    ecartees = [c['libelle'] for k, c in champs.items() if c['type'] == 'booleen' and c['groupe'] == 'redaction' and plan['valeurs'].get(k) is False]
+    sources_retenues = {sid for r in v['reponses'].values() if isinstance(r, dict) for sid in (r.get('sources') or {})}
+    passages, vus = [], set()
+    try:
+        propositions = json.loads(q.get('propositions') or '{}')
+    except ValueError:
+        propositions = {}
+    for fid, liste in propositions.items():
+        for p in liste if isinstance(liste, list) and fid in plan['valeurs'] else []:
+            if p.get('source_id') in sources_retenues and p.get('extrait') and (p['source_id'], p['extrait']) not in vus and len(passages) < MAX_PASSAGES:
+                vus.add((p['source_id'], p['extrait']))
+                passages.append({'champ': fid, 'source': p['source_id'], 'extrait': str(p['extrait'])[:EXTRAIT_MAX]})
+    return {'modele': {'id': q['modele'], 'titre': instance.get('titre') or '', 'version': int(q['modele_version']), 'empreinte': str(q['empreinte_version'])[:16]},
+            'droit': instance.get('droit') or '', 'langue': instance.get('langue') or '', 'clauses_retenues': retenues, 'clauses_ecartees': ecartees,
+            'donnees_retenues': {champs[k]['libelle']: {'valeur': val, 'nature': NATURES.get(plan['natures'].get(k), '')}
+                                 for k, val in plan['valeurs'].items() if k in champs and not isinstance(val, bool)},
+            'informations_absentes': [champs[k]['libelle'] for k in plan['manque_signature'] if k in champs], 'passages_utiles': passages}
+
+
 def _valeurs_gardees(section, sortie):
     """Les valeurs écrites dans la trame (montants, dates, noms) restent toutes dans la rédaction du modèle ; sinon elle est écartée."""
     attendues = re.findall(r'\d[\d\u202f\u00a0 .,/]*\d|\d', section['trame'])
@@ -1475,6 +1702,12 @@ def executer_mission(desk, ident, row, modele=None):
     corrections = json.loads(q['corrections'] or '{}')
     a_rediger = [s for s in v['apercu']['sections'] if not s['manquants'] and s['trame'].strip() and s['id'] not in corrections
                  and (redactions.get(s['id']) or {}).get('cle_entree') != s['cle_entree']]
+    instance = json.loads(q['instantane'])
+    if instance.get('ia_mentions'):   # 5.6.111 (lot K, F08) : le code a déjà tout rempli ailleurs ; l'IA ne reçoit que les sections à rédiger
+        par_code = [s for s in a_rediger if not MENTION.search(s['trame'])]
+        a_rediger = [s for s in a_rediger if MENTION.search(s['trame'])]
+        if par_code:
+            limites.append('%d section(s) remplie(s) par le code à partir du questionnaire, sans rédaction par l’IA.' % len(par_code))
     if len(a_rediger) > MAX_SECTIONS_IA:
         limites.append('%d section(s) gardent la rédaction de la trame : au plus %d sont confiées au modèle en un passage.' % (len(a_rediger) - MAX_SECTIONS_IA, MAX_SECTIONS_IA))
         a_rediger = a_rediger[:MAX_SECTIONS_IA]
@@ -1483,7 +1716,8 @@ def executer_mission(desk, ident, row, modele=None):
         charge = {'tache': 'Rédiger la section « %s »' % (s['titre'] or 'Préambule'), 'section': {'titre': s['titre'], 'trame': s['trame']},
                   'valeurs_retenues': {k: {'valeur': val, 'nature': NATURES.get(v['plan']['natures'].get(k), '')} for k, val in v['plan']['valeurs'].items()
                                        if not isinstance(val, bool)},
-                  'sources': [{k: x.get(k, '') for k in ('id', 'titre', 'version', 'nature')} for x in sources]}
+                  'sources': [{k: x.get(k, '') for k in ('id', 'titre', 'version', 'nature')} for x in sources],
+                  'brief': brief(q, instance, v)}   # 5.6.111 (lot K, F08) : modèle effectif, clauses autorisées, passages utiles seulement
         if not petit:
             charge['outil_ask_user'] = {'mission_id': ident, 'revision': q['revision'], 'champs_declares': [c['id'] for c in schema['champs']]}
         try:
@@ -1597,16 +1831,88 @@ def telecharger(desk, data, owner, role, prefix=''):
     if _entier(data.get('revision')) != int(q['revision']):
         raise Stop('version_en_conflit')
     v = etat(desk, q, owner, role)
-    docx = lib.build_docx(v['apercu']['paras'], v['apercu']['langue'])
+    docx, source, ecarts = _document(desk, q, v)
+    pret = v['apercu']['pret_signature'] and not any(x['bloquant'] for x in v['controles']) and not ecarts
     nom = re.sub(r'[\\/:*?"<>|\x00-\x1f]', '_', '%s - %s%s.docx' % (date.today().isoformat(), v['instantane'].get('titre') or q['modele'],
-                                                                    ' - brouillon partiel' if not v['apercu']['pret_signature'] else ''))[:150]
+                                                                    ' - brouillon partiel' if not pret else ''))[:150]
     lib.purge(desk)
     jeton, quand = uuid.uuid4().hex, lib._now()
     desk.db.execute('INSERT INTO bibliotheque5639_fichiers(jeton, owner, nom, donnees, created, expires_at) VALUES(?,?,?,?,?,?)',
                     (jeton, str(owner), nom, docx, quand, lib._expiry(quand)))
     desk.db.commit()
-    desk.audit('questionnaire56108_brouillon', {'questionnaire': q['id'], 'owner': owner, 'partiel': not v['apercu']['pret_signature']})
-    return {'url': prefix + '/api440/m5636/corporate/bibliotheque/fichier?jeton=' + jeton, 'message': 'Brouillon Word prêt.'}
+    desk.audit('questionnaire56108_brouillon', {'questionnaire': q['id'], 'owner': owner, 'partiel': not pret, 'source': source, 'ecarts': len(ecarts)})
+    parties = ['Brouillon Word prêt.'] + (['Modèle Word du cabinet, styles conservés.'] if source == 'word' else [])
+    parties.append('Document rouvert et contrôlé : %d point(s) relevé(s).' % len(ecarts) if ecarts else 'Document rouvert et contrôlé : aucun écart de structure.')
+    if not pret:
+        parties.append('Brouillon partiel, non prêt pour signature.')
+    message = ' · '.join(parties) + ((' — ' + ' ; '.join(ecarts[:4])) if ecarts else '')
+    return {'url': prefix + '/api440/m5636/corporate/bibliotheque/fichier?jeton=' + jeton, 'message': message, 'controle': {'source': source, 'ecarts': ecarts, 'pret': pret}}
+
+
+def _document(desk, q, v):
+    """5.6.111 (lot K, F08) : document Word de l'état affiché, puis ROUVERT et contrôlé. Le modèle Word du cabinet est rempli (styles, numérotation
+    et mise en forme conservés) quand la version affichée à l'ouverture du questionnaire est toujours celle du modèle et que tous les choix de
+    clauses sont tranchés ; sinon le brouillon standard est produit et la raison est dite. Rend ``(docx, source, écarts)``."""
+    from . import bibliotheque5639 as lib
+    instantane = json.loads(q['instantane'])
+    ecarts = []
+    if instantane.get('word'):
+        try:
+            t = lib.template(desk, q['modele'])
+        except Stop:
+            t = None
+        champs = {c['id']: c for c in v['schema']['champs']}
+        clauses = [c['id'] for c in v['schema']['champs'] if c['type'] == 'booleen' and c['groupe'] == 'redaction']
+        indecises = [champs[k]['libelle'] for k in clauses if k not in v['plan']['valeurs'] and k not in v['plan']['inactifs']]
+        if not t or not t.get('word'):
+            ecarts.append('modèle Word du cabinet retiré : brouillon standard')
+        elif lib.view_token(t) != instantane.get('version_vue'):
+            ecarts.append('modèle Word modifié depuis l’ouverture du questionnaire : brouillon standard, rouvrez un questionnaire sur la nouvelle version')
+        elif indecises:
+            ecarts.append('choix de clauses à trancher avant de remplir le modèle Word du cabinet (%s) : brouillon standard' % ', '.join(indecises[:4]))
+        else:
+            langue = v['apercu']['langue']
+            libelles = {k: lab for k, lab, _ in t['variables']}
+            donnees = {k: lib.MISSING[langue] % libelles.get(k, k) for k, _, _ in t['variables']}   # jamais la valeur d'exemple de la trame
+            for k, val in v['plan']['valeurs'].items():
+                if k in champs and champs[k]['type'] != 'booleen':
+                    donnees[k] = affichage(champs[k], val, langue)
+            for k in clauses:
+                donnees['clause_' + k] = v['plan']['valeurs'].get(k) is True
+            try:
+                eff = lib.effective(desk, t, donnees)
+            except (Stop, Qualified) as ex:
+                ecarts.append('modèle Word du cabinet inutilisable (%s) : brouillon standard' % str(ex).split(':')[0])
+            else:
+                return eff['docx'], 'word', ecarts + controler_docx(eff['docx'], None)
+    docx = lib.build_docx(v['apercu']['paras'], v['apercu']['langue'], systeme=instantane.get('droit', ''))
+    return docx, 'texte', ecarts + controler_docx(docx, v['apercu']['paras'])
+
+
+def controler_docx(docx, paras):
+    """Le document produit est rouvert : lisible, sans balise ni clause restée, et — pour le brouillon standard — chaque paragraphe de l'aperçu
+    s'y retrouve dans l'ordre. Rend la liste des écarts (vide si rien n'est relevé)."""
+    from .bibliotheque_word5640 import docx_text
+    try:
+        texte = docx_text(docx)
+    except Exception:   # noqa: BLE001 — document illisible : c'est l'écart
+        return ['document produit illisible']
+    ecarts = []
+    if re.search(r'\{\{\s*\w+\s*\}\}', texte):
+        ecarts.append('balise de variable restée dans le document')
+    if re.search(r'\[\[(?:si\s|sinon\]\]|fin\]\])', texte):
+        ecarts.append('marque de clause restée dans le document')
+    if paras:
+        position = 0
+        plat = re.sub(r'\s+', ' ', texte)
+        for p, _ in paras:
+            cible = re.sub(r'\s+', ' ', str(p)).strip()
+            trouve = plat.find(cible, position) if cible else position
+            if trouve < 0:
+                ecarts.append('paragraphe absent du document : « %s »' % cible[:60])
+                break
+            position = trouve + len(cible)
+    return ecarts
 
 
 # ------------------------------------------------------------------------------------------------ routes
@@ -1664,8 +1970,8 @@ def _api(env, desk, auth, prefix, name, args, method):
     ancien = _recu(desk, str(owner), route, cle, sceau)
     if ancien is not None:
         return _out(ancien)
-    if route == 'creer':
-        out = creer(desk, data, owner, role)
+    if route == 'creer':   # 5.6.111 (lot K) : « reprendre » = fonction d'ouverture commune (questionnaire déjà ouvert repris, un seul exemplaire)
+        out = ouvrir(desk, data, owner, role) if data.get('reprendre') is True else creer(desk, data, owner, role)
     elif route == 'repondre':
         revision, reponses, journal, position, q = repondre(desk, data, owner, role)
         nouvelle = ecrire_reponses(desk, q, revision, reponses, journal, owner, role, position)
@@ -1715,7 +2021,7 @@ def carte_modele_html(desk, prefix, t, cid=''):
     groupes = ', '.join('%s (%d)' % (lib_, sum(1 for c in schema['champs'] if c['groupe'] == gid)) for gid, lib_ in GROUPES if any(c['groupe'] == gid for c in schema['champs']))
     options = ''.join('<option value="%s">%s</option>' % (e(m['id'], quote=True), e(matter_display(m))) for m in matters)
     return ('<section class="ax-card q108-carte" data-q108-carte><h3>Questionnaire de l’acte</h3><p class="ax-muted">%d question(s) : %s. Questionnaire %s · empreinte <code>%s</code>.</p>'
-            '<form class="q108-ouvrir" data-q108-creer><input type="hidden" name="modele" value="%s"><input type="hidden" name="societe" value="%s">'
+            '<form class="q108-ouvrir" data-q108-creer data-q108-reprendre><input type="hidden" name="modele" value="%s"><input type="hidden" name="societe" value="%s">'
             '<label>Dossier<select name="dossier" required><option value="">— choisir —</option>%s</select></label>'
             '<button class="ax-btn" type="submit">Préparer avec le questionnaire</button><p class="q108-etat" role="status" aria-live="polite"></p></form>%s'
             '<script defer src="%s"></script></section>') % (
@@ -1724,7 +2030,78 @@ def carte_modele_html(desk, prefix, t, cid=''):
         e(prefix + '/static/v56108-questionnaire.js', quote=True))
 
 
-def _champ_html(c, q, reponse, valeur, question, prefix=''):
+TEXTES_OUVERTURE = {'titre': 'Préparer un acte avec un modèle et son questionnaire', 'dossier': 'Dossier', 'modele': 'Modèle',
+                    'choisir': '— choisir —', 'bouton': 'Ouvrir le questionnaire', 'matrice': 'Voir les modèles disponibles par droit',
+                    'ouverts': 'Questionnaires de ce dossier', 'intro': 'Un seul questionnaire par dossier et par version du modèle : il est repris là où '
+                    'vous l’avez laissé, depuis Produire, Corporate, Cession ou le dossier. Le droit du modèle ne dépend jamais de sa langue.',
+                    'indisponible': 'Questionnaires indisponibles pour le moment.',
+                    'titre_cession': 'Autres actes de l’opération avec un modèle et son questionnaire'}
+
+
+def modeles_proposables(desk, types=None):
+    """Modèles qu'on peut ouvrir avec leur questionnaire, par famille du parcours Conseil (ou ``types``) : jamais un modèle retiré ; chaque
+    entrée dit son droit, sa langue et son état (une trame non validée reste utilisable à la main, signalée)."""
+    from . import bibliotheque5639 as lib, droits56108 as D, modeles5684
+    types = tuple(types or D.FAMILLES_CONSEIL)
+    etats = modeles5684.etats(desk)
+    out = []
+    for t in lib.catalog(desk):
+        ligne = etats.get(t['id']) or {}
+        ta = ligne.get('document_type') or D.type_acte(t)
+        if ta not in types or ligne.get('state') == 'withdrawn':
+            continue
+        out.append({'id': t['id'], 'titre': t['titre'], 'type_acte': ta, 'systeme': D.migrer(t['droit']), 'langue': ligne.get('language') or t['langue'],
+                    'etat': ligne.get('state') or 'draft'})
+    ordre = {ta: i for i, ta in enumerate(types)}
+    return sorted(out, key=lambda m: (ordre.get(m['type_acte'], 99), D.PRIORITAIRES.index(m['systeme']) if m['systeme'] in D.PRIORITAIRES else 99, m['titre']))
+
+
+def carte_ouverture_html(desk, prefix, dossier='', types=None, titre=''):
+    """5.6.111 (lot K) : carte commune « Préparer un acte avec un modèle et son questionnaire » — Produire (Rédiger), Cession, et toute page qui
+    l'appelle (onglet Conversation IA du dossier, lot F). Elle passe par la route existante ``creer`` avec « reprendre » : même questionnaire,
+    même modèle, même livrable, quel que soit l'écran. Lecture seule ; droits du compte appliqués (dossiers réservés absents)."""
+    from . import droits56108 as D
+    from .bibliotheque5639 import LANGUES
+    from .common import load_matters, matter_display
+    from .membres5650 import current_author, viewer_role
+    owner, role = current_author() or 'cabinet', viewer_role()
+    T = TEXTES_OUVERTURE
+    try:
+        masques = _masques(desk, owner, role)
+        matters = [m for m in load_matters(desk.c) if str(m['id']) not in masques]
+        modeles = modeles_proposables(desk, types)
+        ouverts = []
+        if dossier and str(dossier) not in masques:
+            ouverts = desk.db.execute('SELECT q.id, q.modele, q.modele_version, q.updated FROM questionnaires56108 q WHERE q.matter=? AND (q.owner=? OR ?) '
+                                      'ORDER BY q.updated DESC LIMIT 10', (str(dossier), str(owner), int(role == 'administrateur'))).fetchall()
+    except (Stop, sqlite3.Error, Qualified):
+        return '<section class="ax-card q111-ouverture"><h3>%s</h3><p class="q108-alerte" role="status">%s</p></section>' % (e(titre or T['titre']), e(T['indisponible']))
+    titres = {m['id']: m['titre'] for m in modeles}
+    groupes, courant = [], None
+    for m in modeles:
+        if m['type_acte'] != courant:
+            courant = m['type_acte']
+            groupes.append([D.TYPES.get(courant, courant), []])
+        groupes[-1][1].append('<option value="%s">%s — %s, %s · %s</option>' % (
+            e(m['id'], quote=True), e(m['titre']), e(D.libelle(m['systeme'])), e(LANGUES.get(m['langue'], m['langue'])), e(D.ETATS_COUVERTURE.get(m['etat'], m['etat']))))
+    options = ''.join('<optgroup label="%s">%s</optgroup>' % (e(lab, quote=True), ''.join(opts)) for lab, opts in groupes)
+    dossiers = ''.join('<option value="%s"%s>%s</option>' % (e(m['id'], quote=True), ' selected' if str(m['id']) == str(dossier) else '', e(matter_display(m)))
+                       for m in matters)
+    liste = ''.join('<li><a href="%s">%s</a> <small>version %d · %s</small></li>' % (e(lien(prefix, r['id']), quote=True), e(titres.get(r['modele'], r['modele'])),
+                                                                                      int(r['modele_version']), e(str(r['updated'])[:16].replace('T', ' ')))
+                    for r in ouverts)
+    return ('<section class="ax-card q111-ouverture" aria-labelledby="q111-ouv-t"><h3 id="q111-ouv-t">%s</h3><p class="ax-muted">%s</p>'
+            '<form class="q108-ouvrir q111-form" data-q108-creer data-q108-reprendre><input type="hidden" name="societe" value="">'
+            '<label>%s<select name="dossier" required><option value="">%s</option>%s</select></label>'
+            '<label>%s<select name="modele" required><option value="">%s</option>%s</select></label>'
+            '<button class="ax-btn" type="submit">%s</button><p class="q108-etat" role="status" aria-live="polite"></p></form>'
+            '<p><a href="%s">%s</a></p>%s<script defer src="%s"></script></section>') % (
+        e(titre or T['titre']), e(T['intro']), e(T['dossier']), e(T['choisir']), dossiers, e(T['modele']), e(T['choisir']), options, e(T['bouton']),
+        e(prefix + '/corporate?vue=bibliotheque&matrice=1', quote=True), e(T['matrice']),
+        ('<h4>%s</h4><ul class="q108-liste">%s</ul>' % (e(T['ouverts']), liste)) if liste else '', e(prefix + '/static/v56108-questionnaire.js', quote=True))
+
+
+def _champ_html(c, q, reponse, valeur, question, prefix='', etat_donnee=''):
     ident = 'q108-' + c['id']
     nom = e(c['id'], quote=True)
     courant = (reponse or {}).get('valeur') if (reponse or {}).get('statut') == 'confirme' else valeur
@@ -1749,6 +2126,8 @@ def _champ_html(c, q, reponse, valeur, question, prefix=''):
     else:
         saisie = '<input id="%s" name="%s" value="%s" maxlength="%d"%s>' % (ident, nom, e(str(courant or ''), quote=True), int(c.get('longueur_max') or TEXTE_MAX), decrit)
     badges = []
+    if etat_donnee in ETATS_CHAMP:   # 5.6.111 (lot K) : Trouvé dans une source, À confirmer, Confirmé, Contradictoire, Inconnu
+        badges.append('<span class="q108-badge q111-etat q111-etat-%s">%s</span>' % (e(etat_donnee, quote=True), e(ETATS_CHAMP[etat_donnee])))
     if c.get('bloquant_signature'):
         badges.append('<span class="q108-badge q108-bloquant">Bloquant pour la signature</span>')
     if reponse and reponse.get('statut') == 'confirme' and reponse.get('nature'):
@@ -1811,7 +2190,7 @@ def page_html(desk, prefix, args):
             c = champs[fid]
             if fid in v['plan']['attente_condition'] and fid not in questions:
                 continue          # question conditionnelle : seulement quand le choix qui la commande la rend pertinente
-            lignes.append(_champ_html(c, q, v['reponses'].get(fid), v['plan']['valeurs'].get(fid), questions.get(fid), prefix))
+            lignes.append(_champ_html(c, q, v['reponses'].get(fid), v['plan']['valeurs'].get(fid), questions.get(fid), prefix, v['etats'].get(fid, '')))
         if not lignes:
             continue
         blocs.append('<details class="q108-groupe" data-groupe="%s"%s><summary>%s <span class="q108-compte">%s</span></summary>%s</details>' % (
@@ -1833,6 +2212,9 @@ def page_html(desk, prefix, args):
     word = '<p class="q108-alerte" role="note">Modèle Word du cabinet : l’aperçu par sections suit la trame texte ; le document Word du cabinet se prépare depuis la fiche du modèle.</p>' if v['instantane'].get('word') else ''
     signature = ('<p class="q108-pret">Toutes les données bloquantes sont confirmées.</p>' if v['apercu']['pret_signature'] else
                  '<p class="q108-alerte" role="status">Brouillon partiel : non prêt pour signature.</p>')
+    if v['controles']:   # 5.6.111 (lot K, F08) : contrôle serveur avant « prêt » (raisons lisibles ; aucune validation juridique)
+        signature += ('<div class="q111-controles"><p><strong>Contrôle avant « prêt » : %d point(s)</strong></p><ul>%s</ul></div>' % (
+            len(v['controles']), ''.join('<li%s>%s</li>' % (' class="q111-bloquant"' if x['bloquant'] else '', e(x['message'])) for x in v['controles'])))
     return ('<div class="q108" data-q108 data-id="%s" data-revision="%d"><p><a href="%s">← Modèle %s</a></p>'
             '<header class="ax-card q108-tete"><h2>Informations pour préparer l’acte</h2><p>%s · dossier <strong>%s</strong> · version %d du modèle · %s, document en %s</p>'
             '<p class="q108-resume"><strong>%d</strong> question(s) utile(s) restante(s).</p>%s%s</header>'

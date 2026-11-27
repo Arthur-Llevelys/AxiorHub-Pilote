@@ -144,6 +144,9 @@ def valider_charge(type_, ch):
 
 def manifeste(chemin):
     """Manifeste d'un fichier local (lecture par blocs, jamais tout en mémoire)."""
+    from .dav import fichier_sqlite
+    if fichier_sqlite(chemin):
+        raise Stop('fichier_exclu_de_la_synchronisation')
     total, h, blocs = 0, hashlib.sha256(), []
     with open(chemin, 'rb') as f:
         while True:
@@ -164,7 +167,8 @@ def manifeste(chemin):
 def publier(desk, chemin_source, nom, dossier_gid='', objet=None, par=''):
     """Publie une version d'un document (nouveau si ``objet`` absent) : octets copiés au stockage par empreinte, opération ``document.version``
     (parents : versions courantes) dans une transaction ; la version locale est aussitôt « disponible »."""
-    if EXCLUS.search(str(nom or '')) or EXCLUS.search(str(chemin_source)):
+    from .dav import fichier_sqlite
+    if fichier_sqlite(nom) or fichier_sqlite(chemin_source) or EXCLUS.search(str(nom or '')) or EXCLUS.search(str(chemin_source)):
         raise Stop('fichier_exclu_de_la_synchronisation')
     esp = S.espace_cabinet(desk)
     if esp is None:

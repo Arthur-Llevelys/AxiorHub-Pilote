@@ -84,6 +84,10 @@ BUNDLE += ('v56109-relations.css',)   # 5.6.109 (lot G2) : partage client, appel
 BUNDLE += ('v56109-gestion.css',)   # 5.6.109 (lot G1) : Préfacturation, Assistance régulière (fiche client), Fonds, frais et débours (dossier)
 BUNDLE += ('v56109-parcours.css',)   # 5.6.109 (lot G4) : cartes « Relever mes messages procéduraux », « Offre et PDF joint », « Documents publics des sociétés » (Mes routines | Mes agents IA)
 BUNDLE += ('v56109-operations.css',)   # 5.6.109 (lot G3) : « À finaliser » (Corporate, Cession), Suites et exécution (fiche), formalités supervisées, RIB CARPA (vue financière)
+BUNDLE += ('v56111-activite.css',)   # 5.6.111 (lot C, L02) : indicateur d'activité htmx (#ax-occupe, role="status") ; aucun style injecté par htmx
+BUNDLE += ('v56111-portail.css',)   # 5.6.111 (lot P) : « Envois sur le portail » (onglet Juridiction du dossier : préparation, code, récapitulatif, accusé)
+BUNDLE += ('v56111-ergonomie.css',)   # 5.6.111 (lot U) : écarts d'ergonomie mesurés (contrastes rendus, cibles de 24 px, 375 px) et carte « Précontrôle du poste »
+BUNDLE += ('v56111-conversation.css',)   # 5.6.111 (lot F) : onglet « Conversation IA » du dossier (grille, composeur, volet Document / Navigateur)
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()

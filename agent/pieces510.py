@@ -25,6 +25,7 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
+from . import confirmations56111 as garde
 from . import pause5629
 from .common import Stop, clean_path, digest, fold, load_matters, under
 
@@ -1232,13 +1233,31 @@ def request_creation(desk, did):
     reasons = _blocking(desk, draft['data'])
     if reasons:
         return {'ready': False, 'reasons': reasons}
-    code = '%06d' % secrets.randbelow(1_000_000)
     data = draft['data']
-    data['challenge'] = {'hash': hashlib.sha256((did + '|' + code).encode()).hexdigest(),
-                         'expires': (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()}
+    data.pop('challenge', None)
+    # 5.6.111 (lot C, C03) : défi de la garde commune, lié au projet tel qu'il est montré (version) et à l'effet (création des fichiers)
+    defi = garde.emettre(desk, CHEMIN, did, _version(data), _effet(did, draft['matter'], data), 30)
+    data['challenge'] = {'garde': defi['garde'], 'expires': defi['expire']}
     _save(desk, did, data, 'a_confirmer')
     image = data['options']['stamp'] != 'none' and data['options']['stamp_image']
-    return {'ready': True, 'code': code, 'expires_minutes': 30, 'image_confirmation': bool(image)}
+    return {'ready': True, 'code': defi['code'], 'expires_minutes': 30, 'image_confirmation': bool(image)}
+
+
+CHEMIN = 'pieces510'
+
+
+def _version(data):
+    """5.6.111 (C03) : empreinte de ce qui fait les fichiers créés (pièces, intitulés, ordre, options, cartouche, renumérotation), telle que
+    montrée à l'avocat ; les contrôles et propositions non appliquées (``checks``, ``plan``) n'en font pas partie."""
+    return digest(json.dumps({k: data.get(k) for k in VERSION_CLES}, ensure_ascii=False, sort_keys=True))
+
+
+VERSION_CLES = ('matter', 'case', 'options', 'order', 'rows', 'conclusions_path', 'source_folder', 'renumber')
+
+
+def _effet(did, matter, data):
+    image = data['options']['stamp'] != 'none' and data['options']['stamp_image']
+    return digest(json.dumps(['pieces_create510', did, matter, bool(image)], ensure_ascii=False))
 
 
 def confirm_creation(desk, did, code, confirm_image=False):
@@ -1247,21 +1266,31 @@ def confirm_creation(desk, did, code, confirm_image=False):
     ch = data.get('challenge') or {}
     if draft['status'] != 'a_confirmer' or not ch:
         raise Stop('confirmation_bordereau_absente')
-    if datetime.now(timezone.utc) > datetime.fromisoformat(ch['expires']):
-        raise Stop('confirmation_bordereau_expiree')
-    expected = hashlib.sha256((did + '|' + str(code or '').strip()).encode()).hexdigest()
-    if not secrets.compare_digest(expected, ch['hash']):
-        raise Stop('code_confirmation_bordereau_invalide')
-    if data['options']['stamp'] != 'none' and data['options']['stamp_image']:
-        if confirm_image not in (True, 'true', '1', 'on'):
-            raise Stop('confirmation_tampon_image_requise')
-        data['image_confirmed'] = now()          # confirmation propre à ce bordereau, jamais reportée sur un autre
+    ancien = None
+    if ch.get('hash') and not ch.get('garde'):   # code demandé avant la 5.6.111 : confirmable jusqu'à son expiration prévue
+        ancien = {'expire': ch.get('expires'),
+                  'verifier': lambda c: secrets.compare_digest(hashlib.sha256((did + '|' + c).encode()).hexdigest(), str(ch['hash']))}
+    image = data['options']['stamp'] != 'none' and data['options']['stamp_image']
+    args = {'draft': did, 'matter': draft['matter']}
+
+    def intention(db):
+        # code consommé, travail mis en file et projet « en création » : une seule transaction, aucun appel réseau
+        if image:
+            if confirm_image not in (True, 'true', '1', 'on'):
+                raise Stop('confirmation_tampon_image_requise')   # rien n'est consommé : le même code reste valable
+            data['image_confirmed'] = now()          # confirmation propre à ce bordereau, jamais reportée sur un autre
+        job = desk.enqueue('pieces_create510', args, priority=0, transactional=True)
+        data['challenge'] = {}
+        db.execute("UPDATE pieces510_drafts SET status=?, job_id=?, data=?, updated=? WHERE id=? AND status='a_confirmer'",
+                   ('en_creation', job, json.dumps(data, ensure_ascii=False), now(), did))
+        return job
+    job = garde.confirmer(desk, CHEMIN, did, code, version=_version(data), effet=_effet(did, draft['matter'], data),
+                          code_faux='code_confirmation_bordereau_invalide', code_expire='confirmation_bordereau_expiree',
+                          code_deja='confirmation_bordereau_absente', intention=intention, ancien=ancien,
+                          matiere=draft['matter'])['resultat']
+    if image:
         desk.audit('pieces_520_tampon_image_confirme', {'draft': did})
-    job = desk.enqueue('pieces_create510', {'draft': did, 'matter': draft['matter']}, priority=0)
-    data['challenge'] = {}
-    desk.db.execute('UPDATE pieces510_drafts SET status=?, job_id=?, data=?, updated=? WHERE id=?',
-                    ('en_creation', job, json.dumps(data, ensure_ascii=False), now(), did))
-    desk.db.commit()
+    garde.apres_mise_en_file(desk, job, 'pieces_create510', args)
     return {'job_id': job}
 
 

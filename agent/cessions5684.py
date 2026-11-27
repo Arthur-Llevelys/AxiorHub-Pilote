@@ -723,6 +723,16 @@ def _formalites(desk, dos):
         known or '<li class="ax-muted">Aucune date prouvée.</li>', e(dos['id'], quote=True), options)
 
 
+QUESTIONNAIRES56111 = ('cession-titres', 'bail-commercial', 'lettre-intention', 'confidentialite', 'analyse-contrat', 'lettre-mission', 'convention-honoraires')
+
+
+def _questionnaires56111(desk, prefix, dos):
+    """5.6.111 (lot K) : actes d'accompagnement de l'opération préparés avec un modèle et son questionnaire — même questionnaire, même modèle et
+    même livrable que depuis Produire, Corporate ou le dossier (fonction d'ouverture commune de ``questionnaires56108``)."""
+    from .questionnaires56108 import TEXTES_OUVERTURE, carte_ouverture_html
+    return carte_ouverture_html(desk, prefix, dos['matter'], QUESTIONNAIRES56111, TEXTES_OUVERTURE['titre_cession'])
+
+
 def page_html(desk, prefix, args, hidden=()):
     schema(desk)
     kind = 'droit_bail' if str(args.get('type') or 'fonds') == 'bail' else 'fonds_commerce'
@@ -746,7 +756,8 @@ def page_html(desk, prefix, args, hidden=()):
     subs = ''.join('<a href="?type=%s&operation=%s&vue=%s"%s>%s</a>' % (URLS[dos['kind']], e(did, quote=True), k, ' aria-current="page"' if k == view else '', e(v)) for k, v in VIEWS)
     from . import closing56109, formalites56109   # 5.6.109 (lot G3) : même opération ; « À finaliser » (G04) et formalités supervisées (G15)
     body = (closing56109.resume_html(desk, 'dossier5683', did, hidden) + _overview(desk, dos) if view == 'ensemble' else _informations(desk, dos) if view == 'informations'
-            else _documents(desk, prefix, dos) if view == 'documents' else closing56109.section_html(desk, prefix, 'dossier5683', did, hidden) if view == 'finaliser'
+            else _documents(desk, prefix, dos) + _questionnaires56111(desk, prefix, dos) if view == 'documents'
+            else closing56109.section_html(desk, prefix, 'dossier5683', did, hidden) if view == 'finaliser'
             else _formalites(desk, dos) + formalites56109.section_operation_html(desk, prefix, 'dossier5683', did, hidden))
     scope = '' if dos['perimetre'] == 'livre' else '<p class="c5637-alert" role="status"><strong>Qualification complémentaire.</strong> Préparation utile, sans conformité annoncée.</p>'
     status = dos['data'].get('statut')

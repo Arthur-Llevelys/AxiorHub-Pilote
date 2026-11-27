@@ -65,3 +65,35 @@
 @media (prefers-reduced-motion: reduce) { .ax108-dictee.is-rec { animation: none; } }
 .q108-champ .ax108-dictee { justify-self: start; }
 .ia89-question label { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+/* 5.6.111 (lot K) : matrice de couverture des modèles (type d'acte × droit × langue), état de chaque donnée du questionnaire, contrôle avant
+   « prêt », carte d'ouverture commune. Jetons de la page (thèmes clair et sombre) ; état lisible en texte, jamais par la couleur seule ;
+   tableau dans un conteneur défilant au clavier : la page elle-même ne défile pas horizontalement (375 px). */
+.b111-matrice { display: grid; gap: .6rem; }
+.b111-defile { max-inline-size: 100%; overflow-x: auto; }
+.b111-defile:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.b111-table, .b111-totaux { border-collapse: collapse; inline-size: 100%; font-size: .875rem; }
+.b111-table caption { text-align: start; font-weight: 600; padding-block-end: .3rem; }
+.b111-table th, .b111-table td, .b111-totaux th, .b111-totaux td { border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); padding: .35rem .45rem;
+  vertical-align: top; text-align: start; }
+.b111-table thead th { background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); min-inline-size: 7.5rem; }
+.b111-table tbody th { min-inline-size: 11rem; font-weight: 600; }
+.b111-case ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.b111-case small { color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.b111-etat { display: inline-block; padding: .05rem .45rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.b111-etat-absent { border-style: dashed; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.b111-etat-validated { border-color: var(--cds-support-success, #24a148); font-weight: 600; }
+.b111-etat-needs_update, .b111-etat-withdrawn { border-color: var(--cds-support-warning, #8e6a00); }
+.b111-legende { margin: 0; padding-inline-start: 1.1rem; display: grid; gap: .25rem; }
+.q111-etat { font-weight: 600; }
+.q111-etat-contradictoire, .q111-etat-a_confirmer { border-color: var(--cds-support-warning, #8e6a00); }
+.q111-etat-confirme { border-color: var(--cds-support-success, #24a148); }
+.q111-etat-inconnu { border-style: dashed; }
+.q111-controles { padding: .4rem .6rem; border-inline-start: .25rem solid var(--cds-support-warning, #8e6a00); background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); }
+.q111-controles p { margin: 0 0 .25rem; }
+.q111-controles ul { margin: 0; padding-inline-start: 1.1rem; }
+.q111-bloquant { font-weight: 600; }
+.q111-form { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); align-items: end; }
+.q111-form label { display: grid; gap: .25rem; }
+.q111-form select { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.q111-form .ax-btn { min-block-size: 2.5rem; }
+.q111-form .q108-etat { grid-column: 1 / -1; margin: 0; }

@@ -44,7 +44,7 @@ from . import bibliotheque_droits56108 as _droits
 from . import bibliotheque_word5640 as W5
 from . import droits56108 as D
 
-BUILTIN = {t['id']: t for t in _fr.TEMPLATES + _intl.TEMPLATES + _cessions.TEMPLATES + _droits.TEMPLATES}
+BUILTIN = {t['id']: t for t in _fr.TEMPLATES + _intl.TEMPLATES + _cessions.TEMPLATES + _droits.TEMPLATES + _droits.TEMPLATES56111}   # 5.6.111 (lot K) : familles Conseil
 LANGS = ('fr', 'en', 'de', 'es')
 # 5.6.108 (lot B) : systèmes juridiques en liste fermée (droits56108) ; « EN » devient « UK-EAW » par alias explicite des données enregistrées.
 # La langue ne choisit jamais le droit : il n'existe plus de table « langue → droit ».
@@ -1274,6 +1274,8 @@ def page_html(desk, prefix, args, cid=''):
     if args.get('questionnaire'):   # 5.6.108 (lot Q) : formulaire de l'acte et aperçu à côté (questionnaires56108, lecture seule)
         from . import questionnaires56108
         return questionnaires56108.page_html(desk, prefix, args)
+    if args.get('matrice'):   # 5.6.111 (lot K, F06) : couverture par type d'acte, droit et langue (lecture seule)
+        return matrice_html(desk, prefix, args, cid)
     ident = str(args.get('modele') or '')
     if ident:
         return detail_html(desk, prefix, args, ident, cid)
@@ -1321,7 +1323,8 @@ def page_html(desk, prefix, args, cid=''):
              'automatiquement. Choisissez un modèle, cochez les clauses utiles, complétez '
              'les variables (pré-remplies depuis la société choisie) puis déposez le projet dans le dossier, téléchargez-le en Word ou confiez la '
              'rédaction à l’IA, qui suivra la trame. Vous pouvez personnaliser chaque modèle, le remplacer par votre modèle Word ou ajouter les '
-             'vôtres.</p>%s%s</section>') % (filters, law_form)
+             'vôtres.</p><p><a class="ax-btn ghost" href="%s">%s</a></p>%s%s</section>') % (
+        e(_url(prefix, cid, matrice='1'), quote=True), e(TEXTES56111['lien']), filters, law_form)
     add_form = ('<section class="ax-card"><details><summary>＋ Ajouter mon modèle</summary><form class="m5-form" data-api="m5636/corporate/bibliotheque/'
                 'ajouter" data-reload="1"><label>Titre<input name="titre" required maxlength="160"></label><label>Catégorie<select name="categorie">%s'
                 '</select></label><label>Droit<select name="droit">%s</select></label><label>Langue du document<select name="langue">%s</select></label>'
@@ -1338,6 +1341,83 @@ def page_html(desk, prefix, args, cid=''):
     from .conseil_ui5689 import playbooks_html
     from .membres5650 import current_author, viewer_hidden, viewer_role
     return intro + (''.join(groups) or '<p class="ax-muted">Aucun modèle pour ce filtre.</p>') + add_form + playbooks_html(desk, current_author() or 'cabinet', viewer_role(), viewer_hidden() or frozenset())   # 5.6.89 : playbooks, à côté des modèles qu'ils complètent
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.111 (lot K, F06) : matrice de couverture
+# Libellés de l'écran (traduits en anglais, allemand et espagnol dans agent/locales/ecrans_*.json)
+TEXTES56111 = {
+    'lien': 'Couverture des modèles par droit applicable',
+    'intro': 'Chaque case croise un type d’acte, un droit et une langue. Une case sans modèle est « À préparer » : aucun modèle d’un autre droit ou '
+             'd’une autre langue n’y est substitué. L’état vient du registre des modèles ; il n’est jamais attribué automatiquement.',
+    'retour': '← Bibliothèque de modèles', 'type': 'Type d’acte', 'totaux': 'Couverture par droit', 'legende': 'États',
+    'prioritaires': 'Familles du parcours Conseil', 'tous': 'Tous les types d’acte', 'droit': 'Droit', 'presentes': 'Cases couvertes',
+    'a_preparer': 'À préparer', 'validees': 'Validées', 'valideur': 'Validé par', 'reexamen': 'Réexamen le', 'auteur': 'Auteur',
+    'avertissement': 'Une trame est un point de départ à relire par un juriste compétent dans le droit concerné ; seule une personne habilitée la fait '
+                     'passer à « À relire » puis « Validé ». Une traduction ne vaut pas adaptation à un autre droit.',
+}
+
+
+def couverture(desk, types=None):
+    """Variantes de la bibliothèque (modèles livrés et du cabinet) et matrice ``droits56108.couverture`` : type d'acte du registre s'il est
+    renseigné, sinon celui de la trame ; état, auteur, valideur et réexamen du registre, lus en une fois, sans rien écrire."""
+    from . import modeles5684
+    etats = modeles5684.etats(desk)
+    variantes = []
+    for t in catalog(desk):
+        ligne = etats.get(t['id']) or {}
+        q = D.qualification(t)
+        variantes.append({'id': t['id'], 'titre': t['titre'], 'type_acte': ligne.get('document_type') or q['type_acte'], 'systeme': D.migrer(t['droit']),
+                          'langue': ligne.get('language') or t['langue'], 'version': int(ligne.get('version') or 1), 'etat': ligne.get('state') or 'draft',
+                          'auteur': ligne.get('author') or q['auteur'], 'valide_par': ligne.get('validated_by') or '',
+                          'valide_le': ligne.get('review_date') if ligne.get('state') == 'validated' else '',
+                          'reexamen_le': ligne.get('reexamen_le') if ligne.get('state') == 'validated' else '', 'origine': t['origine']})
+    if types == 'tous':
+        types = tuple(D.TYPES)
+    return D.couverture(variantes, tuple(types or D.FAMILLES_CONSEIL))
+
+
+def _case_html(prefix, cid, case):
+    if not case['variantes']:
+        return '<td class="b111-case b111-absent"><span class="b111-etat b111-etat-absent">%s</span></td>' % e(D.ETATS_COUVERTURE['absent'])
+    items = []
+    for v in case['variantes']:
+        detail = ''
+        if v['etat'] == 'validated':
+            detail = '<small><span>%s</span> %s · %s · <span>%s</span> %s</small>' % (e(TEXTES56111['valideur']), e(v['valide_par']), e(v['valide_le']),
+                                                                                    e(TEXTES56111['reexamen']), e(v['reexamen_le']))
+        items.append('<li><a href="%s">%s</a> <small>v%d</small> <span class="b111-etat b111-etat-%s">%s</span>%s</li>' % (
+            e(_url(prefix, cid, modele=v['id']), quote=True), e(v['titre']), v['version'], e(v['etat'], quote=True),
+            e(D.ETATS_COUVERTURE.get(v['etat'], v['etat'])), detail))
+    return '<td class="b111-case"><ul>%s</ul></td>' % ''.join(items)
+
+
+def matrice_html(desk, prefix, args, cid=''):
+    """Matrice de couverture lisible : lignes = types d'acte, colonnes = droit et langue ; totaux par droit ; légende des états. Lecture seule."""
+    tous = str(args.get('types') or '') == 'tous'
+    m = couverture(desk, 'tous' if tous else None)
+    langues = {'fr': 'français', 'en': 'anglais', 'de': 'allemand', 'es': 'espagnol'}
+    tete = ''.join('<th scope="col"><span>%s</span><br><small>%s</small></th>' % (e(D.libelle(s)), e(langues.get(l, l))) for s, l in m['colonnes'])
+    # 5.6.111 (lot U, U01) : chaque case porte aussi le nom de sa colonne (affiché seulement en petite largeur, où le tableau devient une liste de
+    # cartes lisible sans défilement horizontal ; masqué aux lecteurs d'écran, qui ont déjà l'en-tête de colonne)
+    etiquettes111 = ['%s · %s' % (D.libelle(s), langues.get(l, l)) for s, l in m['colonnes']]
+    lignes = ''.join('<tr><th scope="row">%s</th>%s</tr>' % (e(r['libelle']), ''.join(
+        re.sub(r'^(<td[^>]*>)', lambda x, i=i: x.group(1) + '<span class="u111-col" aria-hidden="true">%s</span>' % e(etiquettes111[i]), _case_html(prefix, cid, c), count=1)
+        for i, c in enumerate(r['cases']))) for r in m['lignes'])
+    totaux = ''.join('<tr><th scope="row">%s</th><td>%d / %d</td><td>%d</td><td>%d</td></tr>' % (
+        e(D.libelle(s)), t['cases'] - t['absent'], t['cases'], t['absent'], t['validated']) for s, t in m['totaux'].items())
+    legende = ''.join('<li><span class="b111-etat b111-etat-%s">%s</span> %s</li>' % (e(k, quote=True), e(v), e(D.USAGES.get(k, '')))
+                      for k, v in D.ETATS_COUVERTURE.items())
+    bascule = '<a href="%s">%s</a>' % (e(_url(prefix, cid, matrice='1', types='' if tous else 'tous'), quote=True),
+                                       e(TEXTES56111['prioritaires'] if tous else TEXTES56111['tous']))
+    return ('<p><a href="%s">%s</a></p><section class="ax-card b111-matrice" aria-labelledby="b111-titre"><h2 id="b111-titre">%s</h2><p class="ax-muted">%s</p>'
+            '<p class="b5639-warn" role="note">%s</p><p>%s</p><div class="b111-defile" tabindex="0" role="region" aria-labelledby="b111-titre"><table class="b111-table">'
+            '<caption>%s</caption><thead><tr><th scope="col">%s</th>%s</tr></thead><tbody>%s</tbody></table></div>'
+            '<h3>%s</h3><div class="b111-defile"><table class="b111-totaux"><thead><tr><th scope="col">%s</th><th scope="col">%s</th><th scope="col">%s</th>'
+            '<th scope="col">%s</th></tr></thead><tbody>%s</tbody></table></div><h3>%s</h3><ul class="b111-legende">%s</ul></section>') % (
+        e(_url(prefix, cid), quote=True), e(TEXTES56111['retour']), e(TEXTES56111['lien']), e(TEXTES56111['intro']), e(TEXTES56111['avertissement']),
+        bascule, e(TEXTES56111['tous'] if tous else TEXTES56111['prioritaires']), e(TEXTES56111['type']), tete, lignes, e(TEXTES56111['totaux']),
+        e(TEXTES56111['droit']), e(TEXTES56111['presentes']), e(TEXTES56111['a_preparer']), e(TEXTES56111['validees']), totaux, e(TEXTES56111['legende']),
+        legende)
 
 
 def badge_etat(etat):

@@ -189,6 +189,7 @@ def ecran(desk, env, auth, prefix, args):
         corps = []
         from .gestion_ui5697 import alertes_archives_html   # 5.6.100 (R10) : la liste Archivés ne masque pas une échéance critique ouverte
         alertes = alertes_archives_html(desk, prefix, [d['id'] for d in lignes if d.get('statut') == 'archive'])
+        ia111 = dossiers56100.ia_recents_html(desk, acteur, prefix, [d['id'] for d in lignes])   # 5.6.111 (lot U, U01) : dernier résultat de l'IA, registre existant
         for d in lignes:
             date_c = confirmees.get(d['id'])
             prop = proposees.get(d['id'], 0)
@@ -205,7 +206,7 @@ def ecran(desk, env, auth, prefix, args):
                 '<tr data-d97-ligne="%s"><th scope="row" data-label="Dossier"><a class="d97-ouvrir" href="%s">%s</a><span class="d97-client">%s</span>'
                 '<span class="d97-ref">%s</span><button type="button" class="d97-plus" data-d97-details aria-expanded="false">Détails</button></th><td data-label="Type">%s</td><td data-label="Responsable">%s</td>'
                 '<td data-label="Prochaine action" class="d97-action">%s</td><td data-label="Date utile">%s</td>'
-                '<td data-label="Prochaine date confirmée" class="d97-prochaine">%s</td><td data-label="État">%s</td><td data-label="Dernière activité">%s</td>'
+                '<td data-label="Prochaine date confirmée" class="d97-prochaine">%s</td><td data-label="État">%s</td><td data-label="Dernière activité">%s%s</td>'
                 '<td class="d97-menu-cell"><details class="d97-menu"><summary aria-label="Autres actions pour %s">…</summary><div class="d97-menu-corps">%s</div></details></td></tr>' % (
                     e(d['id'], quote=True), _lien(prefix, '/dossier', id=d['id']), e(d['titre']),
                     e(('Client : ' + d['client']) if d.get('client') else 'Client à identifier'),
@@ -213,7 +214,7 @@ def ecran(desk, env, auth, prefix, args):
                     e(d['nature_libelle']), e(membres.get(d.get('responsable'), d.get('responsable') or '—')),
                     _action_html(suivi, d['id']), e(_date_fr((suivi or {}).get(d['id'], {}).get('date_utile')) or '—'), prochaine,
                     e(((suivi or {}).get(d['id']) or {}).get('etat_libelle') or ('indisponible' if suivi is None else '—')),
-                    e(_date_fr(max(activites.get(d['id'], d.get('modifie_le')) or '', ((suivi or {}).get(d['id']) or {}).get('derniere_activite') or '')) or '—'), e(d['titre'], quote=True), ''.join(menu)))
+                    e(_date_fr(max(activites.get(d['id'], d.get('modifie_le')) or '', ((suivi or {}).get(d['id']) or {}).get('derniere_activite') or '')) or '—'), ia111.get(d['id'], ''), e(d['titre'], quote=True), ''.join(menu)))
         out.append('<div class="d97-tableau"><table class="d97-table"><caption class="sr-only">Dossiers</caption><thead><tr>'
                    '<th scope="col">Dossier et client</th><th scope="col">Type</th><th scope="col">Responsable</th>'
                    '<th scope="col">Prochaine action</th><th scope="col">Date utile</th><th scope="col">Prochaine date confirmée</th><th scope="col">État</th><th scope="col">Dernière activité</th><th scope="col"><span class="sr-only">Actions</span></th>'
@@ -432,8 +433,9 @@ def _reprise56100(desk, acteur, prefix, dossier_id):
         from .interface56100 import active
         if not active(desk, acteur_de(acteur).compte):
             return ''
-        from .dossiers56100 import reprise_html
-        return reprise_html(desk, acteur, prefix, dossier_id)
+        from .dossiers56100 import reprise_html, complements_html
+        # 5.6.111 (lot U, U01) : résultats de l'IA et pièces sources, dans un second bloc après les quatre champs
+        return reprise_html(desk, acteur, prefix, dossier_id) + complements_html(desk, acteur, prefix, dossier_id)
     except Stop:
         return ''
     except Exception:   # noqa: BLE001 — la reprise ne doit jamais empêcher l'ouverture du dossier

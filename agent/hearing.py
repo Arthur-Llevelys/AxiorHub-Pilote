@@ -8,6 +8,7 @@ import re
 import secrets
 import unicodedata
 
+from . import confirmations56111 as garde
 from .common import Stop, clean_path, digest, fold, under
 from .documents import extract,extract_pages
 from .model import HEARING_PREPARATION, Model, routed_config, validate
@@ -37,6 +38,17 @@ CREATE TABLE IF NOT EXISTS hearing_creation_files_v250(
 def ensure_schema(desk):
     for sql in SCHEMAS:desk.db.executescript(sql)
     desk.db.commit()
+
+
+CHEMIN='hearing'
+
+
+def _effet(data):
+    """5.6.111 (C03) : empreinte de l'effet confirmé (fichiers prévus, conclusions des deux parties, destination exacte)."""
+    w=data.get('writings') or {}
+    return digest(json.dumps(['create_hearing_files',data['project_id'],data['destination_folder'],
+      [(w.get(k) or {}).get('path','') for k in ('ours','opponent')],[(w.get(k) or {}).get('sha256','') for k in ('ours','opponent')],
+      data['future_files']],ensure_ascii=False))
 
 
 def _sha(raw):return hashlib.sha256(raw).hexdigest()
@@ -286,11 +298,14 @@ def prepare_hearing(desk,args,dav=None,model=None):
       'control':control,'destination_folder':destination,'future_files':outputs,
       'safety':{'new_files_only':True,'no_overwrite':True,'no_rpva':True,'no_email':True,'no_signature':True}}
     preview_hash=_sha(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode())
-    status='pending' if control['status']=='passed' else 'blocked';code=f'{secrets.randbelow(1_000_000):06d}' if status=='pending' else ''
+    status='pending' if control['status']=='passed' else 'blocked';code,challenge='',''
     created=desk.now();expires=(datetime.now(timezone.utc)+timedelta(minutes=int(desk.c.get('hearing',{}).get('approval_minutes',60)))).isoformat()
+    if status=='pending':   # 5.6.111 (lot C, C03) : défi de la garde commune (aperçu, effet, expiration UTC, cinq essais)
+        defi=garde.emettre(desk,CHEMIN,pid,preview_hash,_effet(data),int(desk.c.get('hearing',{}).get('approval_minutes',60)))
+        code,challenge,expires=defi['code'],garde.marque(defi['garde']),defi['expire']
     desk.db.execute('INSERT INTO hearing_projects_v250 VALUES(?,?,?,?,?,?,?,?,?,?,?)',
       (pid,matter['id'],status,instruction,json.dumps(data,ensure_ascii=False),preview_hash,
-       digest(pid+'|'+code) if code else '',created,expires,'',''))
+       challenge,created,expires,'',''))
     for side,row in (('ours',ours),('opponent',opponent)):
         desk.db.execute('INSERT INTO hearing_writings_v250 VALUES(?,?,?,?,?,?,?,?)',
           (pid,side,row['path'],row['etag'],row['modified'],row['sha256'],row['content_sha256'],created))
@@ -348,15 +363,22 @@ def _build_files(data):
 
 def confirm_hearing(desk,args,dav=None):
     ensure_schema(desk);pid=str(args.get('project_id',''));code=str(args.get('confirmation_code',''))
-    if not re.fullmatch(r'[a-f0-9]{32}',pid) or not re.fullmatch(r'\d{6}',code):raise Stop('confirmation_audience_invalide')
+    if not re.fullmatch(r'[a-f0-9]{32}',pid):raise Stop('confirmation_audience_invalide')   # code malformé : essai décompté par la garde
     row=desk.db.execute('SELECT * FROM hearing_projects_v250 WHERE id=?',(pid,)).fetchone()
     if not row or row['status'] not in ('pending','creating','partial'):raise Stop('projet_audience_non_confirmable')
-    if row['status']=='pending' and datetime.now(timezone.utc)>=datetime.fromisoformat(row['expires']):raise Stop('projet_audience_expire')
-    if not secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+code)):raise Stop('confirmation_audience_invalide')
     data=json.loads(row['data']);matter=_resolve_matter(desk,data['matter']['id'])
     if clean_path(args.get('destination_folder',''))!=data['destination_folder']:raise Stop('destination_audience_non_confirmee')
     if clean_path(args.get('our_source_path',''))!=data['writings']['ours']['path'] or clean_path(args.get('opponent_source_path',''))!=data['writings']['opponent']['path']:
         raise Stop('conclusions_parties_non_confirmees')
+    # 5.6.111 (lot C, C03) : code présenté à la garde commune avant tout appel réseau (version : empreinte de l'aperçu relu ;
+    # effet : fichiers prévus, conclusions exactes, destination) ; reprise par la même clé, sans second essai
+    ancien=None
+    if garde.ancienne_empreinte(row['challenge_hash']):
+        ancien={'expire':row['expires'],'etat':'consomme' if row['status']!='pending' else 'attente',
+                'verifier':lambda c:secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+c))}
+    garde.confirmer(desk,CHEMIN,pid,code,version=_sha(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()),effet=_effet(data),code_faux='confirmation_audience_invalide',
+      code_expire='projet_audience_expire',code_deja='projet_audience_non_confirmable',ancien=ancien,reprise=True,
+      effet_commence=row['status']!='pending',matiere=row['matter'])
     client=dav or _dav(desk);inventory=_inventory(client,matter['path'])
     for side in ('ours','opponent'):
         expected=data['writings'][side];item=next((x for x in inventory if x.get('path')==expected['path']),None)
@@ -397,7 +419,8 @@ def reject_hearing(desk,pid):
     ensure_schema(desk);row=desk.db.execute('SELECT status FROM hearing_projects_v250 WHERE id=?',(pid,)).fetchone()
     if not row:raise Stop('projet_audience_absent')
     if row['status'] not in ('pending','blocked'):raise Stop('projet_audience_deja_traite')
-    desk.db.execute("UPDATE hearing_projects_v250 SET status='rejected',decided=? WHERE id=?",(desk.now(),pid));desk.db.commit()
+    desk.db.execute("UPDATE hearing_projects_v250 SET status='rejected',decided=? WHERE id=?",(desk.now(),pid))
+    garde.annuler(desk,CHEMIN,pid);desk.db.commit()
     return {'hearing_project_id':pid,'status':'rejected','files_created':False}
 
 

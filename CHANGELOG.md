@@ -3,6 +3,73 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.111 — audit de la 5.6.110 : confirmations durcies, Conversation IA dans le dossier, Conseil par droit applicable, envoi préparé sur un portail
+
+Version construite à partir de l'audit de la 5.6.110 et de son dossier technique. Le lot de code proposé avec l'audit n'a pas été
+appliqué tel quel (ses défauts sont relevés par l'audit lui-même) : chaque point a été repris sur le code existant, sans second registre
+ni module parallèle. Le détail, lot par lot, avec ce qui a réellement tourné et ce qui ne l'a pas été, est dans `VALIDATION-5.6.111.json`.
+
+**Corrections de sécurité et de fiabilité**
+- Synchronisation des fichiers : les journaux SQLite (`-wal`, `-shm`, `-journal`) et les bases elles-mêmes sont refusés avant toute
+  lecture (« fichier exclu de la synchronisation ») ; un document ordinaire est inchangé.
+- Outil Open WebUI : une erreur de l'API (403, 503…) n'est plus présentée comme une liste vide ; le résultat partiel est gardé et
+  l'erreur est visible. À réexporter dans Open WebUI.
+- Installation : messages clairs si le manifeste manque ou si l'intégrité échoue ; le guide Docker explique le jeton du premier compte.
+- Application du poste derrière HTTPS : le cookie de session porte `Secure` ; en bouclage HTTP, rien ne change.
+- Codes de confirmation (validation d'un courriel, création de pièces, projets de documents, projets Word, audiences, documents et
+  modèles du cabinet, plan de travail, lots) : une garde commune lie le code à la personne, à l'objet et à sa version ; cinq essais au
+  plus, puis la demande est bloquée ; un code expiré, remplacé ou portant sur un objet modifié ne vaut plus rien ; le code est consommé
+  dans la même transaction que l'action. Les demandes en attente d'avant la mise à jour restent confirmables 24 h au plus.
+- Vérification des liens : la connexion se fait vers l'adresse publique vérifiée (aucune nouvelle résolution entre contrôle et
+  connexion), chaque redirection est revérifiée, le certificat est contrôlé avec le nom d'origine.
+- Jetons d'envoi : conservés sous forme d'empreinte, plus en clair ; les jetons existants sont convertis au démarrage.
+- Désinstallation Windows : la suppression différée échouait (guillemets mal transmis à `cmd`) et un chemin contenant `%`, `&` ou `^`
+  pouvait être interprété ; corrigé.
+- Indicateur « Mise à jour… » pendant les rechargements de la page (htmx), retiré après réussite comme après erreur.
+
+**Conversation IA dans le dossier (nouvel onglet)**
+- Onglet « Conversation IA » de la fiche du dossier : discussions de ce dossier, fil complet sans troncature, saisie avec dictée, pièces
+  jointes et brouillon conservé, choix des fichiers servant de contexte, suivi et arrêt de la demande, missions (recherche juridique
+  sans document, plan de sous-agents sur un livrable, carte « modèle et questionnaire »).
+- À droite, le document s'ouvre avec les mêmes éditeurs que l'onglet Fichiers ; au retour, même discussion, même document, même brouillon.
+- Volet navigateur : sur un poste, suivi de la séance supervisée et prise ou reprise de main ; la page elle-même s'affiche dans la
+  fenêtre du navigateur du poste (aucune capture dans le volet). Sur un serveur, l'écran le dit.
+
+**Conseil : modèles et questionnaires par droit applicable**
+- Corporate › Bibliothèque : matrice de couverture par type d'acte, droit (FR, ES, DE, UK-EAW, CA-QC, CA-ON) et langue ; une variante
+  absente reste visible « À préparer », jamais remplacée par la version française.
+- Carte « Préparer un acte avec un modèle et son questionnaire » dans Produire › Rédiger et Cession : questionnaire par sections,
+  préremplissage depuis les parties avec l'origine de chaque valeur, contrôle avant « prêt », document Word rouvert et contrôlé.
+- 7 nouvelles trames françaises (brouillons à faire valider), 46 questionnaires enrichis, 11 questionnaires du lot proposé convertis au
+  format natif. Aucune trame n'est présentée comme validée juridiquement.
+
+**Envoi préparé sur un portail (sans pilotage)**
+- AxiorHub ne pilote aucun portail (aucun écran de portail n'est qualifié). Il prépare l'envoi : texte exact du message, pièces prises
+  dans le registre du dossier (empreintes calculées par le serveur), confirmation par code ; puis un récapitulatif à recopier, les
+  pièces à télécharger, « J'ai transmis dans le portail » (état « à vérifier ») et le dépôt de l'accusé tel quel dans le dossier.
+- Chaque profil de portail distingue consulter, télécharger, préparer et transmettre, chacune avec sa preuve ; une collecte qualifiée
+  ne vaut jamais capacité d'envoi. Rien n'est renvoyé automatiquement.
+
+**Ergonomie, mesures et précontrôle du poste**
+- À relire : commandes de décision visibles sans défiler (1920×1080 et 125 %) ; filtre et position de la liste conservés après chaque
+  décision et au retour par Précédent ; « Envoyer… » raccordé à l'envoi existant dans le lecteur, distinct de « Retenir » et de
+  « Déposer dans Brouillons ».
+- Aujourd'hui : une date proposée se distingue d'une échéance confirmée (italique souligné de tirets).
+- Dossiers : dernier résultat de l'IA dans la liste ; « Derniers résultats de l'IA » et « Pièces sources » dans la fiche, lus dans les
+  registres existants ; s'il n'y a rien, l'écran le dit au lieu d'afficher zéro.
+- Corporate › Bibliothèque : la matrice de couverture devient des cartes en petite largeur (plus de défilement horizontal à 375 px).
+- Accessibilité mesurée sur les couleurs réellement rendues : contrastes AA corrigés en thème clair et sombre, cibles d'au moins 24 px.
+- Paramètres › Voix : carte « Précontrôle du poste » (moteur de dictée, Microsoft Visual C++ sous Windows, libgomp1 sous Ubuntu, modèle,
+  autorisation du micro, LibreOffice, WebKitGTK), avec la marche à suivre ; rien n'est téléchargé.
+
+**Essais**
+- Recette GitHub de la 5.6.110 : deux parcours navigateur (DeckCraft, Gmail) attendaient trop peu sous Chromium sans carte graphique ;
+  corrigés. Le logiciel n'était pas en cause.
+
+**Non vérifié dans cette version**
+- Vrai portail, compte ou certificat ; vue réelle du navigateur supervisé et modèle Qwen sur un poste ; micro réel ; poste Windows sans
+  Microsoft Visual C++ ; validation juridique des nouvelles trames et questionnaires.
+
 ## 5.6.110 — dictée sur chaque poste, tableur, PDF et présentations intégrés, serveur de documents en un clic, Google sur un poste
 
 Retours d'essai du cabinet du 24/11/2026 sur la 5.6.109 (postes Windows 11 et Ubuntu 24.04). Le détail, lot par lot, avec ce qui

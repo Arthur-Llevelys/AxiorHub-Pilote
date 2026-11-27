@@ -92,6 +92,9 @@ REASONS.update({
  'confirmation_courrier_invalide':'Code de confirmation incorrect ; reprenez celui affiché lors de la préparation.'})
 from .workstation import FRENCH_REASONS
 REASONS.update(FRENCH_REASONS)
+from .confirmations56111 import MESSAGES as _messages56111   # 5.6.111 (lot C, C03) : confirmations bornées ; un message existant n'est pas remplacé
+for _code56111, _texte56111 in _messages56111.items():
+    REASONS.setdefault(_code56111, _texte56111)
 REASONS.update({
  'conflit_a_examiner':'Ce dossier vient d’être ouvert et sa recherche de conflits d’intérêts n’a pas encore été examinée : la production est suspendue pour lui seul. Ouvrez « Cabinet › Conflits d’intérêts », enregistrez votre décision (ou désactivez le blocage), puis relancez.',
  'dossier_decline_conflit':'Ce dossier a été décliné pour conflit d’intérêts : aucune production n’est lancée. La décision peut être modifiée dans « Cabinet › Conflits d’intérêts ».',

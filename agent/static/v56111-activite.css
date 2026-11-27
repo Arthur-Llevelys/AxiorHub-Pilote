@@ -1,0 +1,10 @@
+/* 5.6.111 (lot C, L02) : indicateur d'activité htmx (#ax-occupe, role="status"), rattaché à la zone principale par hx-indicator.
+   Styles de la feuille unique (CSP style-src 'self') : htmx n'injecte aucun style (includeIndicatorStyles:false). */
+#ax-occupe.htmx-indicator{display:none}
+#ax-occupe.htmx-indicator.htmx-request{display:block;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:140;
+  max-width:calc(100vw - 32px);padding:6px 14px;border:1px solid #2f6fdd;border-radius:999px;background:var(--ws-surface,#fff);
+  color:var(--ws-ink,#172033);box-shadow:0 6px 20px #0002;font-size:13px;line-height:1.4;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;pointer-events:none;opacity:1}
+:root[data-theme="dark"] #ax-occupe.htmx-indicator.htmx-request{background:#202225;color:#eee;border-color:#6b8fd6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #ax-occupe.htmx-indicator.htmx-request{background:#202225;color:#eee;border-color:#6b8fd6}}
+@media (forced-colors:active){#ax-occupe.htmx-indicator.htmx-request{border:1px solid CanvasText}}

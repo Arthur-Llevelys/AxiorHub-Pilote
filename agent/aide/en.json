@@ -40,7 +40,8 @@
 "Open Cases: the three cases the AI worked on most recently are shown first, with their proceedings and next date.",
 "Type a name or reference and click “Search”; click a column heading to sort.",
 "For a case missing from the list, expand “Firm portfolio”, enter its folder, then “Check and register the case”.",
-"Open the case: Summary, Documents (preview on the right), Facts and proceedings, Exchanges, Work."
+"Open the case: Summary, Documents (preview on the right), Facts and proceedings, Exchanges, Work.",
+"“AI conversation” tab: type or dictate your question, choose “The whole matter” or specific files, then “Send”; the answer and its sources open on the right, “Stop” interrupts the request."
 ],
 "result": "The case appears in the portfolio with its working file.",
 "verify": "The file shows the folder name and the date it was last read.",
@@ -345,7 +346,8 @@
 "Open Exhibits and exhibit lists.",
 "Fill in your profile and stamp then “Save the profile”.",
 "In “Prepare an exhibit list”, choose the case then “Analyse the case PDFs”.",
-"Check titles and numbers, preview all pages then confirm."
+"Check titles and numbers, preview all pages then confirm.",
+"To file on e-Barreau or Portalis: Court tab of the matter, “Prepare a filing on the portal”, copy the code, file it yourself in the portal, then “Store the filing receipt”."
 ],
 "result": "A new version of the exhibit list and stamped exhibits. Creating the file is not communication to a party.",
 "verify": "Open the list: each exhibit has a number and a title.",

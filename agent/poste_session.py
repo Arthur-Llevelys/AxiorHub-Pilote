@@ -101,9 +101,12 @@ def exchange(auth_path, env, prefix):
         _write_private(Path(auth_path).parent / SESSIONS, dict(list(sessions.items())[-20:]))
     if not suite.startswith('/') or suite.startswith('//') or '\\' in suite or any(ord(c) < 32 for c in suite):
         suite = '/'
+    # Le frontal approuvé doit normaliser wsgi.url_scheme ; ne pas faire confiance
+    # ici à un X-Forwarded-Proto fourni directement par un client.
+    secure = env.get('wsgi.url_scheme') == 'https'
     return {'status': '303 See Other', 'kind': 'text/plain; charset=utf-8', 'body': '',
             'headers': [('Location', (prefix or '') + suite),
-                        ('Set-Cookie', '%s=%s; Path=%s; HttpOnly; SameSite=Strict' % (COOKIE, sid, prefix or '/'))]}
+                        ('Set-Cookie', '%s=%s; Path=%s; HttpOnly; SameSite=Strict%s' % (COOKIE, sid, prefix or '/', '; Secure' if secure else ''))]}
 
 
 def cookie_ok(auth_path, env):

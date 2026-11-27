@@ -245,15 +245,19 @@ def webmail_confirm(desk, token):
     return mettre_en_file(desk, current_author() or 'cabinet', viewer_role(), token)
 
 
+def migrer_jetons_envoi(desk):
+    """5.6.111 (lot C, C07) : au démarrage (``Desk._prepare``), jetons d'aperçu de l'ancienne forme (en clair) remplacés par leur empreinte."""
+    return send490.migrer_jetons(desk)
+
+
 def brouillon_du_jeton(desk, token):
     """5.6.100 (R04) : brouillon visé par un jeton de confirmation (UID, UIDVALIDITY), pour recontrôler les droits juste avant l'effet.
     Jeton inconnu : vide (la confirmation le refuse elle-même)."""
     import sqlite3
     try:
-        row = desk.db.execute('SELECT uid, validity FROM send_pending490 WHERE token=?', (str(token or ''),)).fetchone()
+        return send490.brouillon_du_jeton(desk, token)   # 5.6.111 (lot C, C07) : jeton retrouvé par son empreinte (jamais conservé en clair)
     except sqlite3.Error:
         return {}
-    return {'uid': str(row[0]), 'uidvalidity': str(row[1])} if row else {}
 
 
 # ------------------------------------------------------------- 5.6.106 (lot E) : file d'envoi (seule la couche web touche au module d'envoi)

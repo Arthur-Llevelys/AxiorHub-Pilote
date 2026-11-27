@@ -627,6 +627,8 @@ def juridiction_html(desk, acteur, prefix, m):
         _prochaines_html(desk, prefix, mid), _actes_html(desk, prefix, mid))
     from .suites56109 import montage_fiche as suites56109   # 5.6.109 (lot G3, G05) : point de montage unique du bloc « Suites et exécution » (ne lève jamais)
     blocs += suites56109(desk, acteur, prefix, m)
+    from .envoi_portail56111 import montage_fiche as portail56111   # 5.6.111 (lot P) : « Envois sur le portail » (préparer, confirmer, récapitulatif, accusé ; ne lève jamais)
+    blocs += portail56111(desk, acteur, prefix, m)
     try:
         data = F.instances(desk, acteur, mid)
     except Stop as ex:

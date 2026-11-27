@@ -27,9 +27,11 @@ from .common import Stop, matter_display
 # 5.6.98 : Parties, Juridiction et Fichiers juste après Synthèse, comme dans un logiciel de gestion de cabinet (« Documents » devient
 # « Fichiers » : ``vue=documents`` reste un alias, ``fiche_ui5698``)
 TABS = (('synthese', 'Synthèse'), ('parties', 'Parties'), ('juridiction', 'Juridiction'), ('fichiers', 'Fichiers'), ('echanges', 'Correspondances'),
-        ('faits', 'Procédure · Pièces'), ('agenda', 'Agenda et tâches'), ('gestion', 'Gestion'), ('travail', 'Travail de l’IA'))
+        ('faits', 'Procédure · Pièces'), ('agenda', 'Agenda et tâches'), ('gestion', 'Gestion'), ('travail', 'Travail de l’IA'),
+        ('conversation', 'Conversation IA'))   # 5.6.111 (lot F, F01) : vue du dossier rendue par conversation56111 (discussions, instruction, document ou navigateur)
 ALIASES = {'': 'synthese', 'apercu': 'synthese', 'fiche': 'synthese', 'pieces': 'fichiers', 'documents': 'fichiers', 'procedure': 'faits', 'courriels': 'echanges',
-           'correspondances': 'echanges', 'travaux': 'travail', 'taches': 'agenda', 'honoraires': 'gestion', 'intervenants': 'parties', 'instances': 'juridiction'}
+           'correspondances': 'echanges', 'travaux': 'travail', 'taches': 'agenda', 'honoraires': 'gestion', 'intervenants': 'parties', 'instances': 'juridiction',
+           'espace': 'conversation'}   # 5.6.111 : « Espace de travail » du lot proposé, renommé Conversation IA
 DETAIL_TAB = {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'fichiers', 'cloture': 'gestion'}
 DETAIL_VIEWS = ('informations', 'procedure-detail', 'pieces-detail', 'cloture')   # 5.6.97 : « Préparer la clôture » (lot gestion), depuis le menu « … »
 CATEGORIES = (('', 'Tous'), ('ecritures', 'Écritures'), ('decisions', 'Décisions'), ('actes', 'Actes et RPVA'), ('nos', 'Nos pièces'),
@@ -857,6 +859,8 @@ def page(desk, auth, prefix, args, shell):
             modele5651.rebuild(desk, m['id'])
         except Stop:
             pass
+    if view == 'conversation':   # 5.6.111 (lot F, F01) : même en-tête, volet d'aperçu commun placé à droite ; contenu rendu par conversation56111
+        from .conversation56111 import page_dossier as _page56111f; return _page56111f(desk, auth, prefix, args, shell, m)
     body = header_html(desk, prefix, m, view if view in dict(TABS) else DETAIL_TAB[view])
     if view in DETAIL_VIEWS:
         content = cloture_html(desk, auth, prefix, m, args) if view == 'cloture' else detail_html(desk, auth, prefix, m, args, view)

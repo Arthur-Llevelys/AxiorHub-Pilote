@@ -18,6 +18,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 
+from . import confirmations56111 as garde
 from .common import Stop, clean_path, digest, under
 from . import portable
 from .document_projects import _dav, _resolve_matter
@@ -68,6 +69,15 @@ def ensure_schema(desk):
 
 
 def _sha(data):return hashlib.sha256(data).hexdigest()
+
+
+CHEMIN='cabinet_docs33'
+
+
+def _effet(data):
+    """5.6.111 (C03) : empreinte de l'effet confirmé (fichier exact créé, modèle, version source)."""
+    return digest(json.dumps(['create_cabinet_letter',data['id'],data['destination'],data['sha256'],data['template_sha256'],
+                              data.get('source_sha256','')],ensure_ascii=False))
 
 
 def _external_relationship(raw):
@@ -412,10 +422,17 @@ def approve_template(desk,tid,expected_sha,ack):
     for variant,count in json.loads(item['pages']).items():
         if not 1<=count<=MAX_PAGES or any(not (root/'previews'/tid/variant/(str(i)+'.png')).is_file()
             for i in range(1,count+1)):raise Stop('previsualisation_modele_absente')
-    desk.db.execute("UPDATE cabinet_templates_v330 SET status='retired' WHERE label=? AND status='approved'",
-                    (item['label'],))
-    desk.db.execute("UPDATE cabinet_templates_v330 SET status='approved',approved=? WHERE id=?",
-                    (desk.now(),tid));desk.db.commit()
+    def operation(db):
+        # 5.6.111 (lot C, C03) : relecture et décision dans une seule transaction BEGIN IMMEDIATE : deux validations simultanées ne
+        # retirent pas deux fois la version active ; un modèle remplacé entre l'aperçu et la validation est refusé.
+        current=db.execute('SELECT status,sha256 FROM cabinet_templates_v330 WHERE id=?',(tid,)).fetchone()
+        if not current or current['status']!='draft':raise Stop('modele_word_deja_decide')
+        if current['sha256']!=item['sha256']:raise Stop('modele_word_modifie')
+        db.execute("UPDATE cabinet_templates_v330 SET status='retired' WHERE label=? AND status='approved'",
+                   (item['label'],))
+        db.execute("UPDATE cabinet_templates_v330 SET status='approved',approved=? WHERE id=? AND status='draft'",
+                   (desk.now(),tid))
+    garde.decider(desk,operation)
     desk.audit('cabinet_template_approved',{'id':tid,'sha256':item['sha256']})
     return {'template_id':tid,'status':'approved','version':item['version']}
 
@@ -497,11 +514,12 @@ def prepare(desk,args,dav=None,renderer=render_pages):
               'values':values,'destination':output,'folder':destination,
               'sha256':_sha(raw),'bytes':len(raw),'pages':pages}
         frozen=_sha(json.dumps(data,sort_keys=True,ensure_ascii=False).encode())
-        code=f'{secrets.randbelow(1_000_000):06d}'
-        expires=(datetime.now(timezone.utc)+timedelta(minutes=60)).isoformat()
+        # 5.6.111 (lot C, C03) : défi de la garde commune (aperçu figé, effet, expiration UTC, cinq essais)
+        defi=garde.emettre(desk,CHEMIN,pid,frozen,_effet(data),60)
+        code,expires=defi['code'],defi['expire']
         desk.db.execute('INSERT INTO cabinet_projects_v330 VALUES(?,?,?,?,?,?,?,?,?,?,?)',
             (pid,tid,matter['id'],kind,'pending',json.dumps(data,ensure_ascii=False),frozen,
-             digest(pid+'|'+code),desk.now(),expires,''));desk.db.commit()
+             garde.marque(defi['garde']),desk.now(),expires,''));desk.db.commit()
     except Exception:
         if folder.exists():shutil.rmtree(folder)
         (root/'projects'/(pid+'.docx')).unlink(missing_ok=True)
@@ -540,15 +558,20 @@ def project(desk,pid):
 def confirm(desk,args,dav=None):
     row=project(desk,str(args.get('project_id','')))
     pid=row['id'];code=str(args.get('confirmation_code',''))
-    if not re.fullmatch(r'\d{6}',code) or not secrets.compare_digest(
-        row['challenge_hash'],digest(pid+'|'+code)):raise Stop('confirmation_courrier_invalide')
     if row['status'] not in ('pending','creating','partial'):raise Stop('projet_courrier_deja_traite')
-    if row['status']=='pending' and datetime.now(timezone.utc)>=datetime.fromisoformat(row['expires']):
-        raise Stop('projet_courrier_expire')
     data=row['data'];frozen=_sha(json.dumps(data,sort_keys=True,ensure_ascii=False).encode())
     if not secrets.compare_digest(frozen,row['preview_sha256']):raise Stop('previsualisation_courrier_modifiee')
     if data['destination']!=clean_path(str(args.get('destination',''))):
         raise Stop('destination_courrier_non_confirmee')
+    # 5.6.111 (lot C, C03) : code présenté à la garde commune (essai décompté même malformé, cinq au plus, expiration, aperçu et effet
+    # inchangés) avant toute lecture du stockage ; une reprise après création incertaine passe par la même clé, sans second essai
+    ancien=None
+    if garde.ancienne_empreinte(row['challenge_hash']):
+        ancien={'expire':row['expires'],'etat':'consomme' if row['status']!='pending' else 'attente',
+                'verifier':lambda c:secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+c))}
+    garde.confirmer(desk,CHEMIN,pid,code,version=frozen,effet=_effet(data),code_faux='confirmation_courrier_invalide',
+        code_expire='projet_courrier_expire',code_deja='projet_courrier_deja_traite',code_modifie='previsualisation_courrier_modifiee',
+        ancien=ancien,reprise=True,effet_commence=row['status']!='pending',matiere=row['matter'])
     matter=_resolve_matter(desk,data['matter'])
     if matter['id']!=data['matter'] or not under(data['destination'],matter['path']):
         raise Stop('dossier_courrier_modifie')

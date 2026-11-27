@@ -382,6 +382,7 @@
     '<button type="button" class="ax-btn ghost" data-action="rejeter" data-ax101-optionnel aria-expanded="false" disabled hidden>Rejeter avec motif</button>',
     '<button type="button" class="ax-btn ghost" data-action="corriger" data-ax101-optionnel aria-expanded="false" disabled hidden>Demander une correction à l’IA</button>',
     '<a class="ax-btn ghost" data-ax101-ouvrir hidden href="#">Ouvrir</a>',
+    '<a class="ax-btn ghost" data-ax111-portail hidden href="#">Préparer l’envoi sur le portail</a>',   /* 5.6.111 (lot P) : brouillon de conclusions */
     '<button type="button" class="ax-btn ghost ax100-deposer" data-action="deposer" disabled hidden>Déposer dans Brouillons (sans envoi)</button>',
     '</footer>'
   ].join('');
@@ -444,6 +445,7 @@
     var boutons = Array.prototype.slice.call(article.querySelectorAll('[data-action]'));
     var onglets = Array.prototype.slice.call(article.querySelectorAll('[data-section]'));
     var labelTexte = article.querySelector('label[for="' + zone.id + '"]') || article.querySelector('[data-ax100-label-texte]');
+    var portailLien = q('[data-ax111-portail]');   /* 5.6.111 (lot P) : « Préparer l’envoi sur le portail » d’un brouillon de conclusions */
     var ouvrirLien = q('[data-ax101-ouvrir]'), panneaux = Array.prototype.slice.call(article.querySelectorAll('.ax101-panneau'));
     var labelDefaut = labelTexte ? labelTexte.textContent : '';
     boutons.concat(onglets).forEach(function (b) { b.setAttribute('data-ax101-defaut', b.textContent); });
@@ -485,6 +487,11 @@
           ouvrirLien.hidden = !(d.ouvrir && d.ouvrir.href);
           if (d.ouvrir && d.ouvrir.href) { ouvrirLien.setAttribute('href', d.ouvrir.href); ouvrirLien.textContent = d.ouvrir.libelle || 'Ouvrir'; }
         }
+        if (portailLien) {
+          var portail = (d.liens || {}).portail || '';
+          portailLien.hidden = !portail;
+          if (portail) portailLien.setAttribute('href', portail);
+        }
         article.setAttribute('data-etat', d.etat || '');
         article.setAttribute('data-id', d.id || '');
         sujet.textContent = d.sujet || '(sans objet)';
@@ -509,6 +516,7 @@
         restreint = false;
         fermerPanneaux();
         if (ouvrirLien) ouvrirLien.hidden = true;
+        if (portailLien) portailLien.hidden = true;
         if (labelTexte) labelTexte.textContent = labelDefaut;
         sujet.textContent = 'Choisissez un élément';
         meta.textContent = '';
@@ -954,6 +962,25 @@
     var depart = !LOCALES[etat.source] ? chargerListe(false) : Promise.resolve();
     depart.then(chargerBrouillons).then(chargerGmail);
     if (etat.courant) ouvrirLigne(etat.courant, null);
+    /* 5.6.111 (lot U, U01) : position de la liste gardée pour l'onglet (par filtre et recherche) et rendue au retour (Précédent, rechargement) ;
+       à défaut, la ligne ouverte est amenée dans la liste. Rien n'est envoyé : stockage de session du navigateur seulement. */
+    if (zoneListe) {
+      var clePos = 'ax111:relecture:' + (etat.source || 'tous') + ':' + (etat.q || '');
+      var garde = null;
+      try { garde = racine.sessionStorage.getItem(clePos); } catch (e) { /* stockage refusé */ }
+      depart.then(function () {
+        if (garde !== null && +garde > 0) zoneListe.scrollTop = +garde;
+        else if (etat.courant) {
+          var vue = zoneListe.querySelector('li[data-review-id="' + String(etat.courant).replace(/["\\]/g, '') + '"]');
+          if (vue && vue.scrollIntoView) vue.scrollIntoView({ block: 'nearest' });
+        }
+      });
+      var prevu = 0;
+      zoneListe.addEventListener('scroll', function () {
+        if (prevu) return;
+        prevu = racine.setTimeout(function () { prevu = 0; try { racine.sessionStorage.setItem(clePos, String(Math.round(zoneListe.scrollTop))); } catch (e) { /* stockage refusé */ } }, 200);
+      }, { passive: true });
+    }
     return { lecteur: lecteur, recharger: function () { return changerFiltre(etat.source, etat.q); } };
   }
 

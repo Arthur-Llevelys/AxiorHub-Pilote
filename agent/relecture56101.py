@@ -575,6 +575,8 @@ def _detail_document(desk, a, ligne, prefix):
         from .fiche460 import doc_href
         liens['editeur'] = prefix + doc_href(row['path'], row['matter_id'])
         ouvrir = {'href': liens['editeur'], 'libelle': 'Ouvrir dans l’éditeur'}
+    if row['kind'] == 'conclusions' and row['matter_id']:   # 5.6.111 (lot P) : préparer l'envoi de CETTE version sur le portail (onglet Juridiction du dossier)
+        liens['portail'] = prefix + '/dossier?' + urlencode({'id': row['matter_id'], 'vue': 'juridiction', 'portail_doc': doc, 'portail_version': row['version_id']}) + '#p111-portail'
     libelles = rl._libelles(desk)
     meta = ['%s, version %d (empreinte %s)' % (NATURES.get(row['kind'], 'Document'), numero, str(row['sha256'] or '')[:12] or 'non vérifiée'), note]
     return {'id': ligne['id'], 'type': 'document', 'type_libelle': rl.TYPES['document'], 'revision': revision_document(row), 'etat': etat,

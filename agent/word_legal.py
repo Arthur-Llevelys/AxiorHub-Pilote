@@ -16,6 +16,7 @@ import unicodedata
 import zipfile
 import xml.etree.ElementTree as ET
 
+from . import confirmations56111 as garde
 from .common import Stop, clean_path, digest, under, xml_office
 from .documents import extract
 from .model import Model, WORD_REVISION_PLAN, routed_config, validate
@@ -43,6 +44,15 @@ CREATE TABLE IF NOT EXISTS word_creation_files_v250(
 def ensure_schema(desk):
     for sql in SCHEMAS:desk.db.executescript(sql)
     desk.db.commit()
+
+
+CHEMIN='word_legal'
+
+
+def _effet(data):
+    """5.6.111 (C03) : empreinte de l'effet confirmé (fichiers prévus, source exacte, destination exacte, plan de modifications)."""
+    return digest(json.dumps(['create_word_files',data['project_id'],data['destination_folder'],data['source']['path'],
+      data['source'].get('sha256',''),data['future_files']],ensure_ascii=False))
 
 
 def _sha(raw):return hashlib.sha256(raw).hexdigest()
@@ -376,11 +386,13 @@ def prepare_word_project(desk,args,dav=None,model=None):
       'future_files':outputs,'safety':{'new_files_only':True,'no_overwrite':True,
         'no_email':True,'no_rpva':True,'no_signature':True}}
     preview_hash=_sha(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode())
-    code=f'{secrets.randbelow(1_000_000):06d}';created=desk.now();expires=(datetime.now(timezone.utc)+timedelta(
-      minutes=int(desk.c.get('word_legal',{}).get('approval_minutes',60)))).isoformat()
+    created=desk.now()
+    # 5.6.111 (lot C, C03) : défi de la garde commune (aperçu, effet, expiration UTC, cinq essais)
+    defi=garde.emettre(desk,CHEMIN,pid,preview_hash,_effet(data),int(desk.c.get('word_legal',{}).get('approval_minutes',60)))
+    code,expires=defi['code'],defi['expire']
     desk.db.execute('INSERT INTO word_projects_v250 VALUES(?,?,?,?,?,?,?,?,?,?,?)',
       (pid,matter['id'],'pending',instruction,json.dumps(data,ensure_ascii=False),preview_hash,
-       digest(pid+'|'+code),created,expires,'',''));desk.db.commit()
+       garde.marque(defi['garde']),created,expires,'',''));desk.db.commit()
     desk.audit('word_project_prepared',{'project':pid,'matter':matter['id'],'source_sha256':source['sha256'],
       'edit_count':len(plan['edits'])})
     row={'status':'pending','created':created,'expires':expires}
@@ -430,16 +442,22 @@ def _build_files(desk,data,raw):
 
 def confirm_word_project(desk,args,dav=None):
     ensure_schema(desk);pid=str(args.get('project_id',''));code=str(args.get('confirmation_code',''))
-    if not re.fullmatch(r'[a-f0-9]{32}',pid) or not re.fullmatch(r'\d{6}',code):raise Stop('confirmation_word_invalide')
+    if not re.fullmatch(r'[a-f0-9]{32}',pid):raise Stop('confirmation_word_invalide')   # code malformé : essai décompté par la garde
     row=desk.db.execute('SELECT * FROM word_projects_v250 WHERE id=?',(pid,)).fetchone()
     if not row:raise Stop('projet_word_absent')
     if row['status'] not in ('pending','creating','partial'):raise Stop('projet_word_deja_traite')
-    if row['status']=='pending' and datetime.now(timezone.utc)>=datetime.fromisoformat(row['expires']):raise Stop('projet_word_expire')
-    if not secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+code)):raise Stop('confirmation_word_invalide')
     data=json.loads(row['data']);canonical=_sha(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode())
     if canonical!=row['preview_hash']:raise Stop('previsualisation_word_modifiee')
     if clean_path(args.get('source_path',''))!=data['source']['path']:raise Stop('source_word_non_confirmee')
     if clean_path(args.get('destination_folder',''))!=data['destination_folder']:raise Stop('destination_word_non_confirmee')
+    # 5.6.111 (lot C, C03) : code présenté à la garde commune avant tout appel réseau ; reprise par la même clé, sans second essai
+    ancien=None
+    if garde.ancienne_empreinte(row['challenge_hash']):
+        ancien={'expire':row['expires'],'etat':'consomme' if row['status']!='pending' else 'attente',
+                'verifier':lambda c:secrets.compare_digest(row['challenge_hash'],digest(pid+'|'+c))}
+    garde.confirmer(desk,CHEMIN,pid,code,version=canonical,effet=_effet(data),code_faux='confirmation_word_invalide',
+      code_expire='projet_word_expire',code_deja='projet_word_deja_traite',code_modifie='previsualisation_word_modifiee',
+      ancien=ancien,reprise=True,effet_commence=row['status']!='pending',matiere=row['matter'])
     matter=_resolve_matter(desk,data['matter']['id']);client=dav or _dav(desk);items=_inventory(client,matter['path'])
     selected=next((x for x in items if x.get('path')==data['source']['path']),None)
     if not selected or (data['source']['etag'] and selected.get('etag')!=data['source']['etag']):raise Stop('fichier_source_modifie')
@@ -476,7 +494,8 @@ def reject_word_project(desk,pid):
     ensure_schema(desk);row=desk.db.execute('SELECT matter,status FROM word_projects_v250 WHERE id=?',(pid,)).fetchone()
     if not row:raise Stop('projet_word_absent')
     if row['status']!='pending':raise Stop('projet_word_deja_traite')
-    desk.db.execute("UPDATE word_projects_v250 SET status='rejected',decided=? WHERE id=?",(desk.now(),pid));desk.db.commit()
+    desk.db.execute("UPDATE word_projects_v250 SET status='rejected',decided=? WHERE id=?",(desk.now(),pid))
+    garde.annuler(desk,CHEMIN,pid);desk.db.commit()
     return {'word_project_id':pid,'status':'rejected','files_created':False}
 
 

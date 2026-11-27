@@ -202,6 +202,15 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56110/documents/'):   # 5.6.110 (lot S) : serveur de documents sur ce poste (administrateur seulement ; poste relu par le service)
         from .documents56110 import allowed as allowed56110s
         return allowed56110s(role, method, api)
+    if api.startswith('m56111/conversation/'):   # 5.6.111 (lot F) : Conversation IA du dossier (instruction, arrêt : trois rôles ; recherche : avocat et administrateur ; dossier, fil et droits relus par le service)
+        from .conversation56111 import allowed as allowed56111f
+        return allowed56111f(role, method, api)
+    if api.startswith('m56111/portail/'):   # 5.6.111 (lot P) : envoi préparé sur un portail (préparer, nouveau code, annuler : trois rôles ; confirmer, transmis, accusé, ouvrir : avocat et administrateur ; capacité : administrateur ; dossier, envoi et droits relus par le service)
+        from .envoi_portail56111 import allowed as allowed56111p
+        return allowed56111p(role, method, api)
+    if api.startswith('m56111/precontrole/'):   # 5.6.111 (lot U, B6) : précontrôle du poste (état : trois rôles ; vérifier : administrateur)
+        from .precontrole56111 import allowed as allowed56111u
+        return allowed56111u(role, method, api)
     if api.startswith('m56106/vision/'):   # 5.6.106 (lot I) : aperçu et lecture d'une page (tous les rôles ; dossier et droits relus par le service) ; réglages : administrateur
         from .vision56106 import allowed as allowed56106i
         return allowed56106i(role, method, api)

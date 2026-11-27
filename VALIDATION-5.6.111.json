@@ -1,0 +1,86 @@
+{
+  "version": "5.6.111",
+  "base": "5.6.110",
+  "date_utc": "2026-11-26T00:00:00+00:00",
+  "demande": "Générer la 5.6.111 sur la base de l’audit de la 5.6.110 et de son dossier technique, sans régression.",
+  "regression": {
+    "command": "scripts/tests-paralleles.py, PYTHONUTF8=1, PYTHONPATH=shim",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 9818,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 176
+  },
+  "lots": [
+    {
+      "id": "A",
+      "titre": "Quatre correctifs du dossier technique (C01 synchronisation SQLite, C02 Open WebUI, C05 installation, C06 cookie HTTPS)",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "tests du dossier technique intégrés (test_v56111_correctifs_audit) ; suite complète",
+      "remarques": "outil Open WebUI à réexporter"
+    },
+    {
+      "id": "C",
+      "titre": "Confirmations bornées et atomiques (C03), liens vers l’adresse vérifiée (C04), jetons en empreinte (C07), cmd /c (S7), indicateur htmx (L02)",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires dont concurrence sur deux connexions SQLite réelles et TLS réel local ; parcours P111c (Edge)",
+      "manque": "essai bout en bout de chaque chemin avec un vrai Nextcloud",
+      "remarques": "supervision bloquée affichée « en attente » jusqu’à expiration ; désinstallation : racine de disque non refusée"
+    },
+    {
+      "id": "F",
+      "titre": "Onglet Conversation IA du dossier (F01 à F05, L03 à L05)",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; parcours P111f (Edge, 1920×1080, 125 %, 375 px, sombre)",
+      "manque": "vue rendue du navigateur supervisé ; correction ciblée d’un passage ; fusion en cas d’édition concurrente ; Qwen réel",
+      "remarques": "livrables structurés ouverts dans leur lecteur, pas dans le volet"
+    },
+    {
+      "id": "K",
+      "titre": "Conseil : matrice de couverture, modèles et questionnaires par droit applicable (F06 à F08, L09 à L11)",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; parcours P111k (Edge)",
+      "manque": "validation juridique des 7 nouvelles trames et des questionnaires ; banc petit LLM / référence",
+      "remarques": "aucune trame présentée comme validée"
+    },
+    {
+      "id": "P",
+      "titre": "Envoi préparé sur un portail (L06 à L08)",
+      "etat": "non_qualifiable_ici",
+      "verifie_avec": "tests unitaires (faux adaptateur, concurrence réelle) ; parcours P111p (Edge)",
+      "manque": "vrai portail, compte, certificat, adaptateur qualifié",
+      "remarques": "aucun pilotage livré ; bornes AxiorHub : 50 pièces, accusé de 8 Mo"
+    },
+    {
+      "id": "U",
+      "titre": "Ergonomie (U01), mesures (U02), précontrôle du poste (B6), Bibliothèque à 375 px",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; parcours P111u (Edge) et 8 parcours existants rejoués ; mesures chiffrées (MESURES-56111.md, hors livraison)",
+      "manque": "envoi SMTP réel depuis la relecture ; Ubuntu réel (micro, WebKitGTK) ; Windows sans Visual C++ (codes simulés)",
+      "remarques": "coût d’authentification d’environ 40 ms par page relevé, non corrigé"
+    },
+    {
+      "id": "T",
+      "titre": "Parcours navigateur stables sous Chromium sans carte graphique (recette GitHub)",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "parcours P110e et P97g rejoués sous Edge et Chromium"
+    }
+  ],
+  "linux": "Docker python:3.12, arbre hors dépôt Git, umask 022, un seul processus : 9 811 tests, 9 810 réussis (78 ignorés), une erreur : le nouveau test des correctifs C01, C02 et C06 importait l’outil Open WebUI sans pydantic, absent de l’image minimale. Test corrigé (pydantic simulé comme dans test_v5693_operations) ; ce test et les 31 modules qui lisent les fichiers retouchés après le lancement (langues, parcours P107t, P108g, P108q) rejoués sous Linux : 1 003 tests réussis (5 ignorés).",
+  "navigateur": "Edge 85/85 et Chromium 85/85 (scripts/parcours-navigateur.py -j 3), dont P111c, P111f, P111k, P111p, P111u",
+  "paquets": "reconstruits le 27/11/2026 après la correction du test ci-dessus (une première construction des 26 et 27/11, signée, a été retirée parce que son archive contenait l’ancienne version du test et aurait fait échouer la recette GitHub) ; paquet Windows essayé (services, pages, précontrôle du poste, dictée, éditeurs intégrés, journaux sans erreur) ; paquets Debian essayés dans ubuntu:24.04 (mise à jour 5.6.110 → 5.6.111 avec configuration conservée, paquet poste installé puis retiré) avec systemctl simulé, donc services non démarrés ; signature par le cabinet",
+  "changements_de_comportement": [
+    "Code de confirmation : cinq essais au plus, un code malformé compte comme un essai ; demande bloquée ensuite.",
+    "Vérification des liens : soumise à la politique des sorties (refusée en mode « local strict »).",
+    "Nouvel onglet « Conversation IA » dans la fiche du dossier (l’ancien nom « espace » y mène).",
+    "Envoi sur un portail : préparation, confirmation et accusé dans l’onglet Juridiction ; aucune transmission automatique.",
+    "Outil Open WebUI : erreurs visibles au lieu de listes vides (réexporter l’outil)."
+  ],
+  "limites": [
+    "Portails : aucun écran qualifié, aucun envoi automatisé ; la transmission reste faite par l’avocat.",
+    "Conversation IA : la page du navigateur supervisé n’est pas affichée dans le volet ; Qwen non essayé réellement.",
+    "Conseil : trames et questionnaires ajoutés à l’état de brouillon ; validation par un juriste compétent à faire.",
+    "Codes de confirmation : un retour à la 5.6.110 rendrait inconfirmables les demandes préparées en 5.6.111 (il faudrait les préparer à nouveau).",
+    "Passage complet « comme GitHub » (un seul processus, Linux, hors dépôt Git) : voir le champ « linux »."
+  ]
+}

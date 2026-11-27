@@ -47,18 +47,21 @@ def _sortie(banc):
     return d
 
 
-def _attendre(cible, expression, secondes=60.0):
-    """Attente par ``evaluate`` (la CSP d'AxiorHub refuse l'évaluation de chaînes qu'utilise ``wait_for_function``)."""
+def _attendre(cible, expression, secondes=60.0, attendu=None):
+    """Attente par ``evaluate`` (la CSP d'AxiorHub refuse l'évaluation de chaînes qu'utilise ``wait_for_function``).
+    5.6.111 : avec ``attendu``, attendre cette valeur exacte (sinon rendre la dernière lue) ; sans carte graphique (Chromium de la recette
+    GitHub, rendu logiciel), le document est d'abord vu à moitié chargé (chemin et titre encore vides)."""
     fin = time.time() + secondes
+    v = None
     while time.time() < fin:
         try:
             v = cible.evaluate(expression)
         except Exception:   # noqa: BLE001 — cadre en cours de chargement
             v = None
-        if v:
+        if v and (attendu is None or v == attendu):
             return v
         getattr(cible, 'wait_for_timeout', lambda ms: time.sleep(ms / 1000))(250)
-    return None
+    return v if attendu is not None else None
 
 
 def _semer(banc, nom, brut):
@@ -222,7 +225,8 @@ def p110e_deckcraft(banc, s):
                         banc.url + '/dossier/apercu?' + urlencode({'matter': 'DOS-001', 'path': chemin}))
     verifier(apercu.get('craft_libelle') == 'Modifier dans DeckCraft (version d’essai)', 'P110e deckcraft : l’aperçu ne propose pas DeckCraft : %s' % apercu.get('craft_libelle'))
     p, cadre = _ouvrir(banc, s, 'deckcraft', chemin)
-    vu = _attendre(cadre, "deckcraft.docInspect().then(d => d.path + ':' + d.slides.length + ':' + d.slides[0].title)", 60)
+    vu = _attendre(cadre, "deckcraft.docInspect().then(d => d.path + ':' + d.slides.length + ':' + d.slides[0].title)", 90,
+                   attendu='Restitution MARTIN.pptx:1:Restitution fictive')
     verifier(vu == 'Restitution MARTIN.pptx:1:Restitution fictive', 'P110e deckcraft : présentation d’AxiorHub non ouverte (%s)' % vu)
     verifier(cadre.evaluate("window.open('https://example.test/') === null"), 'P110e deckcraft : window.open n’est pas neutralisé')
     s.capture(_sortie(banc) / 'P110e-deckcraft-ouvert.png')

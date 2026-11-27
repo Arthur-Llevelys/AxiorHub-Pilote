@@ -40,7 +40,8 @@
 "Ouvrez Dossiers : les trois dossiers travaillés récemment par l’IA apparaissent en tête, avec leur procédure et leur prochaine date.",
 "Tapez un nom ou une référence puis cliquez sur « Rechercher » ; cliquez sur un en-tête de colonne pour trier.",
 "Pour une affaire absente de la liste, dépliez « Portefeuille du cabinet », indiquez son répertoire puis « Vérifier et enregistrer le dossier ».",
-"Ouvrez le dossier : Synthèse, Documents (aperçu à droite), Faits et procédure, Échanges, Travail."
+"Ouvrez le dossier : Synthèse, Documents (aperçu à droite), Faits et procédure, Échanges, Travail.",
+"Onglet « Conversation IA » : écrivez ou dictez votre question, choisissez « Tout le dossier » ou des fichiers, puis « Envoyer » ; la réponse et ses sources s’ouvrent à droite, « Arrêter » interrompt la demande."
 ],
 "result": "Le dossier apparaît dans le portefeuille avec sa fiche de travail.",
 "verify": "La fiche affiche le nom du répertoire et la date de dernière lecture.",
@@ -345,7 +346,8 @@
 "Ouvrez Pièces et bordereaux.",
 "Renseignez votre profil et votre tampon puis « Enregistrer le profil ».",
 "Dans « Préparer un bordereau », choisissez le dossier puis « Analyser les PDF du dossier ».",
-"Contrôlez titres et numéros, prévisualisez toutes les pages puis confirmez."
+"Contrôlez titres et numéros, prévisualisez toutes les pages puis confirmez.",
+"Pour un dépôt sur e-Barreau ou Portalis : onglet Juridiction du dossier, « Préparer un envoi sur le portail », recopiez le code, transmettez vous-même dans le portail puis « Enregistrer l’accusé de dépôt »."
 ],
 "result": "Une nouvelle version du bordereau et des pièces tamponnées. Créer le fichier ne vaut pas communication à une partie.",
 "verify": "Ouvrez le bordereau : chaque pièce a un numéro et un titre.",

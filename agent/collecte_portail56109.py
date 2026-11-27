@@ -33,6 +33,10 @@ collecté (import manuel possible). Portalis reste « Non qualifié » tant que 
 G12 : ``executer_routine`` est l'exécuteur du type fermé ``collecte_portail`` de ``routines5652`` (préparer et collecter seulement : il ne
 dépose, ne confirme ni n'envoie rien) ; ``creer_routine`` crée la routine « Relever mes messages procéduraux » (tous les 3 jours, rattrapage
 72 h), désactivée tant que le profil n'est pas qualifié.
+
+5.6.111 (lot P, L06) : capacités distinctes du profil (consulter, télécharger, préparer, transmettre), chacune avec sa preuve, sa date et la
+version du profil prouvée (colonne additive ``capacites_json`` ; versions des profils existants inchangées). La collecte ne change pas ;
+l'envoi préparé vit dans ``envoi_portail56111``.
 """
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -140,6 +144,122 @@ def _sha(*parts):
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
     desk.db.commit()
+    _migrer_capacites56111(desk)
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.111 (lot P, L06) : capacités distinctes du profil
+# Une qualification de COLLECTE (consulter et télécharger) ne vaut jamais capacité d'envoi. Chaque capacité a son état (états réels du registre :
+# ``non_qualifie``, ``a_tester``, ``qualifie``), sa preuve, sa date, son auteur et la VERSION du profil sur laquelle elle a été prouvée : une
+# modification du profil (nouvelle version) la périme d'elle-même. « Préparer » (préremplir le formulaire de dépôt du portail) et « transmettre »
+# (suivre l'envoi déclenché par l'avocat et son accusé) exigent un adaptateur d'envoi qualifié (``envoi_portail56111.ADAPTATEURS``, vide) :
+# aucune n'est qualifiable en production tant qu'aucun écran réel n'a été qualifié. Les limites du portail (taille, nombre de pièces) ne sont
+# connues que par la preuve d'une capacité d'envoi ; sans elle : « non connues, à vérifier sur le portail ».
+CAPACITES = {'consulter': 'Consulter les messages', 'telecharger': 'Télécharger les originaux',
+             'preparer': 'Préparer un dépôt (préremplir le formulaire du portail)',
+             'transmettre': 'Suivre la transmission faite par l’avocat et son accusé'}
+CAPACITES_COLLECTE = ('consulter', 'telecharger')
+CAPACITES_ENVOI = ('preparer', 'transmettre')
+LIMITES = ('taille_piece_max', 'taille_totale_max', 'nombre_max')
+
+
+def _migrer_capacites56111(desk):
+    """Migration ADDITIVE et répétable : colonne ``capacites_json`` ajoutée sans toucher à la version des profils existants. Un profil déjà
+    qualifié pour la collecte reçoit « consulter » et « télécharger » qualifiées par la même preuve (date et auteur repris) ; « préparer » et
+    « transmettre » restent non qualifiées."""
+    cols = {r[1] for r in desk.db.execute('PRAGMA table_info(collecte_profils56109)')}
+    if 'capacites_json' in cols:
+        return
+    try:
+        desk.db.execute("ALTER TABLE collecte_profils56109 ADD COLUMN capacites_json TEXT NOT NULL DEFAULT '{}'")
+    except Exception as ex:   # noqa: BLE001 — deux démarrages simultanés : la colonne vient d'être ajoutée par l'autre
+        if 'duplicate column' not in str(ex).lower():
+            raise
+    for r in desk.db.execute("SELECT id, version, preuve_le, preuve_par FROM collecte_profils56109 WHERE qualification='qualifie'").fetchall():
+        caps = {c: {'etat': 'qualifie', 'version': r['version'], 'preuve': 'Reprise de la qualification de collecte (5.6.109)', 'preuve_le': r['preuve_le'],
+                    'preuve_par': r['preuve_par'], 'limites': {}} for c in CAPACITES_COLLECTE}
+        desk.db.execute("UPDATE collecte_profils56109 SET capacites_json=? WHERE id=? AND capacites_json='{}'", (json.dumps(caps, ensure_ascii=False), r['id']))
+    desk.db.commit()
+
+
+def capacites(row):
+    """État EFFECTIF de chaque capacité pour la version courante du profil : une preuve d'une autre version est périmée (« non_qualifie »).
+    Consulter et télécharger suivent aussi la qualification de collecte du profil (même preuve) ; préparer et transmettre jamais."""
+    try:
+        brut = json.loads((row['capacites_json'] if 'capacites_json' in row.keys() else '{}') or '{}')
+    except ValueError:
+        brut = {}
+    out = {}
+    for cap, libelle in CAPACITES.items():
+        c = brut.get(cap) if isinstance(brut.get(cap), dict) else {}
+        if c and int(c.get('version') or 0) == int(row['version']) and c.get('etat') in QUALIFICATIONS:
+            etat, preuve, le, par, limites = c['etat'], str(c.get('preuve') or ''), str(c.get('preuve_le') or ''), str(c.get('preuve_par') or ''), c.get('limites') or {}
+        elif cap in CAPACITES_COLLECTE and row['qualification'] == 'qualifie':
+            etat, preuve, le, par, limites = 'qualifie', 'Qualification de collecte du profil', row['preuve_le'], row['preuve_par'], {}
+        else:
+            etat, preuve, le, par, limites = 'non_qualifie', '', '', '', {}
+        if etat != 'qualifie' or cap not in CAPACITES_ENVOI:
+            limites = {}
+        out[cap] = {'capacite': cap, 'libelle': libelle, 'etat': etat, 'etat_libelle': QUALIFICATIONS[etat], 'preuve': preuve, 'preuve_le': le,
+                    'preuve_par': par, 'limites': {k: int(v) for k, v in (limites or {}).items() if k in LIMITES and str(v).isdigit() and int(v) > 0}}
+    return out
+
+
+def manques_capacite(row, capacite):
+    """Ce qui empêche de qualifier une capacité : celles de la collecte suivent ``manques_qualification`` ; celles de l'envoi exigent en plus
+    un adaptateur d'envoi qualifié pour ce portail (aucun n'est livré)."""
+    if capacite not in CAPACITES:
+        raise Stop('capacite_inconnue')
+    out = manques_qualification(row)
+    if capacite in CAPACITES_ENVOI:
+        out = [m for m in out if m != 'adaptateur_ecran']
+        from .envoi_portail56111 import ADAPTATEURS as ENVOI
+        if row['portail'] not in ENVOI:
+            out.append('adaptateur_envoi')
+    return out
+
+
+def qualifier_capacite(desk, acteur, role, pid, version, capacite, etat, preuve='', limites=None):
+    """Administrateur : état d'UNE capacité pour la version affichée du profil. « Qualifié » exige une preuve d'essai réel et aucun manque ;
+    « À tester » et « Non qualifié » se posent sans preuve. Les limites (octets, nombre) ne sont gardées qu'avec une capacité d'envoi qualifiée.
+    La version du profil n'est pas modifiée (une capacité ne change pas la déclaration du profil)."""
+    if role != 'administrateur':
+        raise Stop('role_insuffisant')
+    if capacite not in CAPACITES:
+        raise Stop('capacite_inconnue')
+    if etat not in QUALIFICATIONS:
+        raise Stop('etat_capacite_inconnu')
+    row = _profil(desk, pid)
+    if int(version or 0) != row['version']:
+        raise Stop('version_perimee')
+    preuve = re.sub(r'\s+', ' ', str(preuve or '')).strip()[:500]
+    if etat == 'qualifie':
+        manque = manques_capacite(row, capacite)
+        if manque:
+            raise Stop('capacite_non_qualifiable:' + ','.join(manque))
+        if not preuve:
+            raise Stop('preuve_essai_requise')
+    propres = {}
+    if etat == 'qualifie' and capacite in CAPACITES_ENVOI:
+        for k in LIMITES:
+            v = str((limites or {}).get(k) or '').strip()
+            if v:
+                if not v.isdigit() or int(v) <= 0:
+                    raise Stop('limite_invalide')
+                propres[k] = int(v)
+    try:
+        brut = json.loads(row['capacites_json'] or '{}')
+    except ValueError:
+        brut = {}
+    brut[capacite] = {'etat': etat, 'version': row['version'], 'preuve': preuve, 'preuve_le': _maintenant() if etat == 'qualifie' else '',
+                      'preuve_par': acteur if etat == 'qualifie' else '', 'limites': propres, 'maj_par': acteur, 'maj_le': _maintenant()}
+    cur = desk.db.execute('UPDATE collecte_profils56109 SET capacites_json=?, maj_le=? WHERE id=? AND version=?',
+                          (json.dumps(brut, ensure_ascii=False), _maintenant(), row['id'], row['version']))
+    if not cur.rowcount:
+        desk.db.rollback()
+        raise Stop('version_perimee')
+    desk.db.commit()
+    desk.audit('collecte56111_capacite', {'profil': row['id'], 'version': row['version'], 'capacite': capacite, 'etat': etat, 'par': acteur})
+    return vue_profil(desk, row['id'])
 
 
 def cle_message(portail, compte, mandant, identifiant):
@@ -237,7 +357,8 @@ def vue_profil(desk, pid):
     return {'id': row['id'], 'portail': row['portail'], 'libelle': row['libelle'], 'version': row['version'], 'url_entree': row['url_entree'],
             'domaines': json.loads(row['domaines_json'] or '[]'), 'systeme': row['systeme'], 'navigateur': row['navigateur'], 'compte': row['compte'],
             'avocat': row['avocat'], 'delegation': row['delegation'], 'type_compte': row['type_compte'], 'qualification': row['qualification'],
-            'qualification_libelle': QUALIFICATIONS[row['qualification']], 'preuve_le': row['preuve_le'], 'manques': manques_qualification(row)}
+            'qualification_libelle': QUALIFICATIONS[row['qualification']], 'preuve_le': row['preuve_le'], 'manques': manques_qualification(row),
+            'capacites': capacites(row)}   # 5.6.111 (lot P) : capacités distinctes (consulter, télécharger, préparer, transmettre)
 
 
 def profils(desk):
@@ -977,8 +1098,9 @@ def carte_html(desk, prefix, role):
                        '(profil qualifié seulement)</label><button class="ax-btn" type="submit">Enregistrer la routine</button><p role="status" class="m5-status"></p>'
                        '</form></details>') % (e(p['id'], quote=True), uuid.uuid4().hex, '' if p['qualification'] == 'qualifie' else ' disabled', uuid.uuid4().hex,
                                                e(p['id'], quote=True), '' if p['qualification'] == 'qualifie' else ' disabled')
-        lignes.append('<li><strong>%s</strong> · %s%s<br><span class="r52-meta">%s</span>%s</li>' % (
-            e(p['libelle']), e(p['qualification_libelle']), (' (manque : %s)' % e(', '.join(p['manques']))) if p['manques'] else '', e(etat), actions))
+        lignes.append('<li><strong>%s</strong> · %s%s<br><span class="r52-meta">%s</span>%s%s</li>' % (
+            e(p['libelle']), e(p['qualification_libelle']), (' (manque : %s)' % e(', '.join(p['manques']))) if p['manques'] else '', e(etat), actions,
+            capacites_html(p, role)))   # 5.6.111 (lot P, L06) : capacités distinctes, preuve et date de chacune
     ajout = ''
     if role == 'administrateur':
         ajout = ('<details class="r52-add"><summary class="ax-btn ghost">Déclarer un profil de portail</summary><form class="m5-form" data-api="m56109/parcours/collecte-profil" '
@@ -993,6 +1115,30 @@ def carte_html(desk, prefix, role):
             '<span class="r52-meta">Consultation supervisée sur ce poste : vous vous connectez vous-même ; aucun envoi ni dépôt RPVA, aucune API du portail. '
             'Un profil non qualifié ne collecte rien.</span><ul class="g4-liste">%s</ul>%s</div>') % (
         ''.join(lignes) or '<li class="ax-muted">Aucun profil de portail déclaré.</li>', ajout)
+
+
+def capacites_html(p, role):
+    """5.6.111 (lot P) : liste des quatre capacités (état, preuve, date) ; l'administrateur pose l'état d'une capacité pour la version affichée."""
+    from html import escape as e
+    caps = p.get('capacites') or {}
+    lignes = ''.join('<li><span>%s</span> : <strong>%s</strong>%s</li>' % (
+        e(c['libelle']), e(c['etat_libelle']), (' <span class="r52-meta">(preuve du %s)</span>' % e(c['preuve_le'][:10])) if c['preuve_le'] else '')
+        for c in caps.values())
+    form = ''
+    if role == 'administrateur':
+        options = ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in CAPACITES.items())
+        etats = ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in QUALIFICATIONS.items())
+        form = ('<details class="r52-edit"><summary class="ax-btn ghost">Qualifier une capacité</summary><form class="m5-form" data-api="m56111/portail/capacite" '
+                'data-reload><input type="hidden" name="profil" value="%s"><input type="hidden" name="version" value="%d">'
+                '<label>Capacité<select name="capacite">%s</select></label><label>État<select name="etat">%s</select></label>'
+                '<label>Preuve de l’essai réel sur ce poste<textarea name="preuve" rows="2" maxlength="500"></textarea></label>'
+                '<p class="r52-meta">Limites du portail constatées pendant l’essai (envoi seulement ; laisser vide si inconnues) :</p>'
+                '<label>Taille maximale d’une pièce (octets)<input name="taille_piece_max" inputmode="numeric" maxlength="12"></label>'
+                '<label>Taille totale maximale (octets)<input name="taille_totale_max" inputmode="numeric" maxlength="12"></label>'
+                '<label>Nombre maximal de pièces<input name="nombre_max" inputmode="numeric" maxlength="4"></label>'
+                '<button class="ax-btn" type="submit">Enregistrer la capacité</button><p role="status" class="m5-status"></p></form></details>') % (
+            e(p['id'], quote=True), int(p['version']), options, etats)
+    return '<ul class="g4-capacites" aria-label="Capacités du profil">%s</ul>%s' % (lignes, form)
 
 
 def monter_cartes(desk, prefix, owner, role, compact, cards, strip):

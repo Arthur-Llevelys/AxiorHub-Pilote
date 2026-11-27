@@ -641,3 +641,414 @@ ON = [
 ]
 
 TEMPLATES = FR + DE + ES + UK + QC + ON
+
+
+# ================================================================================================ 5.6.111 (lot K, F06) : familles Conseil manquantes, droit français
+# Trames de travail À L'ÉTAT DE BROUILLON (``nouveau56108`` : jamais proposées automatiquement), rédigées pour le droit français à partir des
+# questionnaires proposés pour la 5.6.111, relus et ramenés au format de la bibliothèque. Les références citées sont des sources de CONTRÔLE, à
+# vérifier à la date de l'acte ; elles ne valent pas validation. Liste distincte de ``TEMPLATES`` (ensemble 5.6.108 inchangé).
+_FIN = ['', 'Fait à {{ville}}, le {{date_acte}}, en deux exemplaires.']
+FR56111 = [
+    _t('fr_note_analyse_contrat', 'FR', 'fr', CONSEIL, 'analyse-contrat', 'Note d’analyse et de négociation d’un contrat',
+       _R('Contrat reçu, partie assistée, objectifs, points critiques avec propositions et positions de repli, clauses à ajouter, stratégie.',
+          'Contract review and negotiation memo (French law).', 'Vermerk zur Vertragsprüfung und Verhandlung (französisches Recht).',
+          'Nota de análisis y negociación de un contrato (derecho francés).'),
+       ('analyse de contrat', 'note d’analyse de contrat', 'revue de contrat', 'points de négociation'),
+       [('destinataire', 'Destinataire', ''), ('auteur', 'Auteur', ''), ('reference', 'Référence du dossier', ''),
+        ('contrat_analyse', 'Contrat analysé (intitulé, version reçue, date, émetteur)', ''), ('partie_assistee', 'Partie assistée par le cabinet', ''),
+        ('contrepartie', 'Cocontractant', ''), ('objectifs', 'Objectifs et limites fixés par le client', ''), ('date_acte', 'Date', '')],
+       [('tableau_modifications', 'Tableau des modifications proposées joint', True), ('urgence', 'Date limite de négociation', False)],
+       ['# NOTE D’ANALYSE ET DE NÉGOCIATION', '', 'Confidentiel — correspondance entre l’avocat et son client', 'Destinataire : {{destinataire}}',
+        'Auteur : {{auteur}}', 'Date : {{date_acte}}', 'Référence : {{reference}}',
+        '## Contrat analysé', '{{contrat_analyse}}', 'L’analyse porte sur cette version ; une nouvelle version appelle une nouvelle lecture.',
+        '## Partie assistée et objectifs', 'Partie assistée : {{partie_assistee}}. Cocontractant : {{contrepartie}}.', 'Objectifs et limites : {{objectifs}}',
+        '## Synthèse', '[À COMPLÉTER : appréciation d’ensemble en quelques phrases et points bloquants]',
+        '## Points critiques', '[À COMPLÉTER : pour chaque clause — référence, risque pour le client, proposition de rédaction, position de repli]',
+        '## Clauses absentes ou à ajouter', '[À COMPLÉTER : stipulations utiles au client qui manquent au projet]',
+        '## Règles impératives à vérifier', '[À COMPLÉTER : dispositions d’ordre public susceptibles d’écarter une clause, vérifiées sur Légifrance à la '
+        'date de la note]',
+        '[[si urgence]]', '## Date limite', '[À COMPLÉTER : date imposée par le cocontractant ou le calendrier de l’opération]', '[[fin]]',
+        '## Stratégie de négociation', '[À COMPLÉTER : ordre de présentation des demandes, concessions possibles, points non négociables]',
+        '[[si tableau_modifications]]', '## Tableau des modifications', 'Le tableau joint reprend, clause par clause, la rédaction reçue, la rédaction '
+        'proposée et sa justification.', '[[fin]]',
+        '## Points à confirmer', '[À COMPLÉTER : informations attendues du client]',
+        '## Portée', 'La note est établie au regard du droit français en vigueur à sa date et des seuls documents communiqués.'],
+       ['Légifrance — textes cités, vérifiés à la date de la note'], ('client', 'cabinet')),
+    _t('fr_cgv_consommateurs', 'FR', 'fr', 'contrat', 'cgv-b2c', 'Conditions générales de vente aux consommateurs',
+       _R('CGV destinées aux consommateurs : information, commande, prix, livraison, rétractation, garanties légales, médiation.',
+          'Consumer terms and conditions of sale (French law).', 'Allgemeine Verkaufsbedingungen für Verbraucher (französisches Recht).',
+          'Condiciones generales de venta a consumidores (derecho francés).'),
+       ('conditions générales de vente aux consommateurs', 'cgv consommateurs', 'cgv grand public'),
+       [('vendeur', 'Vendeur (dénomination, forme, capital, siège, RCS, coordonnées)', ''), ('produits', 'Produits ou services vendus', ''),
+        ('modes_paiement', 'Moyens de paiement acceptés', ''), ('delai_livraison', 'Délai de livraison annoncé', ''),
+        ('service_client', 'Service client (adresse, courriel, téléphone)', ''), ('mediateur', 'Médiateur de la consommation (nom, site internet)', '')],
+       [('distance', 'Vente à distance ou hors établissement (droit de rétractation)', True), ('garantie_commerciale', 'Garantie commerciale', False),
+        ('reserve_propriete', 'Réserve de propriété', False)],
+       ['# CONDITIONS GÉNÉRALES DE VENTE', '{{vendeur}}',
+        '## Champ d’application', 'Les présentes conditions s’appliquent aux ventes de {{produits}} conclues avec des consommateurs et des '
+        'non-professionnels. Elles sont communiquées avant la commande et acceptées lors de celle-ci.',
+        '## Information précontractuelle', 'Avant la commande, l’acheteur reçoit les informations prévues aux articles L. 111-1 et suivants du Code de '
+        'la consommation (caractéristiques essentielles, prix, délai de livraison, garanties, coordonnées du vendeur) [À VÉRIFIER : informations '
+        'propres à la vente à distance].',
+        '## Prix', 'Les prix sont indiqués en euros toutes taxes comprises ; les frais de livraison sont précisés avant la validation de la commande.',
+        '## Commande', 'La commande est définitive après récapitulatif, possibilité de corriger les erreurs et confirmation par l’acheteur ; le vendeur '
+        'en accuse réception sans délai [À VÉRIFIER : commande par voie électronique, articles 1127-1 et 1127-2 du Code civil].',
+        '## Paiement', 'Moyens de paiement acceptés : {{modes_paiement}}.',
+        '[[si reserve_propriete]]', '## Réserve de propriété', 'Le vendeur reste propriétaire des biens jusqu’au paiement complet du prix.', '[[fin]]',
+        '## Livraison', 'Les biens sont livrés dans un délai de {{delai_livraison}}. À défaut d’indication, la livraison intervient au plus tard trente '
+        'jours après la conclusion du contrat (article L. 216-1 du Code de la consommation) [À VÉRIFIER : texte en vigueur à la date des CGV]. Le '
+        'risque de perte ou d’endommagement est transféré à l’acheteur lorsqu’il prend physiquement possession des biens (article L. 216-4).',
+        '[[si distance]]', '## Droit de rétractation', 'L’acheteur dispose d’un délai de quatorze jours pour se rétracter, sans motif (articles L. 221-18 '
+        'et suivants du Code de la consommation), sous réserve des exceptions de l’article L. 221-28. Le formulaire type de rétractation est annexé '
+        '[À COMPLÉTER : modalités de retour et frais].', '[[fin]]',
+        '## Garanties légales', 'Le vendeur répond des défauts de conformité (articles L. 217-3 et suivants du Code de la consommation) et des vices '
+        'cachés (articles 1641 et suivants du Code civil) dans les conditions de la loi [À VÉRIFIER : mentions à reproduire].',
+        '[[si garantie_commerciale]]', '## Garantie commerciale', 'Une garantie commerciale est consentie : [À COMPLÉTER : contenu, durée, étendue, '
+        'conditions de mise en œuvre]. Elle s’ajoute aux garanties légales.', '[[fin]]',
+        '## Service client et réclamations', 'Réclamations : {{service_client}}.',
+        '## Médiation', 'En cas de litige, l’acheteur peut recourir gratuitement au médiateur de la consommation : {{mediateur}} (articles L. 612-1 et '
+        'L. 616-1 du Code de la consommation).',
+        '## Données personnelles', 'Les données sont traitées selon la politique de confidentialité du vendeur, conformément au règlement (UE) '
+        '2016/679.',
+        '## Droit applicable — Litiges', 'Les présentes conditions sont soumises au droit français, sans priver l’acheteur de la protection des '
+        'dispositions impératives du pays de sa résidence habituelle lorsque celles-ci s’appliquent (règlement (CE) n° 593/2008, article 6). '
+        'L’acheteur peut saisir, à son choix, l’une des juridictions territorialement compétentes ou celle du lieu où il demeurait lors de la '
+        'conclusion du contrat (article R. 631-3 du Code de la consommation).'],
+       ['Code de la consommation, art. L. 111-1, L. 216-1, L. 216-4, L. 217-3 et s., L. 221-18, L. 221-28, L. 612-1, L. 616-1, R. 631-3 — Légifrance',
+        'Code civil, art. 1127-1, 1127-2, 1641 et s. — Légifrance', 'Règlement (CE) n° 593/2008 (Rome I), art. 6 — EUR-Lex'],
+       ('vendeur professionnel', 'consommateurs et non-professionnels')),
+    _t('fr_cgu_service', 'FR', 'fr', 'contrat', 'cgu', 'Conditions générales d’utilisation d’un service en ligne',
+       _R('CGU d’un site ou d’un service en ligne : accès, compte, obligations, contenus publiés, propriété intellectuelle, responsabilité.',
+          'Terms of use of an online service (French law).', 'Nutzungsbedingungen eines Online-Dienstes (französisches Recht).',
+          'Condiciones generales de uso de un servicio en línea (derecho francés).'),
+       ('conditions générales d’utilisation', 'cgu du site', 'cgu du service'),
+       [('editeur', 'Éditeur (dénomination, forme, siège, RCS, directeur de la publication)', ''), ('service', 'Service et adresse du site', ''),
+        ('hebergeur', 'Hébergeur (nom, adresse, téléphone)', ''), ('contact', 'Contact des utilisateurs', '')],
+       [('compte', 'Accès par compte personnel', True), ('payant', 'Service payant', False), ('contenus', 'Contenus publiés par les utilisateurs', False),
+        ('consommateurs', 'Service ouvert aux consommateurs', True)],
+       ['# CONDITIONS GÉNÉRALES D’UTILISATION', '{{service}}',
+        '## Éditeur et hébergeur', 'Éditeur : {{editeur}}. Hébergeur : {{hebergeur}} [À VÉRIFIER : mentions de l’article 6 de la loi n° 2004-575 du '
+        '21 juin 2004].',
+        '## Objet et acceptation', 'Les présentes conditions régissent l’accès et l’utilisation du service. Leur acceptation est un préalable à '
+        'l’utilisation.',
+        '[[si compte]]', '## Compte', 'L’utilisateur fournit des informations exactes, garde ses identifiants confidentiels et signale sans délai tout '
+        'usage non autorisé de son compte.', '[[fin]]',
+        '[[si payant]]', '## Prix', 'Les fonctions payantes sont soumises aux conditions générales de vente, qui prévalent sur ce point.', '[[fin]]',
+        '## Obligations de l’utilisateur', 'L’utilisateur respecte la loi et les droits des tiers et n’entrave pas le fonctionnement du service.',
+        '[[si contenus]]', '## Contenus publiés', 'L’utilisateur reste responsable des contenus qu’il publie. L’éditeur retire promptement un contenu '
+        'manifestement illicite qui lui est notifié [À VÉRIFIER : régime applicable à l’hébergeur et procédure de notification à la date des CGU].',
+        '[[fin]]',
+        '## Propriété intellectuelle', 'Le service et ses éléments restent la propriété de l’éditeur ou de ses concédants ; aucune cession n’est '
+        'consentie à l’utilisateur.',
+        '## Données personnelles', 'Les données sont traitées selon la politique de confidentialité de l’éditeur, conformément au règlement (UE) '
+        '2016/679.',
+        '## Responsabilité', '[[si consommateurs]]La responsabilité de l’éditeur envers un consommateur ne peut être exclue ni limitée au-delà de ce '
+        'que permet la loi (article R. 212-1 du Code de la consommation).[[sinon]]La responsabilité de l’éditeur est limitée aux dommages directs, '
+        'sauf faute lourde ou dolosive.[[fin]]',
+        '## Modification et fin', 'L’éditeur informe les utilisateurs de toute modification avant son entrée en vigueur. L’utilisateur peut cesser '
+        'd’utiliser le service et clôturer son compte à tout moment ; contact : {{contact}}.',
+        '## Droit applicable', 'Les présentes conditions sont soumises au droit français [À VÉRIFIER : dispositions impératives protectrices des '
+        'consommateurs résidant à l’étranger].'],
+       ['Loi n° 2004-575 du 21 juin 2004, art. 6 — Légifrance', 'Code de la consommation, art. R. 212-1 — Légifrance',
+        'Règlement (UE) 2016/679 — EUR-Lex'], ('éditeur du service', 'utilisateurs')),
+    _t('fr_cga_achat', 'FR', 'fr', 'contrat', 'cga', 'Conditions générales d’achat',
+       _R('CGA d’un acheteur professionnel : commande, prix, délai de paiement plafonné, livraison, réception, garanties.',
+          'General terms of purchase (French law).', 'Allgemeine Einkaufsbedingungen (französisches Recht).',
+          'Condiciones generales de compra (derecho francés).'),
+       ('conditions générales d’achat', 'cga'),
+       [('acheteur', 'Acheteur (dénomination, forme, siège, RCS)', ''), ('achats', 'Biens ou prestations achetés', ''),
+        ('delai_paiement', 'Délai de paiement', ''), ('lieu_livraison', 'Lieu de livraison', ''), ('tribunal', 'Ville du tribunal', '')],
+       [('penalites_livraison', 'Pénalités de retard de livraison', False), ('garantie_contractuelle', 'Garantie contractuelle', True),
+        ('confidentialite', 'Confidentialité', False)],
+       ['# CONDITIONS GÉNÉRALES D’ACHAT', '{{acheteur}}',
+        '## Champ d’application', 'Les présentes conditions s’appliquent aux achats de {{achats}} auprès de fournisseurs professionnels, dans le cadre '
+        'de la négociation commerciale ; les conditions générales de vente du fournisseur en constituent le socle (article L. 441-1 du Code de '
+        'commerce). Les clauses incompatibles des conditions générales des parties sont sans effet (article 1119 du Code civil).',
+        '## Commande', 'Toute commande fait l’objet d’un bon de commande écrit ; elle est ferme à réception de son acceptation par le fournisseur.',
+        '## Prix', 'Les prix sont fermes et non révisables, sauf stipulation écrite contraire.',
+        '## Paiement', 'Les factures sont payables dans un délai de {{delai_paiement}}, dans les limites de l’article L. 441-10 du Code de commerce.',
+        '## Livraison et réception', 'Les biens sont livrés à {{lieu_livraison}}. La réception est prononcée après contrôle ; les réserves sont notifiées '
+        'au fournisseur [À COMPLÉTER : délai de contrôle].',
+        '[[si penalites_livraison]]', '## Retard de livraison', 'Tout retard donne lieu à des pénalités de [À COMPLÉTER] par jour de retard, dans la '
+        'limite de [À COMPLÉTER] [À VÉRIFIER : article L. 442-1 du Code de commerce, pénalités disproportionnées].', '[[fin]]',
+        '[[si garantie_contractuelle]]', '## Garantie', 'Le fournisseur garantit la conformité des biens à la commande pendant [À COMPLÉTER] mois, '
+        'sans préjudice des garanties légales.', '[[fin]]',
+        '[[si confidentialite]]', '## Confidentialité', 'Le fournisseur garde confidentielles les informations reçues pour la commande.', '[[fin]]',
+        '## Droit applicable — Litiges', 'Les présentes conditions sont soumises au droit français ; tout litige entre professionnels relève des '
+        'juridictions de {{tribunal}}.'],
+       ['Code de commerce, art. L. 441-1, L. 441-10, L. 442-1 — Légifrance', 'Code civil, art. 1119 — Légifrance'],
+       ('acheteur professionnel', 'fournisseurs professionnels')),
+    _t('fr_agence_commerciale', 'FR', 'fr', 'contrat', 'agence-commerciale', 'Contrat d’agent commercial',
+       _R('Mandat d’agent commercial : produits, territoire, commission, obligations réciproques, préavis, indemnité de fin de contrat.',
+          'Commercial agency agreement (French law).', 'Handelsvertretervertrag (französisches Recht).', 'Contrato de agencia comercial (derecho francés).'),
+       ('contrat d’agent commercial', 'contrat d’agence commerciale', 'agent commercial'),
+       [('mandant', 'Mandant (dénomination, forme, siège, RCS)', ''), ('agent', 'Agent commercial (nom ou dénomination, immatriculation)', ''),
+        ('produits', 'Produits ou services à négocier', ''), ('territoire', 'Territoire ou clientèle', ''), ('commission', 'Commission (taux, assiette, '
+        'exigibilité)', ''), ('duree', 'Durée', ''), ('tribunal', 'Ville du tribunal', ''), ('ville', 'Lieu', ''), ('date_acte', 'Date', '')],
+       [('exclusivite', 'Exclusivité sur le territoire', False), ('non_concurrence', 'Non-concurrence après la fin du contrat', False)],
+       ['# CONTRAT D’AGENT COMMERCIAL', '', '# ENTRE :', '{{mandant}}, ci-après le « Mandant »,', '# ET :', '{{agent}}, ci-après l’« Agent »,', '',
+        '## Objet', 'Le Mandant confie à l’Agent, qui l’accepte, le mandat de négocier et, le cas échéant, de conclure en son nom et pour son compte '
+        'des contrats portant sur {{produits}} (article L. 134-1 du Code de commerce).',
+        '## Statut', 'L’Agent exerce en professionnel indépendant ; il justifie de son immatriculation au registre spécial des agents commerciaux '
+        '[À VÉRIFIER : article R. 134-6 du Code de commerce].',
+        '## Territoire', 'Le mandat s’exerce sur : {{territoire}}.',
+        '[[si exclusivite]]', 'Le Mandant s’interdit de désigner un autre agent sur ce territoire.', '[[fin]]',
+        '## Obligations des parties', 'Les rapports entre les parties sont régis par une obligation de loyauté et un devoir réciproque d’information '
+        '(article L. 134-4 du Code de commerce).',
+        '## Commission', 'L’Agent perçoit une commission : {{commission}} (articles L. 134-5 et suivants du Code de commerce). Le Mandant remet un '
+        'relevé des commissions dues [À VÉRIFIER : article R. 134-3].',
+        '## Durée et préavis', 'Le contrat est conclu pour {{duree}}. Un contrat à durée indéterminée peut être résilié moyennant un préavis d’un mois '
+        'pour la première année, de deux mois pour la deuxième et de trois mois à partir de la troisième année (article L. 134-11 du Code de '
+        'commerce).',
+        '## Fin du contrat', 'En cas de cessation de ses relations avec le Mandant, l’Agent a droit à une indemnité compensatrice, sauf dans les cas '
+        'prévus à l’article L. 134-13 (article L. 134-12 du Code de commerce).',
+        '[[si non_concurrence]]', '## Non-concurrence', 'Après la fin du contrat, l’Agent s’interdit, pendant [À COMPLÉTER : deux ans au plus], de '
+        'représenter des produits concurrents sur le territoire et la clientèle confiés (article L. 134-14 du Code de commerce).', '[[fin]]',
+        '## Droit applicable — Litiges', 'Le contrat est régi par le droit français ; tout litige relève des juridictions de {{tribunal}} [À VÉRIFIER : '
+        'dispositions impératives de l’article L. 134-16 du Code de commerce].'] + _FIN,
+       ['Code de commerce, art. L. 134-1 à L. 134-16, R. 134-3, R. 134-6 — Légifrance'], ('mandant', 'agent commercial')),
+    _t('fr_licence_logiciel', 'FR', 'fr', 'contrat', 'licence-logiciel', 'Contrat de licence de logiciel',
+       _R('Licence d’utilisation d’un logiciel ou accès en ligne : droits concédés, restrictions, redevances, maintenance, données, fin.',
+          'Software licence agreement (French law).', 'Softwarelizenzvertrag (französisches Recht).', 'Contrato de licencia de software (derecho francés).'),
+       ('contrat de licence de logiciel', 'licence de logiciel', 'contrat saas'),
+       [('concedant', 'Concédant (dénomination, forme, siège, RCS)', ''), ('licencie', 'Licencié (dénomination, forme, siège, RCS)', ''),
+        ('logiciel', 'Logiciel ou service (nom, version)', ''), ('perimetre', 'Utilisateurs ou postes autorisés', ''), ('redevance', 'Redevance et '
+        'périodicité', ''), ('duree', 'Durée', ''), ('tribunal', 'Ville du tribunal', ''), ('ville', 'Lieu', ''), ('date_acte', 'Date', '')],
+       [('acces_en_ligne', 'Accès en ligne au logiciel hébergé par le concédant', False), ('installation', 'Installation chez le licencié', True),
+        ('maintenance', 'Maintenance et assistance', True), ('donnees', 'Données du licencié hébergées par le concédant', False)],
+       ['# CONTRAT DE LICENCE DE LOGICIEL', '', '# ENTRE :', '{{concedant}}, ci-après le « Concédant »,', '# ET :', '{{licencie}}, ci-après le « Licencié »,', '',
+        '## Objet', 'Le Concédant concède au Licencié un droit d’utilisation de {{logiciel}} (le « Logiciel »), non exclusif et non cessible, dans les '
+        'limites suivantes : {{perimetre}}.',
+        '[[si installation]]', '## Installation', 'Le Logiciel est installé sur les équipements du Licencié, qui peut en faire une copie de sauvegarde '
+        '(article L. 122-6-1 du Code de la propriété intellectuelle).', '[[fin]]',
+        '[[si acces_en_ligne]]', '## Accès en ligne', 'Le Logiciel est hébergé par le Concédant et accessible en ligne ; la disponibilité visée figure '
+        'en annexe [À COMPLÉTER].', '[[fin]]',
+        '## Restrictions', 'Toute utilisation non prévue au contrat, toute cession et toute sous-licence sont exclues, sous réserve des droits que la loi '
+        'reconnaît à l’utilisateur légitime (articles L. 122-6 et L. 122-6-1 du Code de la propriété intellectuelle).',
+        '## Redevance', 'Le Licencié paie {{redevance}}.',
+        '[[si maintenance]]', '## Maintenance', 'Le Concédant assure la maintenance corrective et l’assistance selon l’annexe [À COMPLÉTER : délais '
+        'd’intervention].', '[[fin]]',
+        '[[si donnees]]', '## Données', 'Pour les données personnelles hébergées, le Concédant agit en qualité de sous-traitant au sens de l’article 28 '
+        'du règlement (UE) 2016/679 ; les stipulations requises figurent en annexe. À la fin du contrat, les données sont restituées puis effacées '
+        '[À COMPLÉTER : format et délai].', '[[fin]]',
+        '## Propriété', 'Le Concédant conserve tous les droits de propriété intellectuelle sur le Logiciel.',
+        '## Garantie et responsabilité', 'Le Concédant garantit la conformité du Logiciel à sa documentation [À COMPLÉTER : durée]. Sa responsabilité est '
+        'limitée aux dommages directs, dans la limite de [À COMPLÉTER], sauf faute lourde ou dolosive.',
+        '## Durée', 'Le contrat est conclu pour {{duree}}.',
+        '## Droit applicable — Litiges', 'Le contrat est régi par le droit français ; tout litige relève des juridictions de {{tribunal}}.'] + _FIN,
+       ['Code de la propriété intellectuelle, art. L. 122-6, L. 122-6-1 — Légifrance', 'Règlement (UE) 2016/679, art. 28 — EUR-Lex'],
+       ('concédant', 'licencié'), (('acces_en_ligne', 'installation'),)),
+    _t('fr_bail_commercial', 'FR', 'fr', 'contrat', 'bail-commercial', 'Bail commercial',
+       _R('Bail soumis au statut des baux commerciaux : locaux, destination, durée de neuf ans, loyer et révision, charges, renouvellement.',
+          'Commercial lease (French law).', 'Gewerbemietvertrag (französisches Recht).', 'Arrendamiento comercial (derecho francés).'),
+       ('bail commercial', 'bail de locaux commerciaux'),
+       [('bailleur', 'Bailleur (nom ou dénomination, adresse)', ''), ('preneur', 'Preneur (dénomination, forme, siège, RCS)', ''),
+        ('locaux', 'Locaux (adresse, désignation, surface)', ''), ('destination', 'Destination (activités autorisées)', ''),
+        ('date_effet', 'Date de prise d’effet', ''), ('loyer', 'Loyer annuel hors taxes et hors charges', ''), ('indice', 'Indice de révision (ILC ou ILAT)', ''),
+        ('charges', 'Répartition des charges, impôts et travaux', ''), ('ville', 'Lieu', ''), ('date_acte', 'Date', '')],
+       [('depot_garantie', 'Dépôt de garantie', True), ('echelle_mobile', 'Clause d’échelle mobile', False),
+        ('sous_location', 'Sous-location autorisée', False)],
+       ['# BAIL COMMERCIAL', '', '# ENTRE :', '{{bailleur}}, ci-après le « Bailleur »,', '# ET :', '{{preneur}}, ci-après le « Preneur »,', '',
+        '## Statut', 'Le présent bail est soumis aux articles L. 145-1 et suivants du Code de commerce.',
+        '## Désignation', 'Le Bailleur donne à bail les locaux suivants : {{locaux}}.',
+        '## Destination', 'Les locaux sont destinés exclusivement à : {{destination}}.',
+        '## Durée', 'Le bail est conclu pour neuf ans à compter du {{date_effet}}. Le Preneur peut donner congé à l’expiration de chaque période '
+        'triennale, dans les formes et délais de l’article L. 145-9 (article L. 145-4 du Code de commerce) [À VÉRIFIER : exceptions prévues à cet '
+        'article].',
+        '## Loyer', 'Le loyer annuel est fixé à {{loyer}} hors taxes et hors charges, payable [À COMPLÉTER : périodicité et terme].',
+        '## Révision', 'Le loyer peut être révisé dans les conditions des articles L. 145-37 et L. 145-38 du Code de commerce ; indice de référence : '
+        '{{indice}}.',
+        '[[si echelle_mobile]]', '## Échelle mobile', 'Le loyer est indexé chaque année sur la variation de l’indice {{indice}} [À VÉRIFIER : '
+        'articles L. 145-39 du Code de commerce et L. 112-1 du Code monétaire et financier].', '[[fin]]',
+        '[[si depot_garantie]]', '## Dépôt de garantie', 'Le Preneur verse un dépôt de garantie de [À COMPLÉTER], restitué en fin de bail déduction faite '
+        'des sommes dues.', '[[fin]]',
+        '## Charges, impôts et travaux', '{{charges}}', 'Un inventaire précis et limitatif des catégories de charges, impôts, taxes et redevances, avec '
+        'leur répartition, est annexé (article L. 145-40-2 du Code de commerce) ; certaines charges ne peuvent être imputées au Preneur '
+        '(article R. 145-35).',
+        '## État des lieux et annexes', 'Un état des lieux est établi à la prise de possession et à la restitution (article L. 145-40-1 du Code de '
+        'commerce). [À VÉRIFIER : annexes et diagnostics requis selon les locaux].',
+        '[[si sous_location]]', '## Sous-location', 'La sous-location est autorisée dans les conditions de l’article L. 145-31 du Code de commerce.',
+        '[[fin]]',
+        '## Renouvellement', 'Le Preneur bénéficie du droit au renouvellement et, en cas de refus, de l’indemnité d’éviction, dans les conditions des '
+        'articles L. 145-8 et suivants et L. 145-14 du Code de commerce.'] + _FIN,
+       ['Code de commerce, art. L. 145-1 et s., L. 145-4, L. 145-8, L. 145-9, L. 145-14, L. 145-31, L. 145-37 à L. 145-40-2, R. 145-35 — Légifrance',
+        'Code monétaire et financier, art. L. 112-1 — Légifrance'], ('bailleur', 'preneur')),
+]
+TEMPLATES56111 = FR56111
+
+
+# ================================================================================================ 5.6.111 (lot K, F07) : questionnaires des familles Conseil
+# Données des questionnaires natifs (``questionnaires56108.deriver`` les applique ; aucun second format) : pour chaque trame, le rangement de ses
+# variables dans les sections du formulaire, des aides sobres, des questions ajoutées (forme native : ``id``, ``libelle``, ``type``, ``groupe``,
+# ``bloquant_signature``, ``actif_si``…) et, s'il y a lieu, la rédaction par l'IA réservée aux sections qui portent une mention à compléter.
+# Les libellés suivent la langue de la trame ; rien ici n'examine un régime juridique : les questions propres à un droit restent à valider par
+# un juriste compétent dans ce droit. Un questionnaire ne change jamais l'état juridique de la trame.
+_SIGNATAIRES = {'fr': ('Signataires et pouvoirs pour cet acte (%s)', 'Nom, qualité et justificatif du pouvoir de chaque signataire.'),
+                'de': ('Unterzeichner und Vertretungsnachweise (%s)', 'Name, Funktion und Nachweis der Vertretungsbefugnis.'),
+                'es': ('Firmantes y facultades (%s)', 'Nombre, cargo y acreditación de las facultades de cada firmante.'),
+                'en': ('Signatories and authority (%s)', 'Name, capacity and evidence of authority of each signatory.')}
+
+
+def _signataires(langue, titre):
+    libelle, aide = _SIGNATAIRES[langue]
+    return {'id': 'signataires', 'libelle': (libelle % titre)[:200], 'aide': aide, 'type': 'texte', 'groupe': 'pouvoirs', 'multiligne': True,
+            'bloquant_signature': True, 'confirmation_requise': True}
+
+
+def _q(groupes=None, aides=None, ajouts=(), ia=False, roles=None, parties=()):
+    """``parties`` : variables désignant une partie, que la dérivation automatique (mots français) ne reconnaît pas dans les autres langues :
+    rangées dans « Parties », bloquantes pour la signature et à confirmer, comme les parties des trames françaises."""
+    groupes = {**{k: 'parties' for k in parties}, **dict(groupes or {})}
+    return {'groupes': groupes, 'aides': dict(aides or {}), 'ajouts': list(ajouts), 'ia_mentions': bool(ia), 'roles': dict(roles or {}),
+            'parties': list(parties)}
+
+
+_NOTE = {'fr': ('Date de remise attendue par le client', 'Contraintes du client (budget, calendrier, confidentialité)'),
+         'de': ('Vom Mandanten erwarteter Termin', 'Vorgaben des Mandanten (Budget, Zeitplan, Vertraulichkeit)'),
+         'es': ('Fecha de entrega esperada por el cliente', 'Condiciones del cliente (presupuesto, calendario, confidencialidad)'),
+         'en': ('Date expected by the client', 'Client constraints (budget, timetable, confidentiality)')}
+
+
+def _note(langue, destinataire, auteur, reference, objet, question, faits, date_):
+    a, b = _NOTE[langue]
+    return _q({destinataire: 'parties', auteur: 'parties', reference: 'operation', objet: 'operation', question: 'operation', faits: 'operation',
+               date_: 'operation'},
+              {faits: {'fr': 'Faits tenus pour acquis et hypothèses : ils bornent la portée de la note.', 'de': 'Zugrunde gelegter Sachverhalt und '
+                       'Annahmen.', 'es': 'Hechos y premisas en que se basa la nota.', 'en': 'Facts and assumptions on which the advice relies.'}[langue]},
+              [{'id': 'echeance_client', 'libelle': a, 'type': 'date', 'groupe': 'duree'},
+               {'id': 'contraintes', 'libelle': b, 'type': 'texte', 'groupe': 'obligations', 'multiligne': True, 'longueur_max': 2000}], ia=True)
+
+
+def _mission(client, contact, autres, objet, droit, forum, delais, documents, date_):
+    return _q({client: 'parties', contact: 'pouvoirs', autres: 'parties', objet: 'operation', droit: 'litiges', forum: 'litiges', delais: 'duree',
+               documents: 'conditions', date_: 'operation'}, ia=True, roles={client: 'client', autres: 'adverse'})
+
+
+QUESTIONS = {
+    # ---------------------------------------------------------------- consultations avec options (six droits)
+    'fr_note_consultation': _note('fr', 'destinataire', 'auteur', 'reference', 'objet', 'question', 'faits', 'date_acte'),
+    'qc_note_consultation': _note('fr', 'destinataire', 'auteur', 'reference', 'objet', 'question', 'faits', 'date_acte'),
+    'de_beratungsvermerk': _note('de', 'empfaenger', 'verfasser', 'aktenzeichen', 'betreff', 'frage', 'sachverhalt', 'datum'),
+    'es_nota_consulta': _note('es', 'destinatario', 'autor', 'referencia', 'asunto', 'cuestion', 'hechos', 'fecha'),
+    'uk_advice_note': _note('en', 'to', 'author', 'reference', 'subject', 'question', 'facts', 'date'),
+    'on_advice_memo': _note('en', 'to', 'author', 'reference', 'subject', 'question', 'facts', 'date'),
+    # ---------------------------------------------------------------- questionnaires d'ouverture de mission (six droits)
+    'fr_questionnaire_mission': _mission('client', 'interlocuteur', 'autres_parties', 'objet', 'droit_envisage', 'juridiction', 'echeances', 'documents', 'date_acte'),
+    'qc_questionnaire_mandat': _mission('client', 'interlocuteur', 'autres_parties', 'objet', 'province_matiere', 'tribunal', 'delais', 'documents', 'date_acte'),
+    'de_mandatsfragebogen': _mission('mandant', 'ansprechpartner', 'gegner', 'gegenstand', 'recht', 'gericht', 'fristen', 'unterlagen', 'datum'),
+    'es_cuestionario_encargo': _mission('cliente', 'contacto', 'contrarios', 'objeto', 'derecho', 'organo', 'plazos', 'documentos', 'fecha'),
+    'uk_client_questionnaire': _mission('client', 'contact', 'other_parties', 'scope', 'governing_law', 'forum', 'deadlines', 'documents', 'date'),
+    'on_client_questionnaire': _mission('client', 'contact', 'other_parties', 'scope', 'jurisdiction', 'forum', 'deadlines', 'documents', 'date'),
+    # ---------------------------------------------------------------- accords de confidentialité (six droits)
+    'accord_confidentialite': _q({'projet': 'operation', 'duree': 'duree', 'tribunal': 'litiges'},
+                                 {'projet': 'Projet ou négociation pour lequel les informations sont échangées : il fixe l’usage permis.',
+                                  'duree': 'Durée après la dernière communication, par exemple « cinq ans ».',
+                                  'reciproque': 'Oui si chaque partie communique des informations ; non si seule la partie A en communique.'},
+                                 [_signataires('fr', 'accord de confidentialité')]),
+    'qc_entente_confidentialite': _q({'projet': 'operation', 'duree': 'duree', 'district': 'litiges'},
+                                     {'reciproque': 'Oui si chaque partie communique des renseignements ; non si seule la partie A en communique.'},
+                                     [_signataires('fr', 'entente de confidentialité')]),
+    'de_geheimhaltung': _q(parties=('partei_a', 'partei_b'), groupes={'zweck': 'operation', 'dauer': 'duree', 'vertragsstrafe': 'economie'}, ajouts=[_signataires('de', 'Geheimhaltungsvereinbarung')]),
+    'es_confidencialidad': _q(parties=('parte_a', 'parte_b'), groupes={'finalidad': 'operation', 'duracion': 'duree'}, ajouts=[_signataires('es', 'acuerdo de confidencialidad')]),
+    'en_nda': _q(parties=('party_a', 'party_b'), groupes={'purpose': 'operation', 'term': 'duree'}, ajouts=[_signataires('en', 'non-disclosure agreement')]),
+    'on_nda': _q(parties=('party_a', 'party_b'), groupes={'purpose': 'operation', 'term': 'duree'}, ajouts=[_signataires('en', 'confidentiality agreement')]),
+    # ---------------------------------------------------------------- prestations entre professionnels (six droits)
+    'contrat_prestation': _q({'prestations': 'obligations', 'prix': 'economie', 'delai_paiement': 'economie', 'duree': 'duree', 'preavis': 'duree',
+                              'plafond': 'responsabilite', 'tribunal': 'litiges'},
+                             {'prestations': 'Décrivez les prestations et, s’il y a lieu, les livrables et leur recette.',
+                              'plafond': 'Montant ou mode de calcul du plafond, par exemple « le prix payé sur les douze derniers mois ».'},
+                             [_signataires('fr', 'contrat de prestation'),
+                              {'id': 'donnees_personnelles', 'libelle': 'Le prestataire traitera-t-il des données personnelles pour le client ?', 'type': 'booleen',
+                               'groupe': 'donnees'},
+                              {'id': 'donnees_precisions', 'libelle': 'Données et personnes concernées, durée du traitement', 'type': 'texte', 'groupe': 'donnees',
+                               'multiligne': True, 'longueur_max': 2000, 'actif_si': {'champ': 'donnees_personnelles', 'egal': True}},
+                              {'id': 'annexes', 'libelle': 'Annexes à joindre (devis, cahier des charges, niveaux de service)', 'type': 'texte',
+                               'groupe': 'conditions', 'multiligne': True, 'longueur_max': 2000}]),
+    'qc_contrat_service': _q({'services': 'obligations', 'prix': 'economie', 'delai_paiement': 'economie', 'taux_interet': 'economie', 'duree': 'duree',
+                              'plafond': 'responsabilite', 'district': 'litiges'}, ajouts=[_signataires('fr', 'contrat de service')]),
+    'de_dienstleistungsvertrag': _q(parties=('auftragnehmer', 'auftraggeber'), groupes={'leistungen': 'obligations', 'verguetung': 'economie', 'zahlungsziel': 'economie', 'kuendigungsfrist': 'duree',
+                                     'gerichtsstand': 'litiges'}, ajouts=[_signataires('de', 'Dienstleistungsvertrag')]),
+    'es_prestacion_servicios': _q(parties=('prestador', 'cliente'), groupes={'servicios': 'obligations', 'precio': 'economie', 'plazo_pago': 'economie'},
+                                  ajouts=[_signataires('es', 'contrato de prestación de servicios')]),
+    'en_services_agreement': _q(parties=('supplier', 'customer'), groupes={'services': 'obligations', 'charges': 'economie', 'payment_terms': 'economie', 'cap': 'responsabilite'},
+                                ajouts=[_signataires('en', 'services agreement')]),
+    'on_services_agreement': _q(parties=('supplier', 'customer'), groupes={'services': 'obligations', 'fees': 'economie', 'payment_terms': 'economie', 'interest_rate': 'economie', 'term': 'duree',
+                                 'cap': 'responsabilite'}, ajouts=[_signataires('en', 'services agreement')]),
+    # ---------------------------------------------------------------- conditions générales de vente entre professionnels (quatre droits)
+    'cgv_b2b': _q({'produits': 'obligations', 'delai_paiement': 'economie', 'escompte': 'economie', 'tribunal': 'litiges'},
+                  {'delai_paiement': 'Délai convenu, dans les plafonds de l’article L. 441-10 du Code de commerce (à vérifier).',
+                   'produits': 'CGV destinées aux seuls professionnels ; pour des consommateurs, utilisez le modèle « CGV aux consommateurs ».'}),
+    'de_agb_b2b': _q(parties=('verkaeufer',), groupes={'zahlungsziel': 'economie', 'gerichtsstand': 'litiges'}),
+    'es_condiciones_generales': _q(parties=('vendedor',), groupes={'plazo_pago': 'economie', 'jurisdiccion': 'litiges'}),
+    'en_terms_sale': _q(parties=('seller',), groupes={'payment_terms': 'economie'}),
+    # ---------------------------------------------------------------- pactes (quatre droits)
+    'pacte_associes': _q({'denomination': 'parties', 'forme_long': 'parties', 'siege': 'parties', 'capital': 'parties', 'rcs_ville': 'parties', 'siren': 'parties',
+                          'expose': 'operation', 'gouvernance': 'obligations', 'majorite_decisions_importantes': 'obligations', 'seuil_information': 'obligations',
+                          'duree_inalienabilite': 'duree', 'delai_preemption': 'duree', 'delai_realisation': 'duree', 'delai_sortie_conjointe': 'duree',
+                          'seuil_sortie_forcee': 'obligations', 'delai_leaver': 'duree', 'prix_bad_leaver': 'economie', 'parties_non_concurrence': 'obligations',
+                          'duree_non_concurrence': 'duree', 'territoire_non_concurrence': 'obligations', 'methode_anti_dilution': 'economie',
+                          'delai_liquidite': 'duree', 'multiple_preference': 'economie', 'duree_pacte': 'duree', 'tribunal': 'litiges'},
+                         ajouts=[_signataires('fr', 'pacte d’associés')]),
+    'de_gesellschaftervereinbarung': _q({'firma': 'parties', 'sitz': 'parties', 'hrb': 'parties', 'laufzeit': 'duree', 'gerichtsstand': 'litiges'},
+                                        ajouts=[_signataires('de', 'Gesellschaftervereinbarung')]),
+    'es_pacto_socios': _q({'denominacion': 'parties', 'duracion': 'duree'}, ajouts=[_signataires('es', 'pacto de socios')]),
+    'en_shareholders_agreement': _q({'company_name': 'parties', 'company_number': 'parties'}, ajouts=[_signataires('en', 'shareholders’ agreement')]),
+    # ---------------------------------------------------------------- cessions de titres (quatre droits)
+    'cession_titres': _q({'denomination': 'operation', 'forme_long': 'operation', 'capital': 'operation', 'siege': 'operation', 'rcs_ville': 'operation',
+                          'siren': 'operation', 'nombre': 'operation', 'titres': 'operation', 'prix_unitaire': 'economie', 'prix_total': 'economie',
+                          'modalites_paiement': 'economie', 'date_jouissance': 'operation'},
+                         {'agrement': 'Cochez si les statuts soumettent la cession à agrément : la clause rappelle la décision obtenue.'},
+                         [_signataires('fr', 'cession de titres')]),
+    'de_anteilskaufvertrag': _q(parties=('verkaeufer', 'kaeufer'), groupes={'firma': 'operation', 'hrb': 'operation', 'anteile': 'operation', 'kaufpreis': 'economie', 'stichtag': 'operation',
+                                 'haftungshoechstbetrag': 'responsabilite'}, ajouts=[_signataires('de', 'Anteilskaufvertrag')]),
+    'es_compraventa_participaciones': _q(parties=('vendedor', 'comprador'), groupes={'denominacion': 'operation', 'participaciones': 'operation', 'precio': 'economie'},
+                                         ajouts=[_signataires('es', 'compraventa de participaciones')]),
+    'en_spa': _q(parties=('seller', 'buyer'), groupes={'company_name': 'operation', 'shares': 'operation', 'price': 'economie', 'cap': 'responsabilite'},
+                 ajouts=[_signataires('en', 'share purchase agreement')]),
+    # ---------------------------------------------------------------- lettre de mission et honoraires (France)
+    'lettre_mission': _q({'perimetre_mission': 'obligations', 'exclusions': 'obligations'},
+                         {'exclusions': 'Ce qui n’est pas compris dans la mission : à écrire, même brièvement.'}, roles={'partie_conseillee': 'client'}),
+    'convention_honoraires': _q({'perimetre_mission': 'obligations', 'honoraires': 'economie', 'taux_horaire': 'economie', 'modalites_paiement': 'economie'},
+                                {'resultat_a_qualifier': 'Un honoraire de résultat complète un honoraire fixe ; il ne peut être le seul mode de rémunération '
+                                 '(loi n° 71-1130 du 31 décembre 1971, article 10, à vérifier).'},
+                                [_signataires('fr', 'convention d’honoraires')], roles={'partie_conseillee': 'client'}),
+    # ---------------------------------------------------------------- familles ajoutées en 5.6.111 (France)
+    'fr_note_analyse_contrat': _q({'destinataire': 'parties', 'auteur': 'parties', 'partie_assistee': 'parties', 'contrepartie': 'parties',
+                                   'contrat_analyse': 'operation', 'objectifs': 'obligations'},
+                                  {'contrat_analyse': 'Indiquez la version exacte reçue (date, émetteur) : la note ne vaut que pour elle.'},
+                                  [{'id': 'points_non_negociables', 'libelle': 'Points que le client refuse de céder', 'type': 'texte', 'groupe': 'obligations',
+                                    'multiligne': True, 'longueur_max': 2000},
+                                   {'id': 'echeance_negociation', 'libelle': 'Date limite de la négociation', 'type': 'date', 'groupe': 'redaction',
+                                    'actif_si': {'champ': 'urgence', 'egal': True}}], ia=True, roles={'partie_assistee': 'client'}),
+    'fr_cgv_consommateurs': _q({'produits': 'obligations', 'modes_paiement': 'economie', 'delai_livraison': 'obligations', 'service_client': 'litiges',
+                                'mediateur': 'litiges'},
+                               {'mediateur': 'Le professionnel doit permettre le recours gratuit à un médiateur de la consommation ; indiquez celui auquel il a adhéré.',
+                                'distance': 'Oui pour une vente en ligne, par téléphone ou hors établissement.'},
+                               [{'id': 'vente_en_ligne', 'libelle': 'Les commandes sont-elles passées en ligne ?', 'type': 'booleen', 'groupe': 'operation'},
+                                {'id': 'site_internet', 'libelle': 'Adresse du site de vente', 'type': 'texte', 'groupe': 'operation',
+                                 'actif_si': {'champ': 'vente_en_ligne', 'egal': True}}], ia=True),
+    'fr_cgu_service': _q({'service': 'operation', 'hebergeur': 'parties', 'contact': 'litiges'},
+                         {'consommateurs': 'Oui si le service est accessible à des particuliers : la clause de responsabilité est alors encadrée.'},
+                         [{'id': 'donnees_traitees', 'libelle': 'Données personnelles collectées par le service', 'type': 'texte', 'groupe': 'donnees',
+                           'multiligne': True, 'longueur_max': 2000}], ia=True),
+    'fr_cga_achat': _q({'achats': 'obligations', 'delai_paiement': 'economie', 'lieu_livraison': 'obligations', 'tribunal': 'litiges'},
+                       {'delai_paiement': 'Délai convenu, dans les plafonds de l’article L. 441-10 du Code de commerce (à vérifier).'}, ia=True),
+    'fr_agence_commerciale': _q({'produits': 'obligations', 'territoire': 'obligations', 'commission': 'economie', 'duree': 'duree', 'tribunal': 'litiges'},
+                                {'duree': 'Durée déterminée ou indéterminée ; le préavis légal dépend de l’ancienneté du contrat.',
+                                 'agent': 'Indiquez son immatriculation au registre spécial des agents commerciaux.'},
+                                [_signataires('fr', 'contrat d’agent commercial'),
+                                 {'id': 'duree_non_concurrence', 'libelle': 'Durée de la non-concurrence après la fin du contrat', 'type': 'texte',
+                                  'groupe': 'duree', 'aide': 'Deux ans au plus (article L. 134-14 du Code de commerce, à vérifier).'}], ia=True),
+    'fr_licence_logiciel': _q({'logiciel': 'operation', 'perimetre': 'obligations', 'redevance': 'economie', 'duree': 'duree', 'tribunal': 'litiges'},
+                              {'acces_en_ligne': 'Logiciel hébergé par le concédant et utilisé en ligne ; incompatible avec l’installation chez le licencié.'},
+                              [_signataires('fr', 'licence de logiciel'),
+                               {'id': 'localisation_donnees', 'libelle': 'Lieu d’hébergement des données du licencié', 'type': 'texte', 'groupe': 'redaction',
+                                'actif_si': {'champ': 'donnees', 'egal': True}}], ia=True),
+    'fr_bail_commercial': _q({'locaux': 'operation', 'destination': 'obligations', 'date_effet': 'duree', 'loyer': 'economie', 'indice': 'economie',
+                              'charges': 'economie'},
+                             {'destination': 'Activités autorisées : leur rédaction conditionne l’usage des locaux et leur déspécialisation.',
+                              'indice': 'Indice des loyers commerciaux (ILC) ou des activités tertiaires (ILAT), selon l’activité.'},
+                             [_signataires('fr', 'bail commercial')], ia=True),
+}
+# Le pacte d'actionnaires reprend les variables du pacte d'associés : mêmes sections, signataires propres à cet acte.
+QUESTIONS['pacte_actionnaires'] = {**QUESTIONS['pacte_associes'], 'ajouts': [_signataires('fr', 'pacte d’actionnaires')]}

@@ -11,6 +11,7 @@ import json
 import re
 import secrets
 
+from . import confirmations56111 as garde
 from .common import Stop, digest, load_matters
 from .model import (Model, MEETING_PREPARATION, TRANSCRIPT_REPORT,
                     PREPARATION_CONTROL, routed_config, validate)
@@ -279,10 +280,10 @@ def dashboard(desk,status='pending',limit=200):
       'safety':{'supervised':True,'final_billing':False,'external_action':False}}
 
 
-def _approve_effect(desk,row):
+def _approve_effect(desk,row,transactional=False):
     payload=_loads(row['payload'],{});queued=None
     if row['action_kind']=='prepare_meeting':
-        queued=desk.enqueue('prepare_meeting',{'event_id':payload.get('event_id','')},priority=0)
+        queued=desk.enqueue('prepare_meeting',{'event_id':payload.get('event_id','')},priority=0,transactional=transactional)
     elif row['action_kind']=='review_billing':
         proposal=payload.get('proposal_id','')
         current=desk.db.execute("SELECT status FROM billing_proposals_v230 WHERE id=?",(proposal,)).fetchone()
@@ -317,6 +318,19 @@ def review_decision(desk,args):
       'external_action':False,'invoice_created':False}
 
 
+CHEMIN='cabinet_pilot'
+
+
+def _version(snapshot):
+    """5.6.111 (C03) : empreinte du lot montré (décisions, risques, empreintes) ; recalculée sur l'état actuel à la confirmation."""
+    return hashlib.sha256(json.dumps(sorted(({'id':x['id'],'risk':x['risk'],'fingerprint':x['fingerprint']} for x in snapshot),
+                                            key=lambda x:x['id']),sort_keys=True).encode()).hexdigest()
+
+
+def _effet(bid,snapshot):
+    return hashlib.sha256(json.dumps(['approve_batch',bid,sorted(x['id'] for x in snapshot)]).encode()).hexdigest()
+
+
 def create_batch(desk,args):
     ensure_schema(desk);raw=args.get('decision_ids',[])
     if isinstance(raw,str):raw=[x.strip() for x in raw.split(',') if x.strip()]
@@ -328,12 +342,13 @@ def create_batch(desk,args):
         if not row or row['status']!='pending':raise Stop('decision_absente_ou_deja_traitee')
         if row['risk'] in ('high','critical'):raise Stop('risque_eleve_confirmation_individuelle')
         snapshot.append({'id':row['id'],'risk':row['risk'],'fingerprint':row['fingerprint']})
-    code=''.join(str(secrets.randbelow(10)) for _ in range(6));bid=secrets.token_hex(16);stamp=desk.now()
+    bid=secrets.token_hex(16);stamp=desk.now()
     minutes=max(5,int(desk.c.get('cabinet_pilotage',{}).get('batch_approval_minutes',30)))
-    expires=(datetime.now(timezone.utc)+timedelta(minutes=minutes)).isoformat()
-    challenge=hashlib.sha256((bid+'|'+code+'|'+json.dumps(snapshot,sort_keys=True)).encode()).hexdigest()
+    # 5.6.111 (lot C, C03) : défi de la garde commune (lot figé, effet, expiration UTC, cinq essais)
+    defi=garde.emettre(desk,CHEMIN,bid,_version(snapshot),_effet(bid,snapshot),minutes)
+    code,expires=defi['code'],defi['expire']
     desk.db.execute('INSERT INTO cabinet_confirmation_batches_v290 VALUES(?,?,?,?,?,?,?)',
-      (bid,'pending',challenge,json.dumps(snapshot),stamp,expires,''))
+      (bid,'pending',garde.marque(defi['garde']),json.dumps(snapshot),stamp,expires,''))
     desk.db.execute('UPDATE cabinet_decisions_v290 SET batch_id=?,updated=? WHERE id IN ('+','.join('?'*len(ids))+')',
       (bid,stamp,*ids));desk.db.commit()
     desk.audit('cabinet_batch_created',{'batch_id':bid,'count':len(ids),'risks':sorted({x['risk'] for x in snapshot})})
@@ -343,25 +358,43 @@ def create_batch(desk,args):
 
 def approve_batch(desk,args):
     ensure_schema(desk);bid=str(args.get('batch_id',''));code=str(args.get('confirmation_code',''))
-    if not re.fullmatch(r'[a-f0-9]{32}',bid) or not re.fullmatch(r'[0-9]{6}',code):raise Stop('confirmation_lot_invalide')
+    if not re.fullmatch(r'[a-f0-9]{32}',bid):raise Stop('confirmation_lot_invalide')   # code malformé : essai décompté par la garde
     row=desk.db.execute('SELECT * FROM cabinet_confirmation_batches_v290 WHERE id=?',(bid,)).fetchone()
     if not row or row['status']!='pending':raise Stop('lot_absent_ou_deja_traite')
-    if (_dt(row['expires']) or datetime.min.replace(tzinfo=timezone.utc))<datetime.now(timezone.utc):raise Stop('confirmation_expiree')
     snapshot=_loads(row['items_snapshot'],[])
-    expected=hashlib.sha256((bid+'|'+code+'|'+json.dumps(snapshot,sort_keys=True)).encode()).hexdigest()
-    if not secrets.compare_digest(expected,row['challenge_hash']):raise Stop('code_confirmation_incorrect')
-    queued=[]
+    ancien=None
+    if garde.ancienne_empreinte(row['challenge_hash']):   # lot préparé avant la 5.6.111 : confirmable jusqu'à son expiration prévue
+        ancien={'expire':row['expires'],'verifier':lambda c:secrets.compare_digest(
+            hashlib.sha256((bid+'|'+c+'|'+json.dumps(snapshot,sort_keys=True)).encode()).hexdigest(),row['challenge_hash'])}
+    # version : état ACTUEL des décisions du lot (empreinte, statut, risque) ; si une décision a changé depuis l'aperçu, la garde refuse
+    current_rows={}
     for item in snapshot:
         current=desk.db.execute('SELECT * FROM cabinet_decisions_v290 WHERE id=?',(item['id'],)).fetchone()
-        if not current or current['status']!='pending' or current['fingerprint']!=item['fingerprint']:
-            raise Stop('lot_modifie_depuis_previsualisation')
-        if current['risk'] in ('high','critical'):raise Stop('risque_eleve_confirmation_individuelle')
-    for item in snapshot:
-        current=desk.db.execute('SELECT * FROM cabinet_decisions_v290 WHERE id=?',(item['id'],)).fetchone()
-        job=_approve_effect(desk,current)
-        if job:queued.append(job)
-        desk.db.execute("UPDATE cabinet_decisions_v290 SET status='approved',updated=? WHERE id=?",(desk.now(),item['id']))
-    desk.db.execute("UPDATE cabinet_confirmation_batches_v290 SET status='approved',decided=? WHERE id=?",(desk.now(),bid));desk.db.commit()
+        current_rows[item['id']]=current
+    actuel=[{'id':i['id'],'risk':(current_rows[i['id']]['risk'] if current_rows[i['id']] else ''),
+             'fingerprint':(current_rows[i['id']]['fingerprint'] if current_rows[i['id']] and current_rows[i['id']]['status']=='pending' else '')}
+            for i in snapshot]
+
+    def intention(db):
+        # relecture sous le verrou, puis décisions et mises en file dans la même transaction que la consommation du code
+        queued=[]
+        for item in snapshot:
+            current=db.execute('SELECT * FROM cabinet_decisions_v290 WHERE id=?',(item['id'],)).fetchone()
+            if not current or current['status']!='pending' or current['fingerprint']!=item['fingerprint']:
+                raise Stop('lot_modifie_depuis_previsualisation')
+            if current['risk'] in ('high','critical'):raise Stop('risque_eleve_confirmation_individuelle')
+        for item in snapshot:
+            current=db.execute('SELECT * FROM cabinet_decisions_v290 WHERE id=?',(item['id'],)).fetchone()
+            job=_approve_effect(desk,current,transactional=True)
+            if job:queued.append(job)
+            db.execute("UPDATE cabinet_decisions_v290 SET status='approved',updated=? WHERE id=?",(desk.now(),item['id']))
+        db.execute("UPDATE cabinet_confirmation_batches_v290 SET status='approved',decided=? WHERE id=? AND status='pending'",(desk.now(),bid))
+        return queued
+    queued=garde.confirmer(desk,CHEMIN,bid,code,version=_version(actuel),effet=_effet(bid,snapshot),code_faux='code_confirmation_incorrect',
+        code_malforme='confirmation_lot_invalide',code_expire='confirmation_expiree',code_deja='lot_absent_ou_deja_traite',
+        code_modifie='lot_modifie_depuis_previsualisation',intention=intention,ancien=ancien)['resultat']
+    for job in queued:
+        garde.apres_mise_en_file(desk,job,'prepare_meeting',{})
     desk.audit('cabinet_batch_approved',{'batch_id':bid,'count':len(snapshot),'queued_jobs':queued,
       'external_action':False,'invoice_created':False})
     return {'batch_id':bid,'status':'approved','count':len(snapshot),'queued_jobs':queued,

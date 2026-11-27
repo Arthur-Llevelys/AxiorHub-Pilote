@@ -1680,7 +1680,12 @@ def p97g_gmail(banc, s):
         ligne = p.locator('.cx96-ligne', has_text='Bordereau KERVILAC')
         verifier(ligne.count() == 1, 'le fil Gmail n’apparaît pas dans la vue')
         ligne.click()
-        p.wait_for_load_state('networkidle')
+        # 5.6.111 : sous Chromium sans carte graphique, le réseau ne devient pas toujours « inactif » en 30 s ; attendre le formulaire attendu.
+        p.locator('.cx96-preparer textarea[name=texte]').wait_for(state='visible', timeout=60000)
+        try:
+            p.wait_for_load_state('networkidle', timeout=20000)
+        except Exception:
+            p.wait_for_load_state('load')
         s.propre('fil Gmail')
         p.locator('.cx96-preparer textarea[name=texte]').fill('Bien reçu, merci.')
         envoyer(p, '/courriels/preparer', lambda: p.locator('.cx96-preparer button[type=submit]').click(), 'préparer')
@@ -1702,7 +1707,10 @@ def p97g_gmail(banc, s):
         verifier(p.locator('.cx96-ligne', has_text='Bordereau KERVILAC').count() == 1, 'le fil envoyé n’est pas dans « Terminés »')
         p.set_viewport_size({'width': 390, 'height': 844})
         p.locator('.cx96-ligne', has_text='Bordereau KERVILAC').click()
-        p.wait_for_load_state('networkidle')
+        try:
+            p.wait_for_load_state('networkidle', timeout=15000)
+        except Exception:
+            p.wait_for_load_state('load')
         verifier(p.evaluate(SANS_DEFILEMENT_HORIZONTAL96), 'petite largeur : défilement horizontal')
         if getattr(banc, 'sortie', None):
             p.screenshot(path=str(Path(banc.sortie) / 'P97g-mobile.png'))
@@ -1811,6 +1819,16 @@ import parcours_p110e   # noqa: E402 — 5.6.110 (lot E) : GridCraft, PdfCraft, 
 PARCOURS = PARCOURS + tuple(parcours_p110e.PARCOURS_E)
 import parcours_p110s   # noqa: E402 — 5.6.110 (lot S) : serveur de documents en un clic
 PARCOURS = PARCOURS + tuple(parcours_p110s.PARCOURS)
+import parcours_p111c   # noqa: E402 — 5.6.111 (lot C) : indicateur d'activité
+PARCOURS = PARCOURS + tuple(parcours_p111c.PARCOURS_C)
+import parcours_p111f   # noqa: E402 — 5.6.111 (lot F) : Conversation IA du dossier
+PARCOURS = PARCOURS + tuple(parcours_p111f.PARCOURS)
+import parcours_p111k   # noqa: E402 — 5.6.111 (lot K) : Conseil, matrice et questionnaires
+PARCOURS = PARCOURS + tuple(parcours_p111k.PARCOURS)
+import parcours_p111p   # noqa: E402 — 5.6.111 (lot P) : envoi préparé sur un portail
+PARCOURS = PARCOURS + tuple(parcours_p111p.PARCOURS_P)
+import parcours_p111u   # noqa: E402 — 5.6.111 (lot U) : relecture, accueil, précontrôle (P111u-mesures se lance seul : outil de mesure)
+PARCOURS = PARCOURS + tuple(p for p in parcours_p111u.PARCOURS_U if p[0] != 'P111u-mesures')
 
 # ------------------------------------------------------------------------------------------------ lancement
 def _tranche(ident):

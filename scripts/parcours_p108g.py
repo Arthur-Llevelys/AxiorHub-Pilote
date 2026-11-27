@@ -224,7 +224,9 @@ def p108g_produire_dossiers(banc, s):
     bloc = p.locator('#d79-ia')
     verifier(bloc.count() == 1 and 'Résultats enregistrés' in bloc.inner_text(), 'P108g : fiche sans « Résultats enregistrés »')
     verifier(bloc.locator('a[href*="/livrables/doc-p108g-"]').count() >= 1, 'P108g : fiche : aucun lien vers le résultat')
-    verifier(p.locator('.d100-reprise').count() == 1, 'P108g : en-tête de reprise absent de la fiche')
+    # 5.6.111 (lot U) : un second bloc au même style (.u111-reprise) donne les résultats de l'IA et les pièces sources.
+    verifier(p.locator('.d100-reprise:not(.u111-reprise)').count() == 1, 'P108g : en-tête de reprise absent de la fiche')
+    verifier(p.locator('.u111-reprise').count() <= 1, 'P108g : bloc « Résultats de l’IA et pièces » répété')
     s.capture(sortie / 'P108g-fiche-1920.png')
     s.propre('fiche')
 

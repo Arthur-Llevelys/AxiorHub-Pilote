@@ -1,7 +1,7 @@
 """
 title: AxiorHub Avocat
 author: AxiorHub
-version: 5.6.110
+version: 5.6.111
 description: Cabinet opérant avec apprentissage métier explicite, banc juridique et routage local-first contrôlé.
 requirements: pydantic
 """
@@ -642,8 +642,15 @@ class Tools:
             if isinstance(matter,dict):return matter
         else:matter=""
         query=urlencode({"status":"pending","matter":matter,"limit":100})
-        return {"diligences":self._call("/autonomy/diligences?"+query).get("proposals",[]),
-          "facturation":self._call("/autonomy/billing?"+query).get("proposals",[]),
+        diligences=self._call("/autonomy/diligences?"+query)
+        if diligences.get("error"):
+            return {**diligences,"source":"diligences"}
+        facturation=self._call("/autonomy/billing?"+query)
+        if facturation.get("error"):
+            return {**facturation,"source":"facturation","diligences":diligences.get("proposals",[])}
+        if not isinstance(diligences.get("proposals"),list) or not isinstance(facturation.get("proposals"),list):
+            return {"error":"Réponse de l’API incomplète : liste des propositions absente ou invalide."}
+        return {"diligences":diligences["proposals"],"facturation":facturation["proposals"],
           "warning":"Propositions internes uniquement : aucune facture et aucune tâche ne sont créées."}
 
     def afficher_le_portefeuille_actif(self, etats: str = "active,to_confirm") -> dict:

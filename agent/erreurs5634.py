@@ -629,6 +629,9 @@ def explain(code, detail=None):
     if code == 'demonstration_hors_ligne':   # 5.6.107 (lot M) : mode Démo, aucune connexion extérieure
         from .demo56107 import MESSAGES as _messages107
         return _messages107[code]
+    if 'essais_restants56111' in d:   # 5.6.111 (lot C, C03) : code faux d'une confirmation bornée, avec le nombre d'essais restants
+        from .confirmations56111 import expliquer as _expliquer56111
+        return _expliquer56111(code, d) + ref
     if code in DICTEE56110:   # 5.6.110 (lot D) : dictée sur ce poste (moteur, modèle, enregistrement WAV)
         from .dictee56110 import MESSAGES as _messages110
         return _messages110[code] + ref

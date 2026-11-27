@@ -40,7 +40,8 @@
 "Abra Expedientes: los tres expedientes trabajados más recientemente por la IA aparecen arriba, con su procedimiento y su próxima fecha.",
 "Escriba un nombre o una referencia y pulse «Buscar»; pulse un encabezado de columna para ordenar.",
 "Para un asunto ausente de la lista, despliegue «Cartera del despacho», indique su carpeta y pulse «Verificar y registrar el expediente».",
-"Abra el expediente: Síntesis, Documentos (vista previa a la derecha), Hechos y procedimiento, Intercambios, Trabajo."
+"Abra el expediente: Síntesis, Documentos (vista previa a la derecha), Hechos y procedimiento, Intercambios, Trabajo.",
+"Pestaña «Conversación IA»: escriba o dicte su pregunta, elija «Todo el expediente» o archivos concretos y pulse «Enviar»; la respuesta y sus fuentes se abren a la derecha, «Detener» interrumpe la solicitud."
 ],
 "result": "El expediente aparece en la cartera con su ficha de trabajo.",
 "verify": "La ficha muestra el nombre de la carpeta y la fecha de la última lectura.",
@@ -345,7 +346,8 @@
 "Abra Documentos e índices.",
 "Complete su perfil y su sello y pulse «Guardar el perfil».",
 "En «Preparar un índice», elija el expediente y pulse «Analizar los PDF del expediente».",
-"Compruebe títulos y números, previsualice todas las páginas y confirme."
+"Compruebe títulos y números, previsualice todas las páginas y confirme.",
+"Para presentar en e-Barreau o Portalis: pestaña Tribunal del asunto, «Preparar una presentación en el portal», copie el código, presente usted mismo en el portal y luego «Guardar el acuse de presentación»."
 ],
 "result": "Una nueva versión del índice y documentos sellados. Crear el archivo no equivale a comunicarlo a una parte.",
 "verify": "Abra el índice: cada documento tiene número y título.",

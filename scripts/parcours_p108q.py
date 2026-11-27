@@ -63,6 +63,13 @@ def _ouvrir_groupe(p, groupe):
         d.locator('summary').click()
 
 
+def _ouvrir_champ(p, nom):
+    """Déplie le groupe qui contient le champ, quel que soit son rangement (5.6.111 : groupes propres à chaque trame)."""
+    d = p.locator('details.q108-groupe').filter(has=p.locator('[data-q108-champ="%s"]' % nom))
+    if not d.evaluate('n => n.open'):
+        d.locator('summary').click()
+
+
 def _dictee(banc, s):
     """« Dicter la réponse » avec le micro simulé ; rien n'est envoyé au serveur avant « Enregistrer et continuer »."""
     p = s.page
@@ -71,7 +78,7 @@ def _dictee(banc, s):
     p.add_init_script(MICRO_SIMULE)
     p.reload(wait_until='load')
     p.wait_for_load_state('networkidle')
-    _ouvrir_groupe(p, 'operation')
+    _ouvrir_champ(p, 'tribunal')
     envois = []
     p.on('request', lambda r: envois.append(r.url) if 'questionnaire/' in r.url and r.method == 'POST' else None)
     mic = _champ(p, 'tribunal').locator('.ax108-dictee')
@@ -84,6 +91,7 @@ def _dictee(banc, s):
     p.keyboard.press('Enter')                                             # clavier : bouton focusable
     p.locator('[data-q108-champ="tribunal"] .ax108-dictee-statut', has_text='relisez').wait_for(timeout=10000)
     verifier(champ.input_value() == 'Tribunal de commerce de Valbrune', 'texte dicté mal inséré : %r' % champ.input_value())
+    _ouvrir_champ(p, 'date_acte')
     date = _champ(p, 'date_acte')
     p.evaluate("() => { window.__dictees.push('30 février 2027'); }")
     date.locator('.ax108-dictee').click()
@@ -133,7 +141,7 @@ def p108q_questionnaire(banc, s):
     _ouvrir_groupe(p, 'parties')
     _champ(p, 'client').locator('input').fill('KERVILAC')
     _champ(p, 'prestataire').locator('input').fill('ZORVAL')
-    _ouvrir_groupe(p, 'operation')
+    _ouvrir_champ(p, 'plafond')
     _champ(p, 'plafond').locator('button[data-statut=inconnu]').click()
     p.reload(wait_until='load')
     p.wait_for_load_state('networkidle')
@@ -153,12 +161,12 @@ def p108q_questionnaire(banc, s):
     autre = s.context.new_page()
     autre.goto(p.url, wait_until='load')
     autre.wait_for_load_state('networkidle')
-    _ouvrir_groupe(p, 'operation')
+    _ouvrir_champ(p, 'prestations')
     _champ(p, 'prestations').locator('input, textarea').first.fill('Maintenance fictive du site')
     with p.expect_navigation():
         p.click('.q108-form button[type=submit]')
     p.wait_for_load_state('networkidle')
-    _ouvrir_groupe(autre, 'operation')
+    _ouvrir_champ(autre, 'prestations')
     _champ(autre, 'prestations').locator('input, textarea').first.fill('Autre description fictive')
     with autre.expect_response(lambda r: 'questionnaire/repondre' in r.url) as attendu:
         autre.click('.q108-form button[type=submit]')

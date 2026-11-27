@@ -1,0 +1,37 @@
+/* AxiorHub 5.6.111 (lot P) — « Envois sur le portail » (onglet Juridiction du dossier) : préparation, code de confirmation, récapitulatif à
+   recopier, pièces dans l'ordre, accusé de dépôt ; capacités du profil dans la carte « Relever mes messages procéduraux ». Couleurs par les
+   variables communes (clair et sombre) ; focus visible ; aucun défilement horizontal à 375 px (largeurs fluides, mots longs coupés). */
+.p111 { overflow-wrap: anywhere; }
+.p111 form label { display: block; margin: 6px 0; }
+.p111 textarea, .p111 input:not([type="checkbox"]):not([type="hidden"]):not([type="file"]), .p111 select {
+  width: 100%; max-width: 44rem; box-sizing: border-box; }
+.p111 .p111-ligne { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.p111 .p111-ligne label { flex: 1 1 14rem; min-width: 0; }
+.p111-avert { margin: 4px 0 10px; color: var(--ax-muted, #57606a); }
+.p111-limites { margin: 6px 0; color: var(--ax-muted, #57606a); }
+.p111-pieces { border: 1px solid var(--ax-border, #d0d7de); border-radius: 6px; padding: 6px 10px; margin: 8px 0; max-width: 44rem; }
+.p111-pieces ul { list-style: none; padding: 0; margin: 0; max-height: 260px; overflow: auto; }
+.p111-pieces li { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.p111-pieces li span { min-width: 0; }
+.p111 .p111-pieces .p111-rang { display: inline-flex; align-items: center; gap: 4px; margin: 0; flex: 0 0 auto; white-space: nowrap; }
+.p111 .p111-pieces .p111-rang input[inputmode] { width: 3.5rem; max-width: 3.5rem; flex: 0 0 auto; }
+.p111-envois { list-style: none; padding: 0; margin: 10px 0 0; }
+.p111-envoi { border-top: 1px solid var(--ax-border, #d0d7de); padding: 8px 0; }
+.p111-envoi summary { cursor: pointer; }
+.p111-recap { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0; }
+.p111-recap dt { color: var(--ax-muted, #57606a); }
+.p111-recap dd { margin: 0; min-width: 0; }
+.p111-liste { margin: 4px 0 8px; padding-left: 22px; }
+.p111-actions { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; margin-top: 8px; }
+.p111-actions form { margin: 0; }
+.p111-code-zone { border: 2px solid var(--ax-focus, #0969da); border-radius: 6px; padding: 8px 12px; margin: 10px 0; max-width: 44rem;
+  background: var(--ax-surface, transparent); }
+.p111-code-zone .p111-code { font-size: 1.6rem; letter-spacing: .3em; font-variant-numeric: tabular-nums; font-weight: 600; }
+.p111 summary:focus-visible, .p111 button:focus-visible, .p111 input:focus-visible, .p111 textarea:focus-visible, .p111 select:focus-visible,
+.p111 a:focus-visible, .g4-capacites + details summary:focus-visible { outline: 2px solid var(--ax-focus, #0969da); outline-offset: 2px; }
+.g4-capacites { padding-left: 18px; margin: 6px 0; color: var(--ax-text, #1b1f24); }
+.g4-capacites li { margin: 2px 0; }
+@media (max-width: 600px) {
+  .p111-recap { grid-template-columns: 1fr; }
+  .p111-recap dd { margin-bottom: 4px; }
+}
