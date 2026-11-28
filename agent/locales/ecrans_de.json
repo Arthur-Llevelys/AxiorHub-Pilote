@@ -14308,5 +14308,20 @@
 "Enregistrez d’abord votre texte : c’est la version enregistrée dans Brouillons qui part.": "Speichern Sie zuerst Ihren Text: Gesendet wird die in den Entwürfen gespeicherte Fassung.",
 "Brouillon introuvable dans la messagerie : rien n’est envoyé.": "Entwurf im Postfach nicht gefunden: Nichts wird gesendet.",
 "Envoi impossible pour le moment.": "Senden derzeit nicht möglich.",
-"Envoi demandé.": "Senden angefordert."
+"Envoi demandé.": "Senden angefordert.",
+"Conversations IA": "KI-Unterhaltungen",
+"Ouvrir dans un nouvel onglet": "In neuem Tab öffnen",
+"Conversation IA du dossier": "KI-Gespräch der Akte",
+"Missions AxiorHub du dossier": "AxiorHub-Aufträge der Akte",
+"Conversation propre à chaque dossier": "Ein Gespräch pro Akte",
+"Clé d’API Open WebUI": "Open-WebUI-API-Schlüssel",
+"Remplacer la clé": "Schlüssel ersetzen",
+"Supprimer la clé": "Schlüssel löschen",
+"Ouverture de la conversation du dossier…": "Gespräch der Akte wird geöffnet…",
+"Open WebUI du cabinet": "Open WebUI der Kanzlei",
+"Tester l’affichage dans AxiorHub": "Anzeige in AxiorHub testen",
+"Votre clé d’API Open WebUI est enregistrée : chaque dossier ouvre sa propre conversation.": "Ihr Open-WebUI-API-Schlüssel ist gespeichert: Jede Akte öffnet ihr eigenes Gespräch.",
+"Sans clé, chaque ouverture propose une nouvelle conversation préremplie avec la référence du dossier.": "Ohne Schlüssel bietet jedes Öffnen ein neues, mit dem Aktenzeichen vorausgefülltes Gespräch an.",
+"Conversation du dossier ouverte.": "Gespräch der Akte geöffnet.",
+"Conversation du dossier créée dans Open WebUI.": "Gespräch der Akte in Open WebUI erstellt."
 }

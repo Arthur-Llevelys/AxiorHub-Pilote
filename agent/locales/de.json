@@ -606,6 +606,7 @@
  "fn.talk.desc": "Nextcloud Talk (Unterhaltungen und Anrufe) in AxiorHub, wenn Sie es aktivieren",
  "fn.talk.label": "Talk",
  "fn.messagerie.label": "Sofortnachrichten",
+ "fn.conversations_ia.label": "KI-Unterhaltungen",
  "fn.messagerie.desc": "Unterhaltungen zwischen Mitgliedern der Kanzlei, auf dem Server der Kanzlei",
  "fn.tracabilite.desc": "Was das Modell gesehen hat und verwendete Modelle",
  "fn.tracabilite.label": "Nachvollziehbarkeit",

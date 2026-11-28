@@ -868,9 +868,10 @@ class PageTalk(unittest.TestCase):
         nav = self.web.request('/aujourdhui')['body'].split('class="ws-primary"')[1].split('</nav>')[0]
         order = re.findall(r'href="/agent-courriel(/[a-z-]+)"', nav)          # 5.6.102 : « /a-relire » contient un tiret
         self.assertEqual(order[order.index('/planning') + 1], '/talk')          # juste après « Agenda et tâches »
-        self.assertEqual(len(order), 8)   # 5.6.50 : + Messagerie (après Courriels) ; 5.6.84 : facturation dans Toutes les fonctions ; 5.6.102 : + À relire
+        self.assertEqual(len(order), 9)   # 5.6.50 : + Messagerie (après Courriels) ; 5.6.84 : facturation dans Toutes les fonctions ; 5.6.102 : + À relire ; 5.6.112 : + Conversations IA
         self.assertEqual(order[order.index('/aujourdhui') + 1], '/a-relire')   # 5.6.102 (lot N) : juste après « Aujourd’hui »
         self.assertEqual(order[order.index('/courriels') + 1], '/messagerie')
+        self.assertEqual(order[order.index('/messagerie') + 1], '/conversations-ia')   # 5.6.112 : Open WebUI du cabinet
         self.assertFalse(self.talk.visible(self.desk.c, 'autre-utilisateur'))   # préférence propre à chaque utilisateur
         with self.assertRaisesRegex(Stop, 'reglage_modifie_entre_temps'):
             self.talk.save(self.desk, 'cabinet', {'enabled': '0', 'expected_version': 0})

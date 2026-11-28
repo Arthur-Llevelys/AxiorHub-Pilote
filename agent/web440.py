@@ -86,7 +86,8 @@ STATIC.update({'/static/v56109-simulation.css': 'text/css'})
 STATIC.update({'/static/v56110-dictee.js': 'text/javascript', '/static/v56110-dictee-carte.js': 'text/javascript', '/static/v56110-dictee.css': 'text/css'})   # 5.6.110 (lot D) : conversion en WAV avant /dictation (dictée sur ce poste), carte de Paramètres › Voix   # 5.6.109 (lot N, F14) : onglet « Simulation de décision » du dossier (aucun script propre : formulaires communs, tiroir Sources natif)
 STATIC.update({'/static/v56110-google-poste.js': 'text/javascript'})   # 5.6.110 (lot G) : Google sur un poste (copier l'adresse de retour, attente du retour déposé)
 STATIC.update({'/static/v56110-documents.js': 'text/javascript', '/static/v56110-documents.css': 'text/css'})   # 5.6.110 (lot S) : carte « Serveur de documents sur ce poste » (suivi des étapes)
-STATIC.update({'/static/v56111-conversation.js': 'text/javascript', '/static/v56111-conversation.css': 'text/css'})   # 5.6.111 (lot F) : onglet « Conversation IA » du dossier
+STATIC.update({'/static/v56111-conversation.js': 'text/javascript', '/static/v56111-conversation.css': 'text/css'})
+STATIC.update({'/static/v56112-conversations.js': 'text/javascript', '/static/v56112.css': 'text/css'})   # 5.6.112 : Conversations IA (Open WebUI)   # 5.6.111 (lot F) : onglet « Conversation IA » du dossier
 STATIC.update({'/static/v56111-portail.js': 'text/javascript', '/static/v56111-portail.css': 'text/css'})   # 5.6.111 (lot P) : envois préparés sur un portail (onglet Juridiction du dossier)
 STATIC.update({'/static/v56111-precontrole.js': 'text/javascript', '/static/v56111-envoi-relecture.js': 'text/javascript'})   # 5.6.111 (lot U) : carte « Précontrôle du poste » (B6, micro lu sans l'ouvrir) ; « Envoyer… » raccordé dans le lecteur d'À relire (U01)
 MAX_JSON = 260_000
@@ -1143,6 +1144,9 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m56111/portail/'):   # 5.6.111 (lot P) : envoi préparé sur un portail — envoi, envois du dossier, pièce relue, profils (GET) ; préparer, confirmer (garde commune), nouveau code, annuler, transmis, accusé, ouvrir, préremplir, constater, capacité (POST ; 403, 404 neutre, 409, no-store, clé d'idempotence ; aucun portail piloté sans adaptateur qualifié)
         from . import envoi_portail56111
         return envoi_portail56111.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56112/conversations/'):   # 5.6.112 : Conversations IA (Open WebUI) — tester l'affichage, ouvrir la conversation du dossier, clé d'API de la personne (POST, trois rôles, CSRF, no-store ; dossier relu par le service)
+        from . import conversations56112
+        return conversations56112.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m56111/precontrole/'):   # 5.6.111 (lot U, B6) : précontrôle du poste — état (GET, tous les rôles, aucun processus) ; vérifier (POST, administrateur, CSRF, no-store)
         from . import precontrole56111
         return precontrole56111.api(env, desk, auth, prefix, name, args, method)

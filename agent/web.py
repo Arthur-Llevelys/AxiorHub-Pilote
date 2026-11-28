@@ -650,10 +650,12 @@ class App:
             found=self.nextcloud_session(environ,auth)
             if found is not None:
                 environ['axiorhub.nc_origin']=found['origin'] or 'self'
+                environ.pop('HTTP_AUTHORIZATION',None)   # 5.6.112 : session Nextcloud, jamais confondue avec le jeton de service
                 return True
         if auth.get('poste') and environ.get('HTTP_COOKIE'):   # 5.6.25 : session de la fenêtre locale du poste
             from .poste_session import cookie_ok
             if cookie_ok(self.auth_path,environ):
+                environ.pop('HTTP_AUTHORIZATION',None)   # 5.6.112 : session du poste, jamais confondue avec le jeton de service
                 return True
         if environ.get('HTTP_COOKIE'):   # 5.6.48 : session ouverte par la page de connexion (version serveur)
             from . import connexion5648 as _cx48
@@ -666,6 +668,10 @@ class App:
                 except (OSError,sqlite3.Error):user=None
                 if user:
                     environ['axiorhub.user']=user
+                    # 5.6.112 (relecture 5.6.113) : une session de navigateur n'est jamais le jeton de service. Sans ce retrait,
+                    # un « Authorization: Bearer » quelconque ajouté à la requête faisait sauter le contrôle du rôle (_identity5648)
+                    # et les gardes qui reconnaissent le service à cet en-tête : une avocate obtenait les actions de l'administrateur.
+                    environ.pop('HTTP_AUTHORIZATION',None)
                     return True
         raw=environ.get('HTTP_AUTHORIZATION','')
         if not auth.get('hash'):   # 5.6.48 : premier lancement, aucun compte encore créé
@@ -916,6 +922,12 @@ class App:
                         frame_origin=(frame_origin+' '+talk_origin).strip()
                         headers=[(n,v) for n,v in headers if n!='Permissions-Policy']+[('Permissions-Policy',
                           'camera=(self "%s"), microphone=(self "%s"), display-capture=(self "%s"), fullscreen=(self "%s"), geolocation=()' % ((talk_origin,)*4))]
+                if _path=='/conversations-ia' or (_path=='/dossier' and 'vue=conversation' in str(env.get('QUERY_STRING',''))):
+                    # 5.6.112 : Open WebUI du cabinet dans un cadre (Conversations IA) : micro, presse-papiers et plein écran délégués à sa seule origine
+                    _owui112=(openwebui_parts.scheme+'://'+openwebui_parts.netloc) if openwebui_parts.scheme=='https' and openwebui_parts.hostname and not openwebui_parts.hostname.lower().endswith(('example.com','example.org','example.net')) else ''
+                    if _owui112:
+                        headers=[(n,v) for n,v in headers if n!='Permissions-Policy']+[('Permissions-Policy',
+                          'camera=(), microphone=(self "%s"), clipboard-read=(self "%s"), clipboard-write=(self "%s"), fullscreen=(self "%s"), display-capture=(), geolocation=()' % ((_owui112,)*4))]
                 # 5.6.94 (V02) : 'wasm-unsafe-eval' seul autorise la compilation WebAssembly (voix Brindille, Alkove) ; jamais 'unsafe-eval' ni 'unsafe-inline'
                 csp="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; form-action 'self'; frame-src 'self'"+((' '+frame_origin) if frame_origin else '')+"; frame-ancestors 'none'; base-uri 'none'"
                 headers=[(name,csp if name=='Content-Security-Policy' else value) for name,value in headers]

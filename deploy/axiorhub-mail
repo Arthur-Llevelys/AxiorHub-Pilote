@@ -3,13 +3,15 @@ set -euo pipefail
 task_cmd="${1:-status}"
 if [[ $# -eq 0 ]]; then set -- status; fi
 case "$task_cmd" in
-  configure|mode|discover|link|update|rollback)
+  configure|mode|discover|link|update|rollback|openwebui)
     if [[ $EUID -ne 0 ]]; then
       echo 'Cette commande se lance avec sudo.' >&2
       exit 2
     fi
     if [[ "$task_cmd" == update ]]; then shift; exec /usr/bin/python3 /opt/axiorhub-mail-agent/current/updater.py "$@"; fi
     if [[ "$task_cmd" == rollback ]]; then exec /usr/bin/python3 /opt/axiorhub-mail-agent/current/upgrade.py --rollback; fi
+    # 5.6.112 : réglage automatique d'Open WebUI d'après AxiorHub (root : jeton de l'outil)
+    if [[ "$task_cmd" == openwebui ]]; then shift; exec /usr/bin/python3 /opt/axiorhub-mail-agent/current/configure-openwebui.py "$@"; fi
     exec /usr/bin/python3 /opt/axiorhub-mail-agent/current/manage.py "$@"
     ;;
   *)

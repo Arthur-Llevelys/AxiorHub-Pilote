@@ -1,0 +1,66 @@
+{
+  "version": "5.6.112",
+  "base": "5.6.111",
+  "date_utc": "2026-11-27T00:00:00+00:00",
+  "demande": "5.6.112 : survol lisible des boutons à bordure bleue ; page « Conversations IA » affichant l’Open WebUI du cabinet ; onglet du dossier sur la conversation propre au dossier ; installation et réglage automatiques d’Open WebUI d’après AxiorHub ; sans régression.",
+  "regression": {
+    "command": "scripts/tests-paralleles.py, PYTHONUTF8=1, PYTHONPATH=shim",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 9887,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 177
+  },
+  "lots": [
+    {
+      "id": "S",
+      "titre": "Survol lisible des boutons, onglets et liens",
+      "etat": "raccorde_et_teste",
+      "verifie_avec": "mesure P112s dans un vrai navigateur (Edge), 17 pages, thèmes clair et sombre, avant et après ; tests unitaires"
+    },
+    {
+      "id": "C",
+      "titre": "Page « Conversations IA » et onglet du dossier (Open WebUI dans un cadre, conversation propre au dossier)",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires (faux Open WebUI calqué sur la 0.13.5) ; essai réel P112c : vraie Open WebUI 0.13.5 en HTTPS, clé vérifiée, conversation créée par AxiorHub, ouverte dans le cadre, retrouvée sans doublon",
+      "manque": "instance Open WebUI du cabinet ; navigateurs Firefox et Safari",
+      "remarques": "la session Open WebUI est celle du navigateur : une connexion dans le cadre la première fois"
+    },
+    {
+      "id": "O",
+      "titre": "Open WebUI clé en main : installation (Docker, Apache, administrateur), réglage, liaison, comptes, synchronisation",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires (faux Docker, faux Apache, faux Open WebUI) ; essais réels sur Open WebUI 0.13.5 : réglage complet deux fois (idempotent), installation neuve avec création de l’administrateur, mise à jour avec sauvegarde et retour arrière dans Docker, site Apache dans Ubuntu 24.04, compte d’une personne créé par AxiorHub puis conversation de dossier, synchronisation par le service",
+      "manque": "serveur Ubuntu réel avec Let’s Encrypt ; instance du cabinet ; question de la mise en service (install-interface.py) sur un vrai serveur",
+      "remarques": "connecteurs MCP OAuth à relier dans Open WebUI ; un compte Open WebUI préexistant garde sa propre clé"
+    },
+    {
+      "id": "A",
+      "titre": "Réglages identiques : paramètres des modèles (Qwen 3.8 27B, Qwen 3.5 9B…), voix et dictée",
+      "etat": "partiel",
+      "verifie_avec": "tests unitaires ; essais réels sur Open WebUI 0.13.5 : paramètres posés sur qwen3.8:27b et qwen3.5:9b (faux Ollama minimal annonçant ces deux modèles) et sur un modèle Mistral, voix Kokoro et Whisper large-v3-turbo relus dans Open WebUI",
+      "manque": "génération réelle par Qwen ; voix Kokoro réelle ; téléchargement de Whisper par Open WebUI",
+      "remarques": "Brindille et eSpeak n’existent pas dans Open WebUI : voix française du navigateur"
+    }
+  ],
+  "linux": "en cours",
+  "navigateur": "Edge 86/86 et Chromium 86/86 (scripts/parcours-navigateur.py -j 3 ; P97d et P02d en délai dépassé sous la charge des trois groupes, réussis relancés seuls sous Edge), dont P112s ; essai réel P112c (Open WebUI 0.13.5 d'essai en HTTPS) réussi",
+  "paquets": "en cours",
+  "changements_de_comportement": [
+    "Onglet « Conversation IA » du dossier : Open WebUI (conversation propre au dossier) ; missions AxiorHub par « Missions AxiorHub du dossier ».",
+    "Menu principal : entrée « Conversations IA » ajoutée après la messagerie instantanée.",
+    "Survol des onglets : fond doux de la marque au lieu du bleu soutenu.",
+    "Nouvelle commande : sudo axiorhub-mail openwebui ; mise en service : question « Installer maintenant Open WebUI ».",
+    "Chaque mise à jour d’AxiorHub resynchronise Open WebUI s’il est relié.",
+    "Chaque mise à jour remet à jour la commande axiorhub-mail (ancienne copie dans backups/) ; elle restait jusqu’ici celle de la première installation.",
+    "Sécurité : une session ouverte dans le navigateur (connexion, poste, Nextcloud) ignore désormais tout en-tête « Authorization: Bearer ». Avant, une personne connectée avec un rôle ordinaire qui ajoutait cet en-tête obtenait les pages et actions de l’administrateur (création d’un compte administrateur comprise) ; défaut présent depuis la 5.6.100, trouvé par la relecture de la 5.6.113."
+  ],
+  "limites": [
+    "Open WebUI n’est pas embarqué : il tourne à côté d’AxiorHub (Docker sur le serveur) ; son nom et son logo restent les siens.",
+    "Première ouverture du cadre : connexion à Open WebUI dans le cadre (session du navigateur), avec le mot de passe initial affiché une fois.",
+    "AxiorHub garde la clé d’un administrateur d’Open WebUI (chiffrée dans son coffre) : création des comptes et synchronisation.",
+    "Voix Brindille et eSpeak : propres à AxiorHub ; Open WebUI lit avec la voix française du navigateur.",
+    "Les clés des fournisseurs d’IA ne sont transmises à Open WebUI qu’après accord explicite ; elles y sont alors enregistrées.",
+    "Passage complet « comme GitHub » (un seul processus, Linux, hors dépôt Git) : voir le champ « linux »."
+  ]
+}

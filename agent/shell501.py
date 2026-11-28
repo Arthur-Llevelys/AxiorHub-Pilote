@@ -88,6 +88,7 @@ BUNDLE += ('v56111-activite.css',)   # 5.6.111 (lot C, L02) : indicateur d'activ
 BUNDLE += ('v56111-portail.css',)   # 5.6.111 (lot P) : « Envois sur le portail » (onglet Juridiction du dossier : préparation, code, récapitulatif, accusé)
 BUNDLE += ('v56111-ergonomie.css',)   # 5.6.111 (lot U) : écarts d'ergonomie mesurés (contrastes rendus, cibles de 24 px, 375 px) et carte « Précontrôle du poste »
 BUNDLE += ('v56111-conversation.css',)   # 5.6.111 (lot F) : onglet « Conversation IA » du dossier (grille, composeur, volet Document / Navigateur)
+BUNDLE += ('v56112.css',)   # 5.6.112 : survol lisible des onglets du contenu ; page « Conversations IA » et onglet du dossier (Open WebUI dans un cadre)
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -171,6 +172,12 @@ def nav_html(prefix, active_path):
         from .i18n5631 import t as _t50
         at50 = next(i for i, x in enumerate(entries) if x[0] == '/courriels') + 1
         entries.insert(at50, ('/messagerie', '❝', _t50('fn.messagerie.label')))
+    except Exception:   # noqa: BLE001
+        pass
+    try:   # 5.6.112 : « Conversations IA » (Open WebUI du cabinet), juste après la messagerie instantanée
+        from .i18n5631 import t as _t112
+        at112 = next(i for i, x in enumerate(entries) if x[0] == '/messagerie') + 1
+        entries.insert(at112, ('/conversations-ia', '✦', _t112('fn.conversations_ia.label')))
     except Exception:   # noqa: BLE001
         pass
     if relire_separe():   # 5.6.102 (lot N) : « À relire », accès principal distinct juste après « Aujourd'hui » (nouvelle interface)

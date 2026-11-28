@@ -16,7 +16,7 @@ TAILLE_MAX = 600
 EXCLUS = re.compile(r'^/(?:api|api440|static|live|deconnexion|connexion|logout|login|office|integration|pwa|healthz|readyz|action|dictation|assistant/attachment|templates/upload|hearing/upload|extensions/upload|nextcloud-session|poste-session)(?:/|$)')
 PARAMS_INTERDITS = re.compile(r'^(?:token|jeton|csrf|csrf_token|secret|password|mot_de_passe|passe|auth|authorization|session|sid|code|otp|signature|access_token|refresh_token|api_key|cle_api)$', re.I)
 OBLIQUES = '\\／＼⧵∕⁄﹨'
-ICONES_MENU = {'/aujourdhui': 'accueil', '/a-relire': 'voir', '/courriels': 'courriel', '/messagerie': 'discussion', '/dossiers': 'dossier', '/planning': 'agenda', '/talk': 'video', '/production': 'document_taches', '/parametres': 'reglages'}
+ICONES_MENU = {'/aujourdhui': 'accueil', '/a-relire': 'voir', '/courriels': 'courriel', '/messagerie': 'discussion', '/conversations-ia': 'ia', '/dossiers': 'dossier', '/planning': 'agenda', '/talk': 'video', '/production': 'document_taches', '/parametres': 'reglages'}
 # Détail -> (liste de repli, libellé). Un paramètre requis distingue le détail de la liste quand les deux partagent la même adresse.
 DETAILS = (('/mail', '', '/courriels', 'Retour aux courriels'), ('/dossier', '', '/dossiers', 'Retour aux dossiers'), ('/matter', '', '/dossiers', 'Retour aux dossiers'), ('/fiche', '', '/dossiers', 'Retour aux dossiers'),
            ('/chronologie', '', '/dossiers', 'Retour aux dossiers'), ('/livrables/', '', '/livrables', 'Retour aux documents'), ('/documents/edit', '', '/documents', 'Retour aux documents'),

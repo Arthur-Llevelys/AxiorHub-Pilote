@@ -14308,5 +14308,20 @@
 "Enregistrez d’abord votre texte : c’est la version enregistrée dans Brouillons qui part.": "Save your text first: the version saved in Drafts is the one sent.",
 "Brouillon introuvable dans la messagerie : rien n’est envoyé.": "Draft not found in the mailbox: nothing is sent.",
 "Envoi impossible pour le moment.": "Sending not possible for now.",
-"Envoi demandé.": "Sending requested."
+"Envoi demandé.": "Sending requested.",
+"Conversations IA": "AI conversations",
+"Ouvrir dans un nouvel onglet": "Open in a new tab",
+"Conversation IA du dossier": "Case AI conversation",
+"Missions AxiorHub du dossier": "AxiorHub case missions",
+"Conversation propre à chaque dossier": "One conversation per case",
+"Clé d’API Open WebUI": "Open WebUI API key",
+"Remplacer la clé": "Replace the key",
+"Supprimer la clé": "Delete the key",
+"Ouverture de la conversation du dossier…": "Opening the case conversation…",
+"Open WebUI du cabinet": "The firm’s Open WebUI",
+"Tester l’affichage dans AxiorHub": "Test the display in AxiorHub",
+"Votre clé d’API Open WebUI est enregistrée : chaque dossier ouvre sa propre conversation.": "Your Open WebUI API key is saved: each case opens its own conversation.",
+"Sans clé, chaque ouverture propose une nouvelle conversation préremplie avec la référence du dossier.": "Without a key, each opening offers a new conversation prefilled with the case reference.",
+"Conversation du dossier ouverte.": "Case conversation opened.",
+"Conversation du dossier créée dans Open WebUI.": "Case conversation created in Open WebUI."
 }

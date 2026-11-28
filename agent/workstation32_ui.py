@@ -168,6 +168,10 @@ def settings_page(desk,args,form,link):
         for key,label,_ in CABINET_SITES:
             out+=form('save_external_url','Enregistrer '+label,{'key':key,'back':'settings'},
                 '<label>'+e(label)+' — URL HTTPS<input type="url" name="value" maxlength="1000" value="'+e(links.get(key,''))+'"></label>')
+        from .conversations56112 import carte_admin_html as _carte112   # 5.6.112 : Open WebUI installé et réglé d'après AxiorHub
+        import re as _re112
+        _pre112=_re112.search(r'href="([^"]*)/conversations-ia',link('/conversations-ia','Conversations IA'))
+        out+=_carte112(desk,_pre112.group(1) if _pre112 else '')   # préfixe de l'interface lu dans un lien de la page
         openwebui=links.get('openwebui','')
         if openwebui:out+='<p>Pour ajouter un fournisseur OpenAI ou Mistral <strong>dans Open WebUI</strong>, ouvrez <a rel="noopener noreferrer" target="_blank" href="'+e(openwebui)+'">Open WebUI</a>, puis Paramètres administrateur → Connexions. Ce réglage concerne les conversations Open WebUI et ne bascule pas le moteur local AxiorHub.</p>'
         out+='<p class="notice">Les identifiants de messagerie, Nextcloud et MCP d’AxiorHub sont gérés par le service administrateur du serveur : l’interface n’a pas les droits nécessaires pour écrire les fichiers privés et ne collecte aucun mot de passe dans une note ou un champ non protégé.</p>'

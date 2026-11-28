@@ -28,12 +28,14 @@ from .common import Stop, matter_display
 # « Fichiers » : ``vue=documents`` reste un alias, ``fiche_ui5698``)
 TABS = (('synthese', 'Synthèse'), ('parties', 'Parties'), ('juridiction', 'Juridiction'), ('fichiers', 'Fichiers'), ('echanges', 'Correspondances'),
         ('faits', 'Procédure · Pièces'), ('agenda', 'Agenda et tâches'), ('gestion', 'Gestion'), ('travail', 'Travail de l’IA'),
-        ('conversation', 'Conversation IA'))   # 5.6.111 (lot F, F01) : vue du dossier rendue par conversation56111 (discussions, instruction, document ou navigateur)
+        ('conversation', 'Conversation IA'))   # 5.6.111 (lot F, F01) ; 5.6.112 : Open WebUI du cabinet dans un cadre, sur la conversation propre au dossier (conversations56112)
 ALIASES = {'': 'synthese', 'apercu': 'synthese', 'fiche': 'synthese', 'pieces': 'fichiers', 'documents': 'fichiers', 'procedure': 'faits', 'courriels': 'echanges',
            'correspondances': 'echanges', 'travaux': 'travail', 'taches': 'agenda', 'honoraires': 'gestion', 'intervenants': 'parties', 'instances': 'juridiction',
            'espace': 'conversation'}   # 5.6.111 : « Espace de travail » du lot proposé, renommé Conversation IA
 DETAIL_TAB = {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'fichiers', 'cloture': 'gestion'}
-DETAIL_VIEWS = ('informations', 'procedure-detail', 'pieces-detail', 'cloture')   # 5.6.97 : « Préparer la clôture » (lot gestion), depuis le menu « … »
+DETAIL_VIEWS = ('informations', 'procedure-detail', 'pieces-detail', 'cloture')
+# 5.6.112 : vue de la 5.6.111 (missions AxiorHub du dossier : recherche juridique, sous-agents, questionnaire), ouverte depuis l'onglet « Conversation IA »
+MISSIONS_IA = 'missions-ia'   # 5.6.97 : « Préparer la clôture » (lot gestion), depuis le menu « … »
 CATEGORIES = (('', 'Tous'), ('ecritures', 'Écritures'), ('decisions', 'Décisions'), ('actes', 'Actes et RPVA'), ('nos', 'Nos pièces'),
               ('adverses', 'Pièces adverses'), ('courriers', 'Courriers'), ('autres', 'Autres'), ('illisibles', 'Illisibles'))
 WRITINGS = ('conclusions', 'assignation', 'requete')
@@ -851,6 +853,8 @@ def page(desk, auth, prefix, args, shell):
     view = ALIASES.get(view, view)
     if view == 'simulation':   # 5.6.109 (lot N, F14) : même en-tête et même volet d'aperçu ; contenu rendu par simulation56109 (lecture seule)
         from .simulation56109 import page_dossier as _page56109n; return _page56109n(desk, auth, prefix, args, shell, m)
+    if view == MISSIONS_IA:   # 5.6.112 : rendu 5.6.111 inchangé, sous l'onglet « Conversation IA »
+        from .conversation56111 import page_dossier as _page56111f; return _page56111f(desk, auth, prefix, args, shell, m)
     if view not in dict(TABS) and view not in DETAIL_VIEWS:
         view = 'synthese'
     modele5651.ensure_schema(desk)
@@ -859,8 +863,8 @@ def page(desk, auth, prefix, args, shell):
             modele5651.rebuild(desk, m['id'])
         except Stop:
             pass
-    if view == 'conversation':   # 5.6.111 (lot F, F01) : même en-tête, volet d'aperçu commun placé à droite ; contenu rendu par conversation56111
-        from .conversation56111 import page_dossier as _page56111f; return _page56111f(desk, auth, prefix, args, shell, m)
+    if view == 'conversation':   # 5.6.112 : Open WebUI du cabinet dans un cadre, conversation propre au dossier ouverte ou créée (conversations56112)
+        from .conversations56112 import page_dossier as _page56112; return _page56112(desk, auth, prefix, args, shell, m)
     body = header_html(desk, prefix, m, view if view in dict(TABS) else DETAIL_TAB[view])
     if view in DETAIL_VIEWS:
         content = cloture_html(desk, auth, prefix, m, args) if view == 'cloture' else detail_html(desk, auth, prefix, m, args, view)

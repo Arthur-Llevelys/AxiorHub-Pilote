@@ -1829,6 +1829,8 @@ import parcours_p111p   # noqa: E402 — 5.6.111 (lot P) : envoi préparé sur u
 PARCOURS = PARCOURS + tuple(parcours_p111p.PARCOURS_P)
 import parcours_p111u   # noqa: E402 — 5.6.111 (lot U) : relecture, accueil, précontrôle (P111u-mesures se lance seul : outil de mesure)
 PARCOURS = PARCOURS + tuple(p for p in parcours_p111u.PARCOURS_U if p[0] != 'P111u-mesures')
+import parcours_p112   # noqa: E402 — 5.6.112 : survol lisible (P112c, essai réel avec une vraie Open WebUI, se lance seul)
+PARCOURS = PARCOURS + tuple(p for p in parcours_p112.PARCOURS_112 if p[0] != 'P112c-openwebui')
 
 # ------------------------------------------------------------------------------------------------ lancement
 def _tranche(ident):

@@ -208,6 +208,9 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56111/portail/'):   # 5.6.111 (lot P) : envoi préparé sur un portail (préparer, nouveau code, annuler : trois rôles ; confirmer, transmis, accusé, ouvrir : avocat et administrateur ; capacité : administrateur ; dossier, envoi et droits relus par le service)
         from .envoi_portail56111 import allowed as allowed56111p
         return allowed56111p(role, method, api)
+    if api.startswith('m56112/conversations/'):   # 5.6.112 : Conversations IA (trois rôles ; dossier relu par le service)
+        from .conversations56112 import allowed as allowed56112c
+        return allowed56112c(role, method, api)
     if api.startswith('m56111/precontrole/'):   # 5.6.111 (lot U, B6) : précontrôle du poste (état : trois rôles ; vérifier : administrateur)
         from .precontrole56111 import allowed as allowed56111u
         return allowed56111u(role, method, api)

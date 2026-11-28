@@ -606,6 +606,7 @@
  "fn.talk.desc": "Nextcloud Talk (discussions et appels) dans AxiorHub, si vous l’activez",
  "fn.talk.label": "Talk",
  "fn.messagerie.label": "Messagerie instantanée",
+ "fn.conversations_ia.label": "Conversations IA",
  "fn.messagerie.desc": "Conversations entre membres du cabinet, sur le serveur du cabinet",
  "fn.tracabilite.desc": "Ce qu’a vu le modèle et modèles utilisés",
  "fn.tracabilite.label": "Traçabilité",

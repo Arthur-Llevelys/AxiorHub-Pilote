@@ -112,6 +112,7 @@ EXPORT = (
        ('projets_de_pieces', 'pieces510_drafts', 'matter'), ('communications_de_pieces', 'pieces520_comms', 'matter'),   # pieces510, pieces520
        ('pieces_du_registre', 'exhibit_registry_v240', 'matter'),                                               # legal_research
        ('liens_espace_de_travail', 'matter_workspace_links_v310', 'matter'), ('liens_facturation', 'matter_invoice_links_v310', 'matter'),   # workstation
+       ('conversations_open_webui', 'openwebui_conversations_v56112', 'matter'),   # conversations56112 (5.6.112) : conversation Open WebUI de chaque dossier
        ('engagements_suivis', 'commitments_v568', 'matter'),                                                   # followup568
        ('preparations_d_evenement', 'p57_preparations', 'matter'), ('mises_a_jour_client', 'p57_updates', 'matter'),   # parcours5657
        ('comptes_rendus_d_audition', 'transcript_reports_v290', 'matter'),                                      # cabinet_pilot

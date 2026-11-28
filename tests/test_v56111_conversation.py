@@ -155,7 +155,7 @@ class Routes(Base):
 
 # ================================================================================================ F01 : onglet et page
 class Onglet(Base):
-    def page(self, qui=DURAND, vue='conversation', args=None):
+    def page(self, qui=DURAND, vue='missions-ia', args=None):   # 5.6.112 : vue de la 5.6.111, ouverte depuis l'onglet « Conversation IA »
         from agent import dossier5679
         shell = lambda titre, body, prefix, csrf, actif, head='': head + body
         with self.requete(qui):
@@ -177,7 +177,7 @@ class Onglet(Base):
         synthese = self.page(vue='')
         self.assertIn('vue=conversation', synthese)
         self.assertNotIn('id="c111"', synthese)
-        self.assertIn('id="c111"', self.page(vue='espace'))
+        self.assertNotIn('id="c111"', self.page(vue='espace'))      # 5.6.112 : l'alias mène à l'onglet, qui affiche Open WebUI
 
     def test_F01_contexte_affiche_fichiers_non_lus_et_navigateur_honnete(self):
         html = self.page()

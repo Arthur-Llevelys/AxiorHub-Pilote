@@ -18,7 +18,8 @@ PAGES = {
     '/connexions-retour': 'Connexions',   # 5.6.52 : retour d'autorisation OAuth (Microsoft Graph, Google Workspace, DocuSign)
     '/complement-word/volet': 'AxiorHub',
     '/toutes-les-fonctions': 'Toutes les fonctions',
-    '/messagerie': 'Messagerie instantanée',   # 5.6.50 ; 5.6.102 (lot N) : ancien titre « Messagerie du cabinet »
+    '/messagerie': 'Messagerie instantanée',
+    '/conversations-ia': 'Conversations IA',   # 5.6.112 : instance Open WebUI du cabinet dans un cadre (conversations de tous les dossiers)   # 5.6.50 ; 5.6.102 (lot N) : ancien titre « Messagerie du cabinet »
     '/savoir-faire': 'Savoir-faire du cabinet',   # 5.6.59 (A07)
     '/securite-ia': 'Sécurité de l’IA',   # 5.6.59 : instructions cachées dans les sources
     '/navigateur': 'Navigateur supervisé',   # 5.6.73 : poste Windows ou Ubuntu
@@ -57,6 +58,9 @@ def page(desk, auth, prefix, env, args, path, shell):
             raise Stop('role_insuffisant')
         from . import web5650
         body = web5650.droits_page(desk, auth, prefix, env, args)
+    elif path == '/conversations-ia':   # 5.6.112
+        from . import conversations56112
+        body = conversations56112.page_html(desk, auth, prefix, env, args)
     elif path == '/mobile':   # 5.6.74
         from . import appareils5674
         body = appareils5674.mobile_page(desk, prefix, args, env, auth=auth)
@@ -139,6 +143,10 @@ def page(desk, auth, prefix, env, args, path, shell):
         from .web567 import actor
         head = relecture56100.tete_html(prefix) if interface56100.active(desk, actor(env)[0]) else ''
         return shell(title, '<div class="p5636">' + body + '</div>', prefix, auth['csrf'], path, head=head)
+    if path == '/conversations-ia':   # 5.6.112 : ouverture de la conversation d'un dossier (?dossier=) après l'affichage
+        from html import escape as _e112
+        return shell(title, '<div class="p5636">' + body + '</div>', prefix, auth['csrf'], path,
+                     head='<script defer src="%s/static/v56112-conversations.js"></script>' % _e112(prefix, quote=True))
     html = shell(title, '<div class="p5636">' + body + '</div>', prefix, auth['csrf'], path)
     if path == '/messagerie' and 'data-t103-config' in body:   # 5.6.103 (lot T) : tableau blanc ouvert dans cette page (img-src data: blob:, rien d'externe)
         return {'status': '200 OK', 'kind': 'text/html; charset=utf-8', 'body': html, 'csp_img': 'data: blob:'}

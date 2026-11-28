@@ -2,7 +2,7 @@
 aside{background:#2474d2;color:#fff}
 .brand span,aside>p{color:#e6f1ff}
 nav a{color:#fff}
-nav a:hover{background:#438ae0}
+aside nav a:hover{background:#438ae0}
 a{color:#1767bd}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #ffbf47;outline-offset:2px}
 button{background:#39a966;color:#fff;font-weight:650}

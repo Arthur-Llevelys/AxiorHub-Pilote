@@ -214,17 +214,17 @@ def framing_verdict(header_items, own_origin, origin):
             'refusing': xfo if blocked else '', 'xfo_ignored': False}
 
 
-def test(desk, data, env=None):
-    """Diagnostic de l'intégration : en-têtes de la page Talk vus par le serveur (sans identifiant). Ne crée ni message ni salon."""
-    url = validate(desk.c, data.get('talk_url'))
+def premiere_reponse(url):
+    """En-têtes de la première réponse d'une page HTTPS (souvent une redirection vers la connexion), sans identifiant ; 5.6.112 : partagé
+    avec la page « Conversations IA » (Open WebUI). Rend ``(en-têtes, état)`` ; état : ``joignable``, ``http_5xx`` ou ``connexion_impossible``."""
     import http.client
     import ssl
     parts = urlsplit(url)
     items, status = [], ''
-    try:   # première réponse seulement (souvent une redirection vers la connexion) : ses en-têtes de sécurité suffisent au diagnostic
+    try:   # première réponse seulement : ses en-têtes de sécurité suffisent au diagnostic
         conn = http.client.HTTPSConnection(parts.hostname, parts.port or 443, timeout=15, context=ssl.create_default_context())
         try:
-            conn.request('GET', parts.path + (('?' + parts.query) if parts.query else ''), headers={'User-Agent': 'AxiorHub-Pilote'})
+            conn.request('GET', (parts.path or '/') + (('?' + parts.query) if parts.query else ''), headers={'User-Agent': 'AxiorHub-Pilote'})
             response = conn.getresponse()
             items = list(response.getheaders())
             status = 'joignable' if response.status < 500 else 'http_%d' % response.status
@@ -232,6 +232,14 @@ def test(desk, data, env=None):
             conn.close()
     except (OSError, http.client.HTTPException, ssl.SSLError):
         status = 'connexion_impossible'
+    return items, status
+
+
+def test(desk, data, env=None):
+    """Diagnostic de l'intégration : en-têtes de la page Talk vus par le serveur (sans identifiant). Ne crée ni message ni salon."""
+    url = validate(desk.c, data.get('talk_url'))
+    parts = urlsplit(url)
+    items, status = premiere_reponse(url)
     origin = axiorhub_origin(env)
     own = '%s://%s' % (parts.scheme, parts.netloc)
     verdict = framing_verdict(items, own, origin)

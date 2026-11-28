@@ -102,13 +102,14 @@ def p111f_conversation(banc, s):
     s.connecter()
     s.aller('/dossier?id=DOS-001')                       # première ouverture : reconstruction de la fiche du dossier (sans IA)
     chemin = semer(banc)
-    p.click('nav.d79-tabs a[href*="vue=conversation"]')
+    # 5.6.112 : l'onglet « Conversation IA » affiche Open WebUI ; la vue de la 5.6.111 s'ouvre par « Missions AxiorHub du dossier »
+    s.aller('/dossier?id=DOS-001&vue=missions-ia')
     p.wait_for_selector('#c111')
     p.wait_for_load_state('networkidle')
     verifier('Conversation IA' in p.inner_text('nav.d79-tabs a[aria-current="page"]'), 'onglet « Conversation IA » non marqué comme actif')
     for nom, vue in (('1920 × 1080', {'width': 1920, 'height': 1080}), ('125 %', {'width': 1536, 'height': 864})):
         p.set_viewport_size(vue)
-        s.aller('/dossier?id=DOS-001&vue=conversation')   # onglet ouvert à cette taille : aucun défilement fait par la personne
+        s.aller('/dossier?id=DOS-001&vue=missions-ia')   # onglet ouvert à cette taille : aucun défilement fait par la personne
         p.wait_for_timeout(400)
         for sel in COMMANDES:
             _visible(p, sel, 'onglet ouvert (%s)' % nom)
@@ -187,7 +188,7 @@ def p111f_conversation(banc, s):
     verifier(p.is_hidden('.c111-chat'), 'mode agrandi : la discussion reste affichée')
     p.click('[data-c111-agrandir]')
     p.set_viewport_size({'width': 375, 'height': 812})
-    s.aller('/dossier?id=DOS-001&vue=conversation')   # ouverture sur un téléphone
+    s.aller('/dossier?id=DOS-001&vue=missions-ia')   # ouverture sur un téléphone
     p.wait_for_timeout(400)
     verifier(p.evaluate(SANS_DEFILEMENT), 'défilement horizontal de l’onglet à 375 px')
     _visible(p, '[data-c111-vue="discussion"]', 'petit écran')

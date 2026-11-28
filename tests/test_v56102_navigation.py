@@ -42,7 +42,7 @@ class Menu(Base):
             html = self.route('/courriels')['body']
         ordre = _menu(html)
         self.assertEqual(ordre[:4], ['/aujourdhui', '/a-relire', '/courriels', '/messagerie'])
-        self.assertLessEqual(len(ordre), 8)                                    # 8 entrées principales au plus (Talk compris)
+        self.assertLessEqual(len(ordre), 9)                                    # 8 entrées principales au plus (Talk compris) ; 5.6.112 : + Conversations IA (demande du cabinet)
         self.assertIn('aria-current="page"', html.split('class="ws-primary"', 1)[1].split('href="/p/courriels"', 1)[1].split('</a>', 1)[0])
         self.assertEqual(reg.PRIMARY, navigation5643.PRIMARY)
         self.assertEqual(reg.PRIMARY[:3], ('aujourdhui', 'a_relire', 'courriels'))
@@ -52,8 +52,9 @@ class Menu(Base):
         from agent import talk5643
         with patch.object(talk5643, 'visible', lambda cfg, owner: True):
             ordre = _menu(self.route('/a-relire')['body'])
-        self.assertEqual(len(ordre), 8)
+        self.assertEqual(len(ordre), 9)   # 5.6.112 : + Conversations IA, juste après la messagerie
         self.assertEqual(ordre[ordre.index('/planning') + 1], '/talk')
+        self.assertEqual(ordre[ordre.index('/messagerie') + 1], '/conversations-ia')
         from agent.ui_navigation5689 import ICONES_MENU
         self.assertEqual(ICONES_MENU['/a-relire'], 'voir')
         # libellés longs (« Messagerie instantanée ») : retour à la ligne au lieu de déborder du menu déplié à 390 px (parcours P100r)

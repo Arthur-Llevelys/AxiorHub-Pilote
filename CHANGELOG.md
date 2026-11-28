@@ -3,6 +3,60 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.112 — Open WebUI clé en main : page « Conversations IA », conversation propre à chaque dossier, réglages identiques à AxiorHub ; survol lisible
+
+Demande du cabinet : afficher l'Open WebUI du cabinet dans AxiorHub avec toutes ses fonctions (historique de toutes les conversations),
+remplacer l'onglet « Conversation IA » du dossier par la conversation propre à ce dossier, installer et régler Open WebUI d'après les
+réglages d'AxiorHub, et corriger le survol illisible des boutons à bordure bleue. Détail et limites dans `VALIDATION-5.6.112.json`.
+
+**Sécurité (correctif)**
+- Une session ouverte dans le navigateur (page de connexion, poste, Nextcloud) ignore désormais tout en-tête
+  « Authorization: Bearer ». Avant, une personne connectée avec un rôle ordinaire qui ajoutait cet en-tête à ses requêtes
+  obtenait les pages et les actions de l'administrateur, création d'un compte administrateur comprise. Défaut présent depuis
+  la 5.6.100, trouvé par la relecture de la 5.6.113 ; test `tests/test_v56112_bearer.py`. Mise à jour recommandée.
+
+**Survol des boutons et onglets**
+- Une règle de la 1.5.1 colorait en bleu le fond de tout lien survolé dans une barre de navigation, sous un texte resté bleu (contraste
+  mesuré de 1,4 à 3,2:1). Elle ne vise plus que la barre latérale ; les onglets prennent au survol le fond doux de la marque sous leur
+  propre couleur. Mesuré dans un vrai navigateur sur 17 pages, thèmes clair et sombre : aucun survol sous 4,5:1.
+
+**Conversations IA (Open WebUI du cabinet dans AxiorHub)**
+- Nouvelle entrée « Conversations IA » du menu (après la messagerie instantanée) : l'instance Open WebUI du cabinet dans la page, avec
+  ses conversations de tous les dossiers, ses modèles et ses outils ; ses mises à jour s'appliquent sans nouvelle version d'AxiorHub ;
+  son nom et son logo restent les siens.
+- Onglet « Conversation IA » du dossier : Open WebUI dans un cadre, sur la conversation propre à ce dossier, retrouvée ou créée si elle
+  n'existe pas (ou plus), avec la clé d'API Open WebUI de la personne (saisie par elle, vérifiée, gardée chiffrée, jamais affichée).
+  Sans clé : nouvelle conversation dont la saisie est préremplie avec la référence du dossier, rien n'est envoyé sans clic. Les missions
+  AxiorHub de la 5.6.111 restent ouvertes par « Missions AxiorHub du dossier ».
+- « Tester l'affichage » dit si Open WebUI refuse d'être affiché dans AxiorHub et donne le réglage à poser
+  (`CONTENT_SECURITY_POLICY="frame-ancestors 'self' <adresse d'AxiorHub>"`) ; « Ouvrir dans un nouvel onglet » reste disponible.
+- Appels du serveur vers Open WebUI soumis à la passerelle des sorties (refusés en mode « local strict » tant que l'adresse n'est pas admise).
+
+**Open WebUI clé en main**
+- À la fin de la mise en service d'AxiorHub (`install-interface.py`), une question installe Open WebUI : `install-openwebui.py --nom
+  ia.<domaine>` (aussi seul) pose Open WebUI 0.13.5 dans Docker (image figée par son empreinte, écoute locale, secret fabriqué, affichage
+  dans AxiorHub autorisé, clés d'API activées, français), le publie en HTTPS par Apache (WebSocket), crée son compte administrateur (mot de
+  passe initial affiché une fois) et sa clé, le règle d'après AxiorHub et le relie à AxiorHub ; `--mettre-a-jour` sauvegarde les données
+  puis pose la version livrée, et remet l'ancienne si la nouvelle ne répond pas.
+- Instance déjà en place : `sudo axiorhub-mail openwebui` (clé d'API d'un administrateur d'Open WebUI) règle et relie de même. La
+  commande `axiorhub-mail` est désormais remise à jour à chaque mise à jour d'AxiorHub (elle restait celle de la première installation).
+- Réglages identiques à AxiorHub : outil AxiorHub et son jeton ; connexions IA (clés transmises seulement après accord, demandé une fois) ;
+  paramètres de génération de chaque modèle employé par AxiorHub, par exemple `qwen3.8:27b` et `qwen3.5:9b` (profil choisi, Juridique par
+  défaut : température 0,3, top p 0,9, top k 40, min p 0, pénalité 1,0 sur 64 jetons, contexte 32 768, sans « réflexion » ; pour Mistral,
+  OpenAI ou Anthropic, seuls ceux qu'AxiorHub leur transmet) ; voix (Kokoro ou Chatterbox : même serveur, même voix, même vitesse ;
+  dictée Whisper de même taille que celle d'AxiorHub ; Brindille et eSpeak, propres à AxiorHub : voix du navigateur) ; connecteurs MCP ;
+  compétences approuvées ; modèle « AxiorHub Avocat » (invite système, mêmes paramètres, choisi par défaut) ; invites /dossier,
+  /echeances, /courriel, /recherche. Tout le cabinet y a accès en lecture ; rien de ce que le cabinet a réglé n'est retiré.
+- Tenus identiques ensuite : un changement de ces réglages dans AxiorHub est reporté automatiquement (au plus toutes les dix minutes, à
+  l'affichage de Conversations IA ou des Paramètres) ; chaque mise à jour d'AxiorHub remet à jour l'outil et les réglages ;
+  « Synchroniser maintenant » dans Paramètres › Connexions.
+- Comptes : le compte Open WebUI de chaque personne est créé à sa première visite de « Conversations IA » (même adresse que dans
+  AxiorHub), avec sa clé d'API ; son mot de passe initial lui est affiché une seule fois. Un compte qui existait déjà n'est jamais modifié.
+
+**Non vérifié dans cette version**
+- Instance Open WebUI du cabinet (essais sur une instance 0.13.5 fictive, locale) ; connexion OAuth d'un connecteur MCP ; Ubuntu réel
+  avec Docker et Let's Encrypt (publication Apache essayée dans Ubuntu 24.04 avec un certificat d'essai).
+
 ## 5.6.111 — audit de la 5.6.110 : confirmations durcies, Conversation IA dans le dossier, Conseil par droit applicable, envoi préparé sur un portail
 
 Version construite à partir de l'audit de la 5.6.110 et de son dossier technique. Le lot de code proposé avec l'audit n'a pas été

@@ -117,6 +117,8 @@ def main():
     set_url.add_argument('key',choices=['roundcube','roundcube_drafts','openwebui','nextcloud','onlyoffice','invoice_ninja'])
     set_url.add_argument('value')
     mode = sub.add_parser('mode'); mode.add_argument('value',choices=['observe','drafts'])
+    sub.add_parser('openwebui-admin')   # 5.6.112 : clé d'administrateur d'Open WebUI lue sur l'entrée standard (JSON), jamais en argument
+    sub.add_parser('openwebui-synchroniser')   # 5.6.112 : réglages d'AxiorHub reportés dans Open WebUI (sans l'outil)
     report = sub.add_parser('report'); report.add_argument('key',nargs='?')
     forget = sub.add_parser('memory-forget'); forget.add_argument('key')
     retry = sub.add_parser('retry'); retry.add_argument('key')
@@ -148,6 +150,16 @@ def main():
         report=run(Desk(c))
         for s in report['steps']:print(('OK  ' if s['ok'] else 'N/A ' if s['ok'] is None else 'KO  ')+s['label']+' : '+s['message'])
         return 0 if report['ok'] else 1
+    if args.command=='openwebui-admin':   # 5.6.112 : appelé par configure-openwebui.py (root) sous le compte du service
+        from agent.desk import Desk
+        from agent import conversations56112
+        data=json.loads(sys.stdin.read(4096) or '{}')
+        print(json.dumps(conversations56112.enregistrer_cle_admin(Desk(c),data.get('cle',''),bool(data.get('accord_cles')),bool(data.get('inscription_fermee'))),ensure_ascii=False));return 0
+    if args.command=='openwebui-synchroniser':
+        from agent.desk import Desk
+        from agent import conversations56112
+        for r in conversations56112.synchroniser(Desk(c)):print(r['etat'].ljust(7),r['etape'],':',r['detail'])
+        return 0
     if args.command=='set-url':
         from agent.desk import Desk
         from agent.workstation import save_external_url

@@ -163,7 +163,8 @@ ROLES = {'securite_serveur': ('administrateur',)}
 # 5.6.102 (lot N) : accès principaux du menu servis hors du registre (aucune famille, aucun onglet) mais trouvables par Ctrl+K, sous leur
 # nom et leurs anciens noms : la messagerie interne (5.6.50), renommée « Messagerie instantanée ». Le registre figé n'est pas touché.
 HORS_REGISTRE = (('messagerie', '/messagerie', ('Messagerie', 'Messagerie du cabinet', 'Messages internes', 'Discussion interne', 'Chat',
-                                                'Instant messaging', 'Instant talk')),)
+                                                'Instant messaging', 'Instant talk')),
+                ('conversations_ia', '/conversations-ia', ('Conversations IA', 'Conversation IA', 'Open WebUI', 'Chat IA', 'Discussions IA', 'AI conversations')),)   # 5.6.112
 # Étape du guide d'installation qui configure chaque capacité (NV04 : « Configurer » ouvre directement l'étape pertinente).
 GUIDE_STEP = {'storage': 'stockage', 'ai': 'ia', 'mail': 'messagerie', 'calendar': 'agenda', 'telephony': 'telephonie', 'invoice': 'facturation'}
 

@@ -14308,5 +14308,20 @@
 "Enregistrez d’abord votre texte : c’est la version enregistrée dans Brouillons qui part.": "Guarde primero su texto: se envía la versión guardada en Borradores.",
 "Brouillon introuvable dans la messagerie : rien n’est envoyé.": "Borrador no encontrado en el buzón: no se envía nada.",
 "Envoi impossible pour le moment.": "Envío imposible por ahora.",
-"Envoi demandé.": "Envío solicitado."
+"Envoi demandé.": "Envío solicitado.",
+"Conversations IA": "Conversaciones IA",
+"Ouvrir dans un nouvel onglet": "Abrir en una pestaña nueva",
+"Conversation IA du dossier": "Conversación IA del expediente",
+"Missions AxiorHub du dossier": "Misiones AxiorHub del expediente",
+"Conversation propre à chaque dossier": "Una conversación por expediente",
+"Clé d’API Open WebUI": "Clave API de Open WebUI",
+"Remplacer la clé": "Sustituir la clave",
+"Supprimer la clé": "Eliminar la clave",
+"Ouverture de la conversation du dossier…": "Abriendo la conversación del expediente…",
+"Open WebUI du cabinet": "Open WebUI del despacho",
+"Tester l’affichage dans AxiorHub": "Probar la visualización en AxiorHub",
+"Votre clé d’API Open WebUI est enregistrée : chaque dossier ouvre sa propre conversation.": "Su clave API de Open WebUI está guardada: cada expediente abre su propia conversación.",
+"Sans clé, chaque ouverture propose une nouvelle conversation préremplie avec la référence du dossier.": "Sin clave, cada apertura propone una nueva conversación con la referencia del expediente.",
+"Conversation du dossier ouverte.": "Conversación del expediente abierta.",
+"Conversation du dossier créée dans Open WebUI.": "Conversación del expediente creada en Open WebUI."
 }
